@@ -118,7 +118,7 @@ async function remember(key, ttl, produce, fresh = false) {
 
 /* ───────── Site ───────── */
 async function siteResponse(env, ctx, fresh) {
-  const cacheKey = new Request("https://archives.cache/api/site/v1");
+  const cacheKey = new Request("https://archives.cache/api/site/v2");
   if (!fresh) {
     const cached = await caches.default.match(cacheKey).catch(() => null);
     if (cached) return cached;
@@ -187,6 +187,7 @@ async function crawlSite(env) {
     name: cleanLabel(siteName),
     source: `${SITE_ORIGIN}${SITE_HOME}`,
     updatedAt: new Date().toISOString(),
+    nav: navItems(home.text),
     pages: list,
     files: [...docs.values()].map((doc) => ({ key: refKey(doc), kind: doc.kind, id: doc.id, pub: Boolean(doc.pub), gid: doc.gid || "", label: cleanLabel(doc.label), title: cleanLabel(doc.title || ""), pages: doc.pages.map((path) => (path === SITE_HOME ? "" : path.slice(SITE_PREFIX.length + 1))) }))
   };
@@ -207,6 +208,56 @@ function decodeEntities(value = "") {
     .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
     .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
+}
+
+/* The site's own menu, as Google Sites draws it: every entry of the first <nav> that has
+ * any, in order, with its depth in the menu (a dropdown's pages sit one level below the
+ * tab they hang from). The depth comes from the item's data-nav-level / aria-level when
+ * Google provides one, otherwise from how deeply its list is nested. Entries are pages of
+ * this site ({ path }) or links that leave it ({ href }). */
+function navItems(html) {
+  for (const region of html.match(/<nav\b[\s\S]*?<\/nav>/gi) || []) {
+    const raw = [];
+    const tag = /<(\/?)(ul|ol|li|a)\b([^>]*)>/gi;
+    let match, depth = 0, liLevel = 0;
+    while ((match = tag.exec(region))) {
+      const [, close, rawName, attrs] = match;
+      const name = rawName.toLowerCase();
+      if (name === "ul" || name === "ol") { depth = Math.max(0, depth + (close ? -1 : 1)); continue; }
+      if (name === "li") { if (!close) liLevel = Number((attrs.match(/\b(?:data-nav-level|aria-level)="(\d+)"/i) || [])[1]) || 0; continue; }
+      if (close) continue;
+      const end = region.indexOf("</a>", tag.lastIndex);
+      const inner = end > 0 ? region.slice(tag.lastIndex, end) : "";
+      const href = decodeEntities((attrs.match(/\bhref="([^"]*)"/i) || [])[1] || "").trim();
+      if (!href || href.startsWith("#") || /^javascript:/i.test(href)) continue;
+      const label = cleanLabel(stripTags(inner) || decodeEntities((attrs.match(/\baria-label="([^"]*)"/i) || [])[1] || ""));
+      if (!label) continue;
+      raw.push({ href, label, level: liLevel || depth });
+    }
+    const listed = raw.filter((item) => item.level > 0);
+    if (!listed.length) continue;
+    const base = Math.min(...listed.map((item) => item.level));
+    const seen = new Set();
+    const items = [];
+    for (const item of listed) {
+      const path = sitePath(item.href);
+      let entry;
+      if (path) entry = { path: path === SITE_HOME ? "" : path.slice(SITE_PREFIX.length + 1) };
+      else {
+        try {
+          const url = new URL(unwrapGoogleRedirect(item.href), SITE_ORIGIN);
+          if (!["http:", "https:"].includes(url.protocol)) continue;
+          entry = { href: url.href };
+        } catch { continue; }
+      }
+      const key = entry.path ?? entry.href;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push({ ...entry, label: item.label, level: Math.min(4, item.level - base + 1) });
+    }
+    if (items.length) return items;
+  }
+  return [];
 }
 
 /* Links to other pages of this site, in document order (the header navigation comes first). */

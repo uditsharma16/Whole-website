@@ -12,7 +12,10 @@ Source site: https://sites.google.com/view/tso-central-archives/home
 
 | On the Google Site | In the archive |
 | --- | --- |
-| A page (navigation, or linked from another page) | A vault at `/p/<page-path>` |
+| A tab in the site's menu | A section (I, II, III…) in the index rail and the orrery |
+| A page in a tab's dropdown | An inner vault (II.1, II.2…) inside its section |
+| A page only linked from other pages | A vault under the page its address sits beneath |
+| A menu link that leaves the site | The same link, in the same place in the rail |
 | A linked or embedded Google Doc | A reading page at `/doc/<id>` with contents, footnotes and full-text search |
 | A Google Sheet | A filterable table per tab at `/sheet/<id>` |
 | Slides, Forms, Drive files and folders | A framed viewer at `/slides/…`, `/form/…`, `/file/…`, `/folder/…` |
