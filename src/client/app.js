@@ -2,7 +2,11 @@
  * Content comes from /api/site (the Worker's live read of the Order's Google Site) and is
  * re-checked on a timer, so a page published on Google Sites appears here without a reload.
  * Every Google Doc the site links to or embeds opens here as a page of its own (/api/doc);
- * Sheets become tables, and Slides, Forms and Drive files open in a framed viewer. */
+ * Sheets become tables, and Slides, Forms and Drive files open in a framed viewer.
+ *
+ * The archive is laid out like one: an index rail down the left, an orrery of vaults around
+ * the archive core at the gate, records shelved as spines in the stacks, documents opened as
+ * dossiers with a chapter scrubber, a card catalogue, and a terminal for queries. */
 
 const P = window.ArchiveParse;
 const POLL_MS = 90_000;
@@ -18,13 +22,13 @@ const fallback = {
 };
 
 const KIND = {
-  document: { label: "Document", plural: "Documents", app: "Google Docs" },
-  spreadsheets: { label: "Spreadsheet", plural: "Spreadsheets", app: "Google Sheets" },
-  presentation: { label: "Slides", plural: "Slide decks", app: "Google Slides" },
-  forms: { label: "Form", plural: "Forms", app: "Google Forms" },
-  drawings: { label: "Drawing", plural: "Drawings", app: "Google Drawings" },
-  file: { label: "File", plural: "Files", app: "Google Drive" },
-  folder: { label: "Folder", plural: "Folders", app: "Google Drive" }
+  document: { label: "Document", plural: "Documents", short: "Doc", app: "Google Docs" },
+  spreadsheets: { label: "Spreadsheet", plural: "Spreadsheets", short: "Sheet", app: "Google Sheets" },
+  presentation: { label: "Slides", plural: "Slide decks", short: "Deck", app: "Google Slides" },
+  forms: { label: "Form", plural: "Forms", short: "Form", app: "Google Forms" },
+  drawings: { label: "Drawing", plural: "Drawings", short: "Draw", app: "Google Drawings" },
+  file: { label: "File", plural: "Files", short: "File", app: "Google Drive" },
+  folder: { label: "Folder", plural: "Folders", short: "Folder", app: "Google Drive" }
 };
 const GENERIC_LABEL = /^(open|view|link|here|click here|click|document|doc|file|read|read more|more|go|visit|download|preview|open document|view document|\d+)$/i;
 
@@ -33,6 +37,7 @@ const docCache = new Map();
 const app = document.getElementById("app");
 const byId = (id) => document.getElementById(id);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const narrow = matchMedia("(max-width: 960px)");
 const esc = P.esc;
 
 /* ───────── Data + live sync ───────── */
@@ -47,9 +52,7 @@ const signatureOf = (site) => JSON.stringify([site.name, site.pages.map((page) =
 
 function prepareSite(raw) {
   const files = new Map();
-  for (const file of raw.files || []) {
-    files.set(file.key, { ...file, docTitle: docCache.get(file.key)?.value?.title || "", order: files.size });
-  }
+  for (const file of raw.files || []) files.set(file.key, { ...file, docTitle: docCache.get(file.key)?.value?.title || "", order: files.size });
   const pages = raw.pages.map((page, index) => {
     const parsed = P.sitePage(page.html || "", { title: page.title, siteName: raw.name });
     // Embedded files with no name of their own borrow the label they were given on the page.
@@ -77,7 +80,7 @@ async function start() {
   }
   state.signature = state.site.signature;
   state.lastSync = Date.now();
-  renderMenus();
+  renderRail();
   route();
   updateSyncLabel();
   nameUnnamedFiles();
@@ -98,7 +101,7 @@ async function refresh() {
     if (changed) {
       state.site = next;
       state.signature = next.signature;
-      renderMenus();
+      renderRail();
       if (!isFilePath(currentPath())) route({ preserveScroll: true, instant: true });
       if (!byId("searchPanel").hidden) renderSearch(byId("globalSearch").value);
       nameUnnamedFiles();
@@ -110,6 +113,10 @@ async function refresh() {
   updateSyncLabel();
 }
 
+function syncAgo() {
+  const seconds = Math.round((Date.now() - state.lastSync) / 1000);
+  return seconds < 45 ? "just now" : seconds < 3600 ? `${Math.round(seconds / 60)} min ago` : `${Math.round(seconds / 3600)} h ago`;
+}
 function updateSyncLabel() {
   const pill = byId("syncPill");
   if (!state.site) return;
@@ -122,14 +129,12 @@ function updateSyncLabel() {
   }
   pill.dataset.state = state.live ? "live" : "offline";
   byId("droid").dataset.state = pill.dataset.state;
-  const seconds = Math.round((Date.now() - state.lastSync) / 1000);
-  const ago = seconds < 45 ? "just now" : seconds < 3600 ? `${Math.round(seconds / 60)} min ago` : `${Math.round(seconds / 3600)} h ago`;
   byId("syncStatus").textContent = state.live ? "Live" : "Reconnecting";
-  byId("footerSync").textContent = state.live ? `Synced · ${ago}` : `Unreachable · last synced ${ago}`;
+  byId("footerSync").textContent = state.live ? `Synced ${syncAgo()}` : `Unreachable · last synced ${syncAgo()}`;
 }
 
 /* Files the site never named (a bare embed, or a link that just says "here") get their real
- * title from Google, a few at a time, and every card showing them is updated in place. */
+ * title from Google, a few at a time, and every place showing them is updated in place. */
 async function nameUnnamedFiles() {
   const unnamed = state.site.files.filter((file) => !fileTitle(file, true));
   for (let i = 0; i < unnamed.length; i += 4) {
@@ -143,25 +148,31 @@ async function nameUnnamedFiles() {
   }
 }
 function refreshFileNames(file) {
-  document.querySelectorAll(`[data-file-name="${CSS.escape(file.key)}"]`).forEach((node) => { node.textContent = fileTitle(file); if (node.hasAttribute("aria-label")) node.setAttribute("aria-label", fileTitle(file)); });
+  document.querySelectorAll(`[data-file-name="${CSS.escape(file.key)}"]`).forEach((node) => {
+    node.textContent = fileTitle(file);
+    if (node.hasAttribute("aria-label")) node.setAttribute("aria-label", fileTitle(file));
+  });
 }
 
 /* ───────── Helpers ───────── */
-const slug = P.slug;
 function currentPath() { return location.pathname; }
 const homePage = () => state.site.pages.find((page) => page.path === "") || state.site.pages[0];
 const vaults = () => state.site.pages.filter((page) => page !== homePage());
 const pageHref = (page) => (page.path ? `/p/${page.path}` : "/");
 const fileHref = (file) => P.fileRoute(file);
 const fileByKey = (key) => state.site.files.find((file) => file.key === key);
+const depthOf = (page) => Math.max(0, page.path.split("/").length - 1);
 const meaningful = (label = "") => label && label.length > 1 && label.length < 160 && !GENERIC_LABEL.test(label.trim()) && !/^https?:\/\//i.test(label);
 function fileTitle(file, strict = false) {
   const name = (meaningful(file.label) ? file.label : "") || file.docTitle || file.title;
   return strict ? name : name || `Untitled ${KIND[file.kind]?.label.toLowerCase() || "file"}`;
 }
 function filePages(file) { return file.pages.map((path) => state.site.pages.find((page) => page.path === path)).filter(Boolean); }
-function fileVault(file) { return filePages(file).find((page) => page.path) || filePages(file)[0] || null; }
+function fileVault(file) { return filePages(file).find((page) => page.path) || null; }
+/* Every record has a catalogue reference, in the order the site first mentions it. */
+const fileRefNo = (file) => (Number.isFinite(file.order) ? `TSO-CA/${String(file.order + 1).padStart(3, "0")}` : "TSO-CA/—");
 const canThumb = (file) => !file.pub && ["document", "spreadsheets", "presentation", "drawings", "file"].includes(file.kind);
+const thumbSrc = (file) => `/api/img?thumb=${encodeURIComponent(file.id)}`;
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 const pad = (number) => String(number).padStart(2, "0");
 function roman(number) {
@@ -169,6 +180,7 @@ function roman(number) {
   let out = ""; for (const [value, numeral] of map) while (number >= value) { out += numeral; number -= value; }
   return out;
 }
+const vaultNumeral = (page) => { const index = vaults().indexOf(page); return index >= 0 ? roman(index + 1) : ""; };
 function formatDate(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -191,6 +203,11 @@ function recordOfTheDay(files) {
   let best = null, bestScore = -1;
   for (const file of files) { const score = seededRandom(`${day}:${file.key}`); if (score > bestScore) { bestScore = score; best = file; } }
   return best;
+}
+function spotlightFile() {
+  const files = state.site.files;
+  const documents = files.filter((file) => file.kind === "document");
+  return files.length ? recordOfTheDay(documents.length ? documents : files) : null;
 }
 
 /* A deterministic seal per vault/file, so entries without artwork still have a face. */
@@ -217,16 +234,15 @@ const KIND_ICON = {
   folder: `<path d="M3 6h7l2 2h9v12H3Z"/>`
 };
 const kindIcon = (kind) => `<svg class="kind-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">${KIND_ICON[kind] || KIND_ICON.file}</svg>`;
-const SEARCH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>`;
-const RANDOM_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`;
-const SABER_RULE = (label) => `<div class="rule" role="presentation"><span class="rule-blade"></span><b>${esc(label)}</b><span class="rule-blade"></span></div>`;
+const SABER_RULE = (label, id = "") => `<div class="rule"${id ? ` id="${id}"` : ""}><span class="rule-blade" aria-hidden="true"></span><b>${esc(label)}</b><span class="rule-blade" aria-hidden="true"></span></div>`;
+const thumbHtml = (file) => (canThumb(file) ? `<img src="${thumbSrc(file)}" alt="" loading="lazy" />` : glyph(file.key));
 
 /* ───────── Routing ───────── */
 function parseRoute(path = currentPath()) {
   const parts = path.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
   if (!parts.length) return { view: "home" };
   if (parts[0] === "p") return { view: "page", path: parts.slice(1).join("/") };
-  if (parts[0] === "codex") return { view: "codex" };
+  if (parts[0] === "codex" || parts[0] === "catalogue") return { view: "codex" };
   const kind = P.ROUTE_KIND[parts[0]];
   if (kind) {
     const pub = parts[1] === "e";
@@ -240,16 +256,18 @@ const isFilePath = (path) => parseRoute(path.split("?")[0]).view === "file";
 function route(options = {}) {
   const render = () => {
     state.renderToken += 1;
+    hideScrubber();
     const target = parseRoute();
-    if (target.view === "home") return renderHome(options);
-    if (target.view === "codex") return renderCodex(options);
+    markActiveRail(target);
+    if (target.view === "home") return renderGate(options);
+    if (target.view === "codex") return renderCatalogue(options);
     if (target.view === "page") {
       const page = state.site.pages.find((item) => item.path === target.path);
-      return page ? renderVault(page, options) : renderNotFound();
+      return page ? renderChamber(page, options) : renderNotFound();
     }
     if (target.view === "file") {
       const key = P.fileKey(target);
-      const file = fileByKey(key) || { key, kind: target.kind, id: target.id, pub: target.pub, gid: target.gid, label: "", title: "", pages: [], docTitle: "", order: Infinity, external: true };
+      const file = fileByKey(key) || { key, kind: target.kind, id: target.id, pub: target.pub, gid: target.gid, label: "", title: "", pages: [], docTitle: "", order: NaN };
       if (target.gid && !file.gid) file.gid = target.gid;
       return renderFile(file, options);
     }
@@ -280,9 +298,8 @@ function navigate(href) {
 /* ───────── Blast doors ─────────
  * Opening a record seals the archive for a heartbeat: two armoured doors slam together,
  * a crimson seam ignites along the join like a blade, the record is swapped in behind
- * them, and they draw apart again. Hand-timed in beats rather than one cross-fade. */
+ * them, and they draw apart again. Each beat waits for the doors to actually arrive. */
 let doorsBusy = false;
-/* Resolves when the doors finish moving, or after `limit` ms if a transition never reports. */
 function doorsSettled(doors, limit) {
   const door = doors.querySelector(".door-top");
   return new Promise((resolve) => {
@@ -319,28 +336,76 @@ function afterRender(options = {}) {
   updateProgress();
 }
 
-/* ───────── Menus ───────── */
-function renderMenus() {
+/* ───────── Index rail ───────── */
+function renderRail() {
   const list = vaults();
-  byId("sectionsPopover").innerHTML = list.length
-    ? list.map((page, index) => `<a href="${pageHref(page)}" data-link style="--depth:${page.path.split("/").length - 1}"><em>${roman(index + 1)}</em><span>${esc(page.title)}</span><small>${page.fileKeys.length || ""}</small></a>`).join("")
-    : `<p class="popover-empty">No vaults have been opened yet.</p>`;
+  byId("railNav").innerHTML = `
+    <a class="rail-link" href="/" data-link data-route="/"><em aria-hidden="true">◆</em><span>The Gate</span></a>
+    ${list.length ? `<p class="rail-label">Vaults</p>${list.map((page, index) => `<a class="rail-link" href="${pageHref(page)}" data-link data-route="${pageHref(page)}" style="--depth:${depthOf(page)}"><em>${roman(index + 1)}</em><span>${esc(page.title)}</span>${page.fileKeys.length ? `<small>${page.fileKeys.length}</small>` : ""}</a>`).join("")}` : ""}
+    <p class="rail-label">Records</p>
+    <a class="rail-link" href="/codex" data-link data-route="/codex"><em aria-hidden="true">✦</em><span>The Catalogue</span><small>${state.site.files.length}</small></a>
+    <button type="button" class="rail-link" id="randomButton"><em aria-hidden="true">⟳</em><span>Random record</span></button>`;
+  byId("randomButton").addEventListener("click", jumpToRandomRecord);
   byId("footerSource").href = state.site.source || SITE_URL;
+  markActiveRail(parseRoute());
 }
+function markActiveRail(target) {
+  let active = currentPath();
+  if (target.view === "file") { const file = fileByKey(P.fileKey(target)); const vault = file && fileVault(file); active = vault ? pageHref(vault) : "/codex"; }
+  if (target.view === "codex") active = "/codex";
+  document.querySelectorAll(".rail-link[data-route]").forEach((link) => {
+    if (link.dataset.route === active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
+  });
+}
+function openRail() { document.body.classList.add("rail-open"); byId("railScrim").hidden = false; byId("menuToggle").setAttribute("aria-expanded", "true"); }
+function closeMenus() { document.body.classList.remove("rail-open"); byId("railScrim").hidden = true; byId("menuToggle").setAttribute("aria-expanded", "false"); }
 
 /* ───────── Shared pieces ───────── */
-function fileThumb(file, size = "") {
-  return `<span class="file-thumb${size ? ` ${size}` : ""}" data-seed="${esc(file.key)}">${canThumb(file) ? `<img src="/api/img?thumb=${encodeURIComponent(file.id)}" alt="" loading="lazy" />` : glyph(file.key)}<span class="file-kind">${kindIcon(file.kind)}${esc(KIND[file.kind]?.label || "File")}</span></span>`;
+/* A record on the shelf: a bound spine whose height, width and binding come from the record
+ * itself, so the stacks look collected over time rather than printed in one batch. */
+function spineHtml(file, index = 0) {
+  const r = seededRandom(file.key), r2 = seededRandom(`${file.key}:w`);
+  const title = fileTitle(file);
+  const height = 13 + r * 4.6;
+  const width = Math.min(5.1, 3.2 + Math.min(title.length, 60) / 38 + r2 * .5);
+  return `<a class="spine tone-${Math.floor(r2 * 4)}" role="listitem" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}" data-spine="${esc(file.key)}" style="--h:${height.toFixed(2)}rem;--w:${width.toFixed(2)}rem;--d:${Math.min(index * 45, 420)}ms">
+    <span class="spine-cap">${kindIcon(file.kind)}</span>
+    <span class="spine-title" data-file-name="${esc(file.key)}">${esc(title)}</span>
+    <span class="spine-foot">${esc(fileRefNo(file).slice(-3))}</span>
+  </a>`;
 }
-function fileCard(file, index = 0, context = {}) {
-  const vault = context.hideVault ? null : fileVault(file);
-  return `<a class="file-card" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}" data-reveal style="--d:${Math.min(index * 60, 420)}ms">
-    ${fileThumb(file)}
-    <span class="file-body">
-      ${vault ? `<small>${esc(vault.title)}</small>` : `<small>${esc(KIND[file.kind]?.app || "Google Drive")}</small>`}
-      <strong data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</strong>
-      <em>${file.kind === "document" ? "Read in the archive" : file.kind === "spreadsheets" ? "Open the ledger" : "Open the viewer"} <span aria-hidden="true">→</span></em>
-    </span>
+function plaqueHtml(file) {
+  const vault = fileVault(file);
+  return `<span class="plaque-thumb" data-seed="${esc(file.key)}">${thumbHtml(file)}</span>
+    <span class="plaque-text"><small>${esc(fileRefNo(file))} · ${esc(KIND[file.kind]?.label || "File")}${vault ? ` · ${esc(vault.title)}` : ""}</small><strong data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</strong></span>
+    <span class="plaque-open" aria-hidden="true">Unseal →</span>`;
+}
+function shelfHtml(files) {
+  if (!files.length) return "";
+  return `<div class="shelf-wrap" data-reveal>
+    <div class="shelf" role="list">${files.map(spineHtml).join("")}</div>
+    <a class="plaque" href="${fileHref(files[0])}" data-link data-plaque="${esc(files[0].key)}" tabindex="-1">${plaqueHtml(files[0])}</a>
+  </div>`;
+}
+function setPlaque(spine) {
+  const plaque = spine.closest(".shelf-wrap")?.querySelector(".plaque");
+  const file = fileByKey(spine.dataset.spine);
+  if (!plaque || !file || plaque.dataset.plaque === file.key) return;
+  plaque.dataset.plaque = file.key;
+  plaque.href = fileHref(file);
+  plaque.innerHTML = plaqueHtml(file);
+  plaque.classList.remove("flip"); void plaque.offsetWidth; plaque.classList.add("flip");
+  bindImageFallbacks(plaque);
+}
+/* A catalogue slip: one record as a line in the card index. */
+function slipHtml(file, options = {}) {
+  const vault = fileVault(file);
+  const where = [options.hideVault ? "" : vault?.title, KIND[file.kind]?.app].filter(Boolean).join(" · ");
+  return `<a class="slip" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}">
+    <span class="slip-kind">${kindIcon(file.kind)}<span>${esc(KIND[file.kind]?.short || "File")}</span></span>
+    <span class="slip-main"><strong data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</strong><small>${esc(where)}</small></span>
+    <span class="slip-ref">${esc(fileRefNo(file))}</span>
+    <span class="slip-arrow" aria-hidden="true">→</span>
   </a>`;
 }
 function blocksHtml(blocks) {
@@ -362,17 +427,20 @@ function blocksHtml(blocks) {
       out.push(`<div class="button-row">${items.map((item) => item.html).join("")}</div>`);
     } else if (block.type === "file") {
       const items = run("file");
-      out.push(`<div class="file-grid in-prose">${items.map((item, index) => { const file = fileByKey(item.key); return file ? fileCard(file, index, { hideVault: true }) : ""; }).join("")}</div>`);
+      out.push(`<div class="slips in-prose">${items.map((item) => { const file = fileByKey(item.key); return file ? slipHtml(file) : ""; }).join("")}</div>`);
     }
   }
   return out.join("");
 }
-function readingMinutes(words) { return Math.max(1, Math.round(words / 220)); }
-function contentsAside(headings, label) {
-  return `<aside class="article-aside" aria-label="${esc(label)}"><strong>${esc(label)}</strong>${headings.map((heading) => `<a href="#${esc(heading.id)}" data-scroll class="${heading.level === 3 ? "sub" : ""}">${esc(heading.text)}</a>`).join("")}</aside>`;
+const readingMinutes = (words) => Math.max(1, Math.round(words / 220));
+const crumbs = (items) => `<nav class="breadcrumb" aria-label="Breadcrumb">${items.map((item, index) => (index < items.length - 1 ? `<a href="${item.href}" data-link>${esc(item.label)}</a><span aria-hidden="true">◆</span>` : `<span>${esc(item.label)}</span>`)).join("")}</nav>`;
+function passage(previous, next, label, hrefOf, nameOf) {
+  if (!previous && !next) return "";
+  const side = (item, dir) => (item ? `<a class="passage-${dir}" href="${hrefOf(item)}" data-link${item.key ? ` data-prefetch="${esc(item.key)}"` : ""}><small>${dir === "prev" ? "← Previous" : "Next →"} ${esc(label)}</small><strong${item.key ? ` data-file-name="${esc(item.key)}"` : ""}>${esc(nameOf(item))}</strong></a>` : "<span></span>");
+  return `<nav class="passage" aria-label="Adjacent ${esc(label)}s">${side(previous, "prev")}${side(next, "next")}</nav>`;
 }
 
-/* ───────── Home ───────── */
+/* ───────── The gate (home) ───────── */
 const HERO_CORE = (() => {
   const ticks = Array.from({ length: 90 }, (_, i) => { const a = (i / 90) * Math.PI * 2, r = i % 5 === 0 ? 87 : 92; return `<path d="M${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)} L${(Math.cos(a) * 97).toFixed(1)},${(Math.sin(a) * 97).toFixed(1)}"/>`; }).join("");
   return `<svg viewBox="-100 -100 200 200" aria-hidden="true">
@@ -391,77 +459,93 @@ const HERO_CORE = (() => {
 </svg>`;
 })();
 
-function renderHome(options) {
+function stackGroups() {
+  const groups = vaults().map((page) => ({ page, files: state.site.files.filter((file) => fileVault(file) === page) })).filter((group) => group.files.length);
+  const loose = state.site.files.filter((file) => !fileVault(file));
+  if (loose.length) groups.unshift({ page: null, files: loose });
+  return groups;
+}
+/* The stacks: one long library shelf, every record a spine, each vault's run of records
+ * introduced by a bookend carrying its numeral. */
+function stacksHtml() {
+  const groups = stackGroups();
+  if (!groups.length) return "";
+  let index = 0;
+  const first = groups[0].files[0];
+  return `<div class="shelf-wrap library" data-reveal>
+    <div class="shelf" role="list">${groups.map(({ page, files }) => `${page
+      ? `<a class="bookend" role="listitem" href="${pageHref(page)}" data-link title="Vault ${vaultNumeral(page)} · ${esc(page.title)}"><em>${vaultNumeral(page)}</em><span>${esc(page.title)}</span></a>`
+      : `<span class="bookend" role="listitem"><em>◆</em><span>The gate</span></span>`}${files.map((file) => spineHtml(file, index++)).join("")}`).join("")}</div>
+    <a class="plaque" href="${fileHref(first)}" data-link data-plaque="${esc(first.key)}" tabindex="-1">${plaqueHtml(first)}</a>
+  </div>`;
+}
+
+function renderGate(options) {
   const home = homePage();
   const files = state.site.files;
+  const list = vaults();
   document.title = /central archives/i.test(state.site.name) ? state.site.name : `${state.site.name} — Central Archives`;
   const leadBlock = home.blocks.find((block) => block.type === "p" && block.text.length > 30 && block.text.length < 420);
   const lead = leadBlock ? leadBlock.text : "The central archive of the Sith Order: every vault, every handbook, every record — unsealed for those with the will to read them.";
   const rest = home.blocks.filter((block) => block !== leadBlock);
-  const spotlight = files.length ? recordOfTheDay(files.filter((file) => file.kind === "document").length ? files.filter((file) => file.kind === "document") : files) : null;
-  const list = vaults();
-  const ticker = files.map((file) => `<a href="${fileHref(file)}" data-link tabindex="-1" data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</a>`).join("");
-  app.innerHTML = `<div class="page home-page">
-    <section class="hero">
-      <div class="hero-copy">
-        <div class="eyebrow">The Sith Order</div>
-        <h1 class="hero-title" aria-label="Central Archives"><span>Central</span><span>Archives</span></h1>
+  const spotlight = spotlightFile();
+  app.innerHTML = `<div class="page gate">
+    <section class="gate-head">
+      <div class="gate-title">
+        <p class="eyebrow">The Sith Order</p>
+        <h1 class="gate-heading" aria-label="Central Archives"><span>Central</span><span>Archives</span></h1>
         <div class="saber" aria-hidden="true"><span class="saber-hilt"></span><span class="saber-blade"></span></div>
-        <p class="hero-lead">${esc(lead)}</p>
-        <div class="hero-search-row">
-          <form class="hero-search" role="search" id="heroSearch">
-            ${SEARCH_ICON}
-            <input type="search" placeholder="Search vaults, handbooks, records…" autocomplete="off" aria-label="Search the archives" />
-            <kbd aria-hidden="true">/</kbd>
-          </form>
-          <button type="button" class="hero-random" id="heroRandomButton" title="Open a random document">${RANDOM_ICON}<span>Random record</span></button>
-        </div>
-        <dl class="hero-stats">
-          <div><dt>Vaults</dt><dd data-count="${list.length}">0</dd></div>
-          <div><dt>Records</dt><dd data-count="${files.length}">0</dd></div>
-          <div><dt>Status</dt><dd class="stat-live">${state.live ? "Unsealed" : "Sealed"}</dd></div>
+      </div>
+      <div class="gate-brief">
+        <p class="gate-lead">${esc(lead)}</p>
+        <form class="query" role="search" id="heroSearch">
+          <span class="query-prompt" aria-hidden="true">query ›</span>
+          <input type="search" placeholder="search every vault and record" autocomplete="off" spellcheck="false" aria-label="Query the archive" />
+          <kbd aria-hidden="true">/</kbd>
+        </form>
+        <dl class="gate-stats">
+          <div><dt>Vaults</dt><dd data-count="${list.length}">00</dd></div>
+          <div><dt>Records</dt><dd data-count="${files.length}">00</dd></div>
+          <div><dt>Gate</dt><dd class="stat-live">${state.live ? "Unsealed" : "Sealed"}</dd></div>
         </dl>
       </div>
-      <button type="button" class="hero-core" id="heroCore" aria-label="Touch the archive core">${HERO_CORE}</button>
     </section>
-    ${files.length > 3 ? `<div class="ticker" aria-hidden="true"><div class="ticker-track" style="--ticker-time:${Math.max(36, files.length * 5)}s">${ticker}${ticker}</div></div>` : ""}
-    ${spotlight ? `${SABER_RULE("Record of the day")}
-    <a class="spotlight" href="${fileHref(spotlight)}" data-link data-prefetch="${esc(spotlight.key)}" data-reveal>
-      ${fileThumb(spotlight, "spotlight-art")}
-      <div class="spotlight-body">
-        <div class="spotlight-top"><span class="eyebrow">${esc(fileVault(spotlight)?.title || KIND[spotlight.kind].label)}</span><span class="spotlight-date">${esc(formatDate(new Date()))}</span></div>
-        <h2 data-file-name="${esc(spotlight.key)}">${esc(fileTitle(spotlight))}</h2>
-        <p>Drawn from the archive for today. Every acolyte reads the same record until midnight.</p>
-        <span class="spotlight-cta">Unseal this record <span aria-hidden="true">→</span></span>
-      </div>
+
+    <section class="orrery" id="orrery" aria-label="The vaults, orbiting the archive core">
+      <svg class="orrery-lines" id="orreryLines" aria-hidden="true"></svg>
+      <span class="orrery-ring ring-a" aria-hidden="true"></span><span class="orrery-ring ring-b" aria-hidden="true"></span>
+      <button type="button" class="hero-core" id="heroCore" aria-label="Touch the archive core">${HERO_CORE}</button>
+      ${list.map((page, index) => `<a class="orrery-node" href="${pageHref(page)}" data-link data-node="${index}" style="--d:${300 + index * 90}ms">
+        <span class="node-orb">${glyph(page.path)}</span>
+        <span class="node-label"><em>Vault ${roman(index + 1)}</em><strong>${esc(page.title)}</strong><small>${plural(page.fileKeys.length, "record")}</small></span>
+      </a>`).join("")}
+      <p class="orrery-log"><span class="log-caret" aria-hidden="true">›</span><span id="gateLog"></span></p>
+    </section>
+
+    ${spotlight ? `<a class="dossier-card" href="${fileHref(spotlight)}" data-link data-prefetch="${esc(spotlight.key)}" data-reveal>
+      <span class="dossier-tab">Record of the day · ${esc(formatDate(new Date()))}</span>
+      <span class="dossier-copy">
+        <small>${esc(fileRefNo(spotlight))} · ${esc(KIND[spotlight.kind]?.label || "File")}${fileVault(spotlight) ? ` · ${esc(fileVault(spotlight).title)}` : ""}</small>
+        <strong data-file-name="${esc(spotlight.key)}">${esc(fileTitle(spotlight))}</strong>
+        <span>Drawn from the stacks for today. Every acolyte reads the same record until midnight.</span>
+        <em>Unseal the record →</em>
+      </span>
+      <span class="dossier-thumb" data-seed="${esc(spotlight.key)}">${thumbHtml(spotlight)}</span>
+      <span class="dossier-stamp" aria-hidden="true">Unsealed</span>
     </a>` : ""}
-    ${list.length ? `<div id="vaults">${SABER_RULE("The vaults")}</div>
-    <section class="vault-index" aria-label="Vaults of the archive">
-      ${list.map((page, index) => {
-        const previews = page.headings.slice(0, 3).map((heading) => heading.text);
-        const fileNames = page.fileKeys.map(fileByKey).filter(Boolean).slice(0, 3 - previews.length).map((file) => fileTitle(file));
-        const items = [...previews, ...fileNames].slice(0, 3);
-        return `<a class="holo" href="${pageHref(page)}" data-link data-reveal style="--d:${Math.min(index * 70, 420)}ms">
-          ${glyph(page.path)}
-          <div class="holo-top"><span>Vault ${roman(index + 1)}</span><span>${plural(page.fileKeys.length, "record")}</span></div>
-          <h2>${esc(page.title)}</h2>
-          <ul>${items.length ? items.map((item) => `<li>${esc(item)}</li>`).join("") : `<li>${esc(page.text.slice(0, 80) || "Awaiting records")}</li>`}</ul>
-          <span class="holo-arrow" aria-hidden="true">→</span>
-        </a>`;
-      }).join("")}
-    </section>` : ""}
-    ${files.length ? `${SABER_RULE("The codex")}
-    <section class="file-grid" aria-label="Records in the archive">${files.slice(0, 6).map((file, index) => fileCard(file, index)).join("")}</section>
-    ${files.length > 6 ? `<div class="more-row"><a class="btn" href="/codex" data-link>Open the full codex · ${files.length} records <span aria-hidden="true">→</span></a></div>` : ""}` : ""}
-    ${rest.length ? `${SABER_RULE("Inscribed at the gate")}<section class="prose home-prose" data-reveal>${blocksHtml(rest)}</section>` : ""}
+
+    ${files.length ? `${SABER_RULE("The stacks", "stacks")}<div class="stacks">${stacksHtml()}</div>
+      <div class="more-row"><a class="btn" href="/codex" data-link>Open the catalogue · ${plural(files.length, "record")} <span aria-hidden="true">→</span></a></div>` : ""}
+    ${rest.length ? `${SABER_RULE("Inscribed at the gate")}<section class="prose gate-prose" data-reveal>${blocksHtml(rest)}</section>` : ""}
   </div>`;
   const search = byId("heroSearch");
   search.addEventListener("submit", (event) => { event.preventDefault(); openSearch(search.querySelector("input").value); });
   search.querySelector("input").addEventListener("focus", () => openSearch(search.querySelector("input").value));
-  byId("heroRandomButton").addEventListener("click", jumpToRandomRecord);
   byId("heroCore").addEventListener("click", (event) => coreBurst(event.currentTarget));
   countUp(app);
   afterRender(options);
+  startOrrery();
+  startGateLog(spotlight);
 }
 function countUp(root) {
   root.querySelectorAll("[data-count]").forEach((node) => {
@@ -472,103 +556,187 @@ function countUp(root) {
     requestAnimationFrame(tick);
   });
 }
+
+/* The orrery: every vault orbits the archive core on a tilted ellipse, nearer nodes larger
+ * and brighter, each tethered to the core by a line of energy. It slows to a stop while a
+ * node is hovered or focused, holds still in lite mode, and on narrow screens the vaults
+ * simply stack beneath the core. */
+let orreryFrame = 0;
+function startOrrery() {
+  cancelAnimationFrame(orreryFrame);
+  const panel = byId("orrery");
+  if (!panel) return;
+  const nodes = [...panel.querySelectorAll(".orrery-node")];
+  const svg = byId("orreryLines");
+  svg.innerHTML = nodes.map(() => `<line class="orrery-line"></line>`).join("");
+  const lines = [...svg.querySelectorAll("line")];
+  let hovered = -1, speed = 1;
+  let offset = -Math.PI / 2 + seededRandom(new Date().toISOString().slice(0, 13)) * .6;
+  let last = performance.now();
+  nodes.forEach((node, index) => {
+    const on = () => { hovered = index; }, off = () => { if (hovered === index) hovered = -1; };
+    node.addEventListener("pointerenter", on); node.addEventListener("pointerleave", off);
+    node.addEventListener("focus", on); node.addEventListener("blur", off);
+  });
+  const place = (now) => {
+    if (!panel.isConnected) return;
+    const dt = Math.min(64, now - last); last = now;
+    const stacked = innerWidth <= 700;
+    panel.classList.toggle("is-stacked", stacked);
+    if (stacked) { nodes.forEach((node) => { node.style.transform = ""; node.style.opacity = ""; }); orreryFrame = requestAnimationFrame(place); return; }
+    const still = reducedMotion.matches || perf.lite || document.hidden;
+    speed += ((hovered >= 0 || still ? 0 : 1) - speed) * .06;
+    offset += dt * .000045 * speed;
+    const w = panel.clientWidth, h = panel.clientHeight;
+    const cx = w / 2, cy = h * .46;
+    const rx = Math.min(w * .39, 34 * 16), ry = h * .32;
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    nodes.forEach((node, index) => {
+      const ring = nodes.length > 7 && index % 2 ? .64 : 1;
+      const angle = offset + (index / nodes.length) * Math.PI * 2;
+      const x = cx + Math.cos(angle) * rx * ring, y = cy + Math.sin(angle) * ry * ring;
+      const depth = (Math.sin(angle) + 1) / 2; // 0 = far side (top), 1 = near side (bottom)
+      node.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${(.8 + depth * .26).toFixed(3)})`;
+      node.style.opacity = (.5 + depth * .5).toFixed(3);
+      node.style.zIndex = String(index === hovered ? 30 : 2 + Math.round(depth * 10));
+      node.dataset.side = x < cx ? "left" : "right";
+      const line = lines[index];
+      line.setAttribute("x1", cx.toFixed(1)); line.setAttribute("y1", cy.toFixed(1));
+      line.setAttribute("x2", x.toFixed(1)); line.setAttribute("y2", y.toFixed(1));
+      line.classList.toggle("hot", index === hovered);
+    });
+    orreryFrame = requestAnimationFrame(place);
+  };
+  orreryFrame = requestAnimationFrame(place);
+}
+
+/* The transmission log under the orrery types out the archive's own status, line by line. */
+let gateLogTimer = 0;
+function startGateLog(spotlight) {
+  clearTimeout(gateLogTimer);
+  const node = byId("gateLog");
+  if (!node) return;
+  let index = 0;
+  const lines = () => {
+    const list = vaults();
+    return [
+      `Archive synced with Google Sites ${syncAgo()}`,
+      `${plural(list.length, "vault")} unsealed · ${plural(state.site.files.length, "record")} on file`,
+      ...list.slice(0, 8).map((page, i) => `Vault ${roman(i + 1)} · ${page.title} · ${plural(page.fileKeys.length, "record")}`),
+      spotlight ? `Record of the day · ${fileTitle(spotlight)}` : "",
+      "Hold still on empty ground to channel the Force",
+    ].filter(Boolean);
+  };
+  const type = () => {
+    if (!node.isConnected) return;
+    const all = lines();
+    const text = all[index++ % all.length];
+    if (reducedMotion.matches) { node.textContent = text; gateLogTimer = setTimeout(type, 4200); return; }
+    let shown = 0;
+    const step = () => {
+      if (!node.isConnected) return;
+      node.textContent = text.slice(0, ++shown);
+      gateLogTimer = setTimeout(shown < text.length ? step : type, shown < text.length ? 24 : 3400);
+    };
+    step();
+  };
+  type();
+}
 function jumpToRandomRecord() {
   const files = state.site.files;
-  if (!files.length) { droidReact("The codex is empty. For now."); return; }
+  if (!files.length) { droidReact("The stacks are empty. For now."); return; }
   let pick = files[Math.floor(Math.random() * files.length)];
   for (let guard = 0; guard < 8 && files.length > 1 && fileHref(pick) === currentPath() + location.search; guard += 1) pick = files[Math.floor(Math.random() * files.length)];
   droidReact("Retrieving a record at random.");
   navigate(fileHref(pick));
 }
 
-/* ───────── Vault (a page of the Google Site) ───────── */
-function renderVault(page, options) {
+/* ───────── A vault chamber (a page of the Google Site) ───────── */
+function renderChamber(page, options) {
   document.title = `${page.title} — TSO Central Archives`;
   const list = vaults();
   const index = list.indexOf(page);
   const shown = new Set(page.blocks.filter((block) => block.type === "file").map((block) => block.key));
   const extra = page.fileKeys.filter((key) => !shown.has(key)).map(fileByKey).filter(Boolean);
-  const headings = page.headings.filter((heading) => heading.level <= 3);
-  const contents = headings.length > 2;
   const words = page.text.split(/\s+/).filter(Boolean).length;
   const parentPath = page.path.split("/").slice(0, -1).join("/");
   const parent = parentPath ? state.site.pages.find((item) => item.path === parentPath) : null;
-  const children = state.site.pages.filter((item) => item.path.startsWith(`${page.path}/`) && item.path.split("/").length === page.path.split("/").length + 1);
-  const previous = index > 0 ? list[index - 1] : null;
-  const next = index >= 0 && index < list.length - 1 ? list[index + 1] : null;
-  app.innerHTML = `<article class="page vault-page">
-    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/" data-link>Archives</a><span aria-hidden="true">◆</span>${parent ? `<a href="${pageHref(parent)}" data-link>${esc(parent.title)}</a><span aria-hidden="true">◆</span>` : ""}<span>${esc(page.title)}</span></nav>
-    <header class="vault-header${page.banner ? " has-banner" : ""}">
-      ${page.banner ? `<img class="vault-banner" src="${esc(page.banner)}" alt="" />` : glyph(page.path)}
-      <div class="eyebrow">${index >= 0 ? `Vault ${roman(index + 1)}` : "The gate"}</div>
+  const children = state.site.pages.filter((item) => item.path.startsWith(`${page.path}/`) && depthOf(item) === depthOf(page) + 1);
+  const numeral = index >= 0 ? roman(index + 1) : "◆";
+  app.innerHTML = `<article class="page chamber">
+    <header class="chamber-head${page.banner ? " has-banner" : ""}">
+      <span class="chamber-numeral" aria-hidden="true">${numeral}</span>
+      ${page.banner ? `<img class="chamber-banner" src="${esc(page.banner)}" alt="" />` : ""}
+      ${crumbs([{ href: "/", label: "The Gate" }, ...(parent ? [{ href: pageHref(parent), label: parent.title }] : []), { label: page.title }])}
+      <p class="eyebrow">${index >= 0 ? `Vault ${numeral}` : "The gate"}</p>
       <h1 data-decrypt>${esc(page.title)}</h1>
-      <div class="vault-meta"><span>${plural(page.fileKeys.length, "record")} filed</span>${words > 40 ? `<span>${readingMinutes(words)} min read</span>` : ""}<a href="${esc(page.source)}" target="_blank" rel="noopener">View on Google Sites ↗</a></div>
+      <div class="chamber-meta"><span>${plural(page.fileKeys.length, "record")} filed</span>${words > 40 ? `<span>${readingMinutes(words)} min read</span>` : ""}<a href="${esc(page.source)}" target="_blank" rel="noopener">View on Google Sites ↗</a></div>
+      ${children.length ? `<nav class="subvaults" aria-label="Inner vaults">${children.map((child) => `<a href="${pageHref(child)}" data-link>${esc(child.title)} <span aria-hidden="true">→</span></a>`).join("")}</nav>` : ""}
     </header>
-    ${children.length ? `<nav class="subvaults" aria-label="Inner vaults">${children.map((child) => `<a href="${pageHref(child)}" data-link>${esc(child.title)} <span aria-hidden="true">→</span></a>`).join("")}</nav>` : ""}
-    <div class="article-layout${contents ? " has-contents" : ""}">
-      <div class="prose">${page.blocks.length ? blocksHtml(page.blocks) : `<p class="notice">This vault holds no inscriptions of its own${extra.length ? " — only the records below" : " yet"}.</p>`}</div>
-      ${contents ? contentsAside(headings, "In this vault") : ""}
-    </div>
-    ${extra.length ? `${SABER_RULE(shown.size ? "Also filed here" : "Records in this vault")}<section class="file-grid">${extra.map((file, i) => fileCard(file, i, { hideVault: true })).join("")}</section>` : ""}
-    ${(previous || next) ? `<nav class="next-record" aria-label="Adjacent vaults">${previous ? `<a href="${pageHref(previous)}" data-link><small>← Previous vault</small><span>${esc(previous.title)}</span></a>` : "<span></span>"}${next ? `<a class="next" href="${pageHref(next)}" data-link><small>Next vault →</small><span>${esc(next.title)}</span></a>` : ""}</nav>` : ""}
+    <div class="prose chamber-prose">${page.blocks.length ? blocksHtml(page.blocks) : `<p class="notice">This vault holds no inscriptions of its own${extra.length ? " — only the records on its shelf" : " yet"}.</p>`}</div>
+    ${extra.length ? `${SABER_RULE(shown.size ? "Also on this vault's shelf" : "This vault's shelf")}<div class="stacks">${shelfHtml(extra)}</div>` : ""}
+    ${passage(index > 0 ? list[index - 1] : null, index >= 0 && index < list.length - 1 ? list[index + 1] : null, "vault", pageHref, (item) => item.title)}
   </article>`;
   afterRender(options);
-  if (contents) spyHeadings();
+  setupScrubber(page.headings);
 }
 
-/* ───────── Codex: every linked file ───────── */
-let codexFilter = { kind: "all", text: "" };
-function renderCodex(options) {
-  document.title = "Codex — TSO Central Archives";
-  const files = state.site.files;
+/* ───────── The catalogue: every linked file, A to Z ───────── */
+let catalogueFilter = { kind: "all", text: "" };
+const sortName = (file) => fileTitle(file).replace(/^(TSO|LA|DHG|TJO)\s*[|:\-–]\s*/i, "").trim();
+function renderCatalogue(options) {
+  document.title = "Catalogue — TSO Central Archives";
+  const files = [...state.site.files].sort((a, b) => sortName(a).localeCompare(sortName(b), "en", { sensitivity: "base" }));
   const kinds = [...new Set(files.map((file) => file.kind))];
-  app.innerHTML = `<div class="page codex-page">
-    <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/" data-link>Archives</a><span aria-hidden="true">◆</span><span>Codex</span></nav>
-    <header class="vault-header">
-      ${glyph("codex")}
-      <div class="eyebrow">Every record on file</div>
-      <h1 data-decrypt>The Codex</h1>
-      <div class="codex-tools">
+  const letterOf = (file) => { const first = sortName(file).charAt(0).toUpperCase(); return /[A-Z]/.test(first) ? first : "#"; };
+  const groups = new Map();
+  for (const file of files) { const letter = letterOf(file); if (!groups.has(letter)) groups.set(letter, []); groups.get(letter).push(file); }
+  const alphabet = ["#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"];
+  catalogueFilter = { kind: "all", text: "" };
+  app.innerHTML = `<div class="page catalogue-page">
+    <header class="chamber-head">
+      <span class="chamber-numeral" aria-hidden="true">A–Z</span>
+      ${crumbs([{ href: "/", label: "The Gate" }, { label: "Catalogue" }])}
+      <p class="eyebrow">Every record on file</p>
+      <h1 data-decrypt>The Catalogue</h1>
+      <div class="catalogue-tools">
         <div class="kind-filter" role="group" aria-label="Filter by kind">
           <button type="button" data-kind="all" aria-pressed="true">All <small>${files.length}</small></button>
           ${kinds.length > 1 ? kinds.map((kind) => `<button type="button" data-kind="${kind}" aria-pressed="false">${kindIcon(kind)}${esc(KIND[kind]?.plural || kind)} <small>${files.filter((file) => file.kind === kind).length}</small></button>`).join("") : ""}
         </div>
-        ${files.length > 4 ? `<label class="filter">${SEARCH_ICON}<input id="codexFilter" type="search" placeholder="Filter the codex…" autocomplete="off" aria-label="Filter records" /></label>` : ""}
+        ${files.length > 4 ? `<label class="filter"><span aria-hidden="true">›</span><input id="catalogueFilter" type="search" placeholder="filter the catalogue" autocomplete="off" spellcheck="false" aria-label="Filter records" /></label>` : ""}
       </div>
     </header>
-    <section class="file-grid codex-grid" id="codexGrid">${files.length ? files.map((file, index) => fileCard(file, index)).join("") : `<p class="no-match">No records have been filed in the archive yet.</p>`}</section>
-    <p class="no-match" id="codexEmpty" hidden>No records match that filter.</p>
+    ${files.length ? `<nav class="alpha-bar" aria-label="Jump to letter">${alphabet.map((letter) => (groups.has(letter) ? `<a href="#drawer-${letter === "#" ? "num" : letter}" data-scroll>${letter}</a>` : `<span>${letter}</span>`)).join("")}</nav>
+    <section class="catalogue" id="catalogue">${[...groups.entries()].map(([letter, items]) => `<div class="drawer" data-drawer>
+      <h2 class="drawer-letter" id="drawer-${letter === "#" ? "num" : letter}">${letter}</h2>
+      <div class="slips">${items.map((file) => slipHtml(file)).join("")}</div>
+    </div>`).join("")}</section>` : `<p class="no-match">No records have been filed in the archive yet.</p>`}
+    <p class="no-match" id="catalogueEmpty" hidden>No records match that filter.</p>
   </div>`;
   const apply = () => {
     let shown = 0;
-    app.querySelectorAll("#codexGrid .file-card").forEach((card) => {
-      const file = fileByKey(card.dataset.prefetch);
-      const vault = fileVault(file)?.title || "";
-      const hit = (codexFilter.kind === "all" || file.kind === codexFilter.kind) && (!codexFilter.text || `${fileTitle(file)} ${vault} ${KIND[file.kind]?.label}`.toLowerCase().includes(codexFilter.text));
-      card.hidden = !hit; if (hit) shown += 1;
+    app.querySelectorAll("[data-drawer]").forEach((drawer) => {
+      let inDrawer = 0;
+      drawer.querySelectorAll(".slip").forEach((slip) => {
+        const file = fileByKey(slip.dataset.prefetch);
+        const hit = (catalogueFilter.kind === "all" || file.kind === catalogueFilter.kind) && (!catalogueFilter.text || `${fileTitle(file)} ${fileVault(file)?.title || ""} ${KIND[file.kind]?.label} ${fileRefNo(file)}`.toLowerCase().includes(catalogueFilter.text));
+        slip.hidden = !hit; if (hit) inDrawer += 1;
+      });
+      drawer.hidden = !inDrawer; shown += inDrawer;
     });
-    byId("codexEmpty").hidden = shown > 0 || !files.length;
+    byId("catalogueEmpty").hidden = shown > 0 || !files.length;
   };
   app.querySelectorAll(".kind-filter button").forEach((button) => button.addEventListener("click", () => {
-    codexFilter.kind = button.dataset.kind;
+    catalogueFilter.kind = button.dataset.kind;
     app.querySelectorAll(".kind-filter button").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
     apply();
   }));
-  byId("codexFilter")?.addEventListener("input", (event) => { codexFilter.text = event.target.value.trim().toLowerCase(); apply(); });
-  codexFilter = { kind: "all", text: "" };
+  byId("catalogueFilter")?.addEventListener("input", (event) => { catalogueFilter.text = event.target.value.trim().toLowerCase(); apply(); });
   afterRender(options);
 }
 
-/* ───────── Files ───────── */
-function fileHeader(file, extra = "") {
-  const vault = fileVault(file);
-  return `<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/" data-link>Archives</a><span aria-hidden="true">◆</span>${vault ? `<a href="${pageHref(vault)}" data-link>${esc(vault.title)}</a>` : `<a href="/codex" data-link>Codex</a>`}<span aria-hidden="true">◆</span><span data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</span></nav>
-    <header class="article-header">
-      <div class="eyebrow">${kindIcon(file.kind)}${esc(KIND[file.kind]?.label || "File")}${vault ? ` · ${esc(vault.title)}` : ""}</div>
-      <h1 data-decrypt data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</h1>
-      <div class="article-meta" id="fileMeta">${extra}</div>
-    </header>`;
-}
+/* ───────── Records ───────── */
 function originalUrl(file) {
   const id = encodeURIComponent(file.id);
   const pub = file.pub ? "e/" : "";
@@ -582,14 +750,35 @@ function originalUrl(file) {
     folder: `https://drive.google.com/drive/folders/${id}`
   }[file.kind];
 }
-const originalLink = (file) => `<a class="meta-action" href="${esc(originalUrl(file))}" target="_blank" rel="noopener">Open in ${esc(KIND[file.kind]?.app || "Google Drive")} ↗</a>`;
+const originalLink = (file) => `<a class="tool" href="${esc(originalUrl(file))}" target="_blank" rel="noopener">Open in ${esc(KIND[file.kind]?.app || "Google Drive")} ↗</a>`;
+/* A record opens as a dossier: the title on the left, its file card on the right. */
+function dossierHead(file, length = "…", status = "Decrypting") {
+  const vault = fileVault(file);
+  return `<header class="file-head">
+      <div class="file-head-main">
+        ${crumbs([{ href: "/", label: "The Gate" }, vault ? { href: pageHref(vault), label: vault.title } : { href: "/codex", label: "Catalogue" }, { label: fileTitle(file) }])}
+        <p class="eyebrow">${kindIcon(file.kind)}${esc(KIND[file.kind]?.label || "File")}</p>
+        <h1 data-decrypt data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</h1>
+      </div>
+      <dl class="file-card">
+        <div><dt>Reference</dt><dd>${esc(fileRefNo(file))}</dd></div>
+        <div><dt>Vault</dt><dd>${vault ? `<a href="${pageHref(vault)}" data-link>${esc(vault.title)}</a>` : "The gate"}</dd></div>
+        <div><dt>Source</dt><dd>${esc(KIND[file.kind]?.app || "Google Drive")}</dd></div>
+        <div><dt>Length</dt><dd id="fileLength">${esc(length)}</dd></div>
+        <div><dt>Status</dt><dd id="fileStatus" class="status">${esc(status)}</dd></div>
+      </dl>
+    </header>
+    <div class="file-tools" id="fileTools">${originalLink(file)}</div>`;
+}
+function setStatus(text, sealed = false) {
+  const node = byId("fileStatus");
+  if (node) { node.textContent = text; node.classList.toggle("sealed-status", sealed); }
+}
 function siblingsNav(file) {
   const files = state.site.files;
   const index = files.findIndex((item) => item.key === file.key);
   if (index < 0 || files.length < 2) return "";
-  const previous = index > 0 ? files[index - 1] : null;
-  const next = index < files.length - 1 ? files[index + 1] : null;
-  return `<nav class="next-record" aria-label="Adjacent records">${previous ? `<a href="${fileHref(previous)}" data-link data-prefetch="${esc(previous.key)}"><small>← Previous record</small><span data-file-name="${esc(previous.key)}">${esc(fileTitle(previous))}</span></a>` : "<span></span>"}${next ? `<a class="next" href="${fileHref(next)}" data-link data-prefetch="${esc(next.key)}"><small>Next record →</small><span data-file-name="${esc(next.key)}">${esc(fileTitle(next))}</span></a>` : ""}</nav>`;
+  return passage(index > 0 ? files[index - 1] : null, index < files.length - 1 ? files[index + 1] : null, "record", fileHref, fileTitle);
 }
 function renderFile(file, options) {
   document.title = `${fileTitle(file)} — TSO Central Archives`;
@@ -635,49 +824,46 @@ let docScale = 1;
 try { docScale = Math.min(1.3, Math.max(.85, Number(localStorage.getItem("tso-archives-scale")) || 1)); } catch {}
 async function renderDoc(file, options) {
   const token = state.renderToken;
-  app.innerHTML = `<article class="page article-page doc-page">${fileHeader(file, `<span>Decrypting…</span>${originalLink(file)}`)}<div id="docBody">${LOADING("Decrypting the record")}</div></article>`;
+  app.innerHTML = `<article class="page dossier">${dossierHead(file)}<div id="docBody">${LOADING("Decrypting the record")}</div></article>`;
   afterRender(options);
   const doc = await loadDoc(file);
   if (token !== state.renderToken) return;
   if (doc.error) {
-    byId("fileMeta").innerHTML = originalLink(file);
+    setStatus(doc.error === "missing" ? "Struck" : doc.error === "error" ? "Unreachable" : "Sealed", true);
+    byId("fileLength").textContent = "—";
     byId("docBody").innerHTML = doc.error === "error" ? `<div class="sealed"><h2>The archive could not reach this record</h2><p>Google did not answer in time. Try again in a moment.</p><button class="btn" type="button" id="retryDoc">Try again</button></div>` : sealedNotice(file, doc.error);
     byId("retryDoc")?.addEventListener("click", () => route({ instant: true }));
     return;
   }
-  document.title = `${doc.title || fileTitle(file)} — TSO Central Archives`;
-  const titleNode = app.querySelector(".article-header h1");
-  if (doc.title && titleNode.textContent !== doc.title && !meaningful(file.label)) { titleNode.textContent = doc.title; titleNode.setAttribute("aria-label", doc.title); }
-  const contents = doc.headings.length > 2;
+  document.title = `${fileTitle(file)} — TSO Central Archives`;
+  setStatus("Unsealed");
+  byId("fileLength").textContent = `${readingMinutes(doc.words)} min · ${doc.words.toLocaleString("en-GB")} words`;
+  byId("fileTools").innerHTML = `<span class="scale-control" role="group" aria-label="Text size"><button type="button" data-scale="-1" aria-label="Smaller text">A−</button><button type="button" data-scale="1" aria-label="Larger text">A+</button></span>
+    <button type="button" class="tool" id="copyLink">Copy link</button>${originalLink(file)}`;
   const vault = fileVault(file);
-  const related = vault ? vault.fileKeys.map(fileByKey).filter((item) => item && item.key !== file.key).slice(0, 3) : [];
-  byId("fileMeta").innerHTML = `<span>${readingMinutes(doc.words)} min read</span><span>${doc.words.toLocaleString("en-GB")} words</span>
-    <span class="scale-control" role="group" aria-label="Text size"><button type="button" data-scale="-1" aria-label="Smaller text">A−</button><button type="button" data-scale="1" aria-label="Larger text">A+</button></span>
-    <button type="button" class="meta-action" id="copyLink">Copy link</button>${originalLink(file)}`;
-  byId("docBody").innerHTML = `<div class="article-layout${contents ? " has-contents" : ""}">
-      <div class="prose doc-prose" style="--doc-scale:${docScale}">${doc.html || `<p class="notice">This record is blank.</p>`}</div>
-      ${contents ? contentsAside(doc.headings, "In this record") : ""}
-    </div>
-    ${related.length ? `${SABER_RULE(`More from ${vault.title}`)}<section class="file-grid">${related.map((item, i) => fileCard(item, i, { hideVault: true })).join("")}</section>` : ""}
+  const related = vault ? vault.fileKeys.map(fileByKey).filter((item) => item && item.key !== file.key) : [];
+  byId("docBody").innerHTML = `<div class="prose doc-prose" style="--doc-scale:${docScale}">${doc.html || `<p class="notice">This record is blank.</p>`}</div>
+    ${related.length ? `${SABER_RULE(`Also on the shelf of ${vault.title}`)}<div class="stacks">${shelfHtml(related)}</div>` : ""}
     ${siblingsNav(file)}`;
   app.querySelectorAll("[data-scale]").forEach((button) => button.addEventListener("click", () => {
     docScale = Math.min(1.3, Math.max(.85, docScale + Number(button.dataset.scale) * .075));
     app.querySelector(".doc-prose").style.setProperty("--doc-scale", docScale);
     try { localStorage.setItem("tso-archives-scale", String(docScale)); } catch {}
+    requestAnimationFrame(layoutScrubber);
   }));
   byId("copyLink").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Link copied to your datapad"); } catch { toast("Copy failed — use the address bar"); }
   });
   const body = byId("docBody");
-  bindImageFallbacks(body); observeReveals(body); bindMotion(body);
-  if (contents) spyHeadings();
+  bindImageFallbacks(body); observeReveals(body);
+  setupScrubber(doc.headings);
   if (options.hash) byId(decodeURIComponent(options.hash.slice(1)))?.scrollIntoView({ block: "start" });
   updateProgress();
 }
 
 async function renderSheet(file, options) {
   const token = state.renderToken;
-  app.innerHTML = `<article class="page article-page sheet-page">${fileHeader(file, originalLink(file))}<div id="sheetBody">${LOADING("Opening the ledger")}</div></article>`;
+  app.innerHTML = `<article class="page dossier sheet-page">${dossierHead(file)}<div id="sheetBody">${LOADING("Opening the ledger")}</div></article>`;
   afterRender(options);
   const base = `/api/sheet?id=${encodeURIComponent(file.id)}${file.pub ? "&pub=1" : ""}`;
   let tabs = [], status = "";
@@ -691,7 +877,9 @@ async function renderSheet(file, options) {
     }
   } catch { status = "error"; }
   if (token !== state.renderToken) return;
-  if (!tabs.length) { byId("sheetBody").innerHTML = sealedNotice(file, status === "missing" ? "missing" : "restricted"); return; }
+  if (!tabs.length) { setStatus("Sealed", true); byId("fileLength").textContent = "—"; byId("sheetBody").innerHTML = sealedNotice(file, status === "missing" ? "missing" : "restricted"); return; }
+  setStatus("Unsealed");
+  byId("fileLength").textContent = `${plural(tabs.length, "sheet")} · ${plural(tabs.reduce((sum, tab) => sum + Math.max(0, tab.rows.length - 1), 0), "row")}`;
   let active = Math.max(0, tabs.findIndex((tab) => tab.gid === file.gid));
   let filter = "";
   const paint = () => {
@@ -705,7 +893,7 @@ async function renderSheet(file, options) {
   };
   byId("sheetBody").innerHTML = `<div class="sheet-tools">
       ${tabs.length > 1 ? `<div class="sheet-tabs kind-filter" role="group" aria-label="Sheets">${tabs.map((tab, index) => `<button type="button" data-tab="${index}" aria-pressed="false">${esc(tab.name)}</button>`).join("")}</div>` : "<span></span>"}
-      <label class="filter">${SEARCH_ICON}<input id="sheetFilter" type="search" placeholder="Filter rows…" autocomplete="off" aria-label="Filter rows" /></label>
+      <label class="filter"><span aria-hidden="true">›</span><input id="sheetFilter" type="search" placeholder="filter rows" autocomplete="off" aria-label="Filter rows" /></label>
     </div>
     <p class="sheet-count" id="sheetCount"></p>
     <div class="table-wrap ledger-table" id="sheetTable"></div>
@@ -726,10 +914,11 @@ function renderViewer(file, options) {
     folder: { src: `https://drive.google.com/embeddedfolderview?id=${id}#grid`, shape: "folder" }
   };
   const frame = frames[file.kind];
+  const drawing = `/api/img?u=${encodeURIComponent(`https://docs.google.com/drawings/d/${file.id}/export/png`)}`;
   const body = file.kind === "drawings"
-    ? `<div class="viewer viewer-image"><button data-zoom="/api/img?u=${encodeURIComponent(`https://docs.google.com/drawings/d/${file.id}/export/png`)}" aria-label="Enlarge drawing"><img src="/api/img?u=${encodeURIComponent(`https://docs.google.com/drawings/d/${file.id}/export/png`)}" alt="${esc(fileTitle(file))}" /></button></div>`
-    : `<div class="viewer viewer-${frame.shape}"><span class="viewer-corner" aria-hidden="true"></span><iframe src="${esc(frame.src)}" title="${esc(fileTitle(file))}" loading="lazy" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe></div>`;
-  app.innerHTML = `<article class="page article-page viewer-page">${fileHeader(file, `<span>Projected from ${esc(KIND[file.kind]?.app || "Google Drive")}</span>${originalLink(file)}`)}
+    ? `<div class="viewer viewer-image"><button data-zoom="${drawing}" aria-label="Enlarge drawing"><img src="${drawing}" alt="${esc(fileTitle(file))}" /></button></div>`
+    : `<div class="viewer viewer-${frame.shape}"><iframe src="${esc(frame.src)}" title="${esc(fileTitle(file))}" loading="lazy" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe></div>`;
+  app.innerHTML = `<article class="page dossier viewer-page">${dossierHead(file, "Projected", "Projected")}
     ${body}
     <p class="viewer-note">If the projection stays dark, the record has not been shared publicly — open it in ${esc(KIND[file.kind]?.app || "Google Drive")} instead.</p>
     ${siblingsNav(file)}
@@ -739,14 +928,57 @@ function renderViewer(file, options) {
 
 function renderNotFound() {
   document.title = "Record not found — TSO Central Archives";
-  app.innerHTML = `<div class="empty-page">${glyph("void")}<h1>Nothing is filed here</h1><p>This reference does not exist in the archive, or it has been struck from the record.</p><a class="btn" href="/" data-link>Return to the archives</a></div>`;
+  app.innerHTML = `<div class="empty-page">${glyph("void")}<h1>Nothing is filed here</h1><p>This reference does not exist in the archive, or it has been struck from the record.</p><a class="btn" href="/" data-link>Return to the gate</a></div>`;
   afterRender();
 }
 
-/* ───────── Search ─────────
+/* ───────── Chapter scrubber ─────────
+ * Long pages get a scrubber along the bottom instead of a contents column: one notch per
+ * chapter at its true position in the page, a blade that fills as you read, and the current
+ * chapter's name. Click a notch to jump to it, or anywhere on the track to seek. */
+const scrubber = { headings: [] };
+function hideScrubber() { byId("scrubber").hidden = true; scrubber.headings = []; document.body.classList.remove("has-scrubber"); }
+function setupScrubber(headings = []) {
+  const usable = headings.filter((heading) => heading.level <= 3).map((heading) => ({ ...heading, el: byId(heading.id) })).filter((heading) => heading.el);
+  if (usable.length < 2) { hideScrubber(); return; }
+  scrubber.headings = usable;
+  byId("scrubTicks").innerHTML = usable.map((heading, index) => `<button type="button" class="scrub-tick${heading.level === 3 ? " minor" : ""}" data-tick="${index}" aria-label="Jump to ${esc(heading.text)}"><span>${esc(heading.text)}</span></button>`).join("");
+  byId("scrubber").hidden = false;
+  document.body.classList.add("has-scrubber");
+  layoutScrubber();
+  updateScrubber();
+  setTimeout(layoutScrubber, 900); // images arriving can move every chapter
+}
+const scrollMax = () => Math.max(1, document.documentElement.scrollHeight - innerHeight);
+function layoutScrubber() {
+  const ticks = byId("scrubTicks").children;
+  scrubber.headings.forEach((heading, index) => {
+    const y = heading.el.getBoundingClientRect().top + scrollY - innerHeight * .25;
+    if (ticks[index]) ticks[index].style.left = `${(Math.min(1, Math.max(0, y / scrollMax())) * 100).toFixed(2)}%`;
+  });
+}
+function updateScrubber() {
+  if (!scrubber.headings.length) return;
+  const progress = Math.min(1, scrollY / scrollMax());
+  byId("scrubFill").style.transform = `scaleX(${progress})`;
+  let current = -1;
+  scrubber.headings.forEach((heading, index) => { if (heading.el.getBoundingClientRect().top < innerHeight * .3) current = index; });
+  [...byId("scrubTicks").children].forEach((tick, index) => { tick.classList.toggle("passed", index <= current); tick.classList.toggle("current", index === current); });
+  const label = current >= 0 ? scrubber.headings[current].text : "Opening";
+  if (byId("scrubLabel").textContent !== label) byId("scrubLabel").textContent = label;
+}
+byId("scrubTrack").addEventListener("click", (event) => {
+  const tick = event.target.closest("[data-tick]");
+  if (tick) { scrubber.headings[Number(tick.dataset.tick)]?.el.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", block: "start" }); return; }
+  const box = byId("scrubTrack").getBoundingClientRect();
+  scrollTo({ top: ((event.clientX - box.left) / box.width) * scrollMax(), behavior: reducedMotion.matches ? "auto" : "smooth" });
+});
+window.addEventListener("resize", () => { if (scrubber.headings.length) layoutScrubber(); }, { passive: true });
+
+/* ───────── The terminal (search) ─────────
  * Vault pages are searchable straight away. Document text is pulled in the background the
- * first time search opens (and reused when a document is opened), so full-text matches
- * appear as the index fills. */
+ * first time the terminal opens (and reused when a document is opened), so full-text
+ * matches appear as the index fills. */
 let indexing = false;
 async function indexDocuments() {
   if (indexing) return;
@@ -755,7 +987,7 @@ async function indexDocuments() {
   indexing = true;
   let done = 0;
   const label = byId("searchIndexing");
-  const update = () => { label.textContent = done < pending.length ? `Indexing records ${done}/${pending.length}` : ""; };
+  const update = () => { label.textContent = done < pending.length ? `indexing ${done}/${pending.length}` : ""; };
   update();
   for (let i = 0; i < pending.length; i += 3) {
     await Promise.all(pending.slice(i, i + 3).map((file) => loadDoc(file).then(() => { done += 1; update(); })));
@@ -765,8 +997,8 @@ async function indexDocuments() {
   update();
 }
 function searchItems() {
-  const pages = state.site.pages.map((page) => ({ type: "vault", key: `page:${page.path}`, title: page.path ? page.title : `${state.site.name} — gate`, text: page.text, href: pageHref(page), eyebrow: page.path ? "Vault" : "The gate", seed: page.path || "home" }));
-  const files = state.site.files.map((file) => ({ type: "file", key: file.key, file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), eyebrow: `${KIND[file.kind]?.label || "File"}${fileVault(file) ? ` · ${fileVault(file).title}` : ""}`, seed: file.key }));
+  const pages = state.site.pages.map((page) => ({ tag: page.path ? "VAULT" : "GATE", title: page.path ? page.title : `${state.site.name}`, text: page.text, href: pageHref(page), where: page.path ? `Vault ${vaultNumeral(page)}` : "The gate", ref: page.path ? `VAULT ${vaultNumeral(page)}` : "GATE" }));
+  const files = state.site.files.map((file) => ({ tag: (KIND[file.kind]?.short || "File").toUpperCase(), file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), where: [KIND[file.kind]?.label, fileVault(file)?.title].filter(Boolean).join(" · "), ref: fileRefNo(file) }));
   return [...files, ...pages];
 }
 function openSearch(prefill) {
@@ -799,18 +1031,18 @@ function snippet(text, query) {
 function renderSearch(query) {
   const value = query.trim().toLowerCase();
   const items = searchItems();
-  const rank = (item) => (item.title.toLowerCase().startsWith(value) ? 0 : item.title.toLowerCase().includes(value) ? 1 : item.eyebrow.toLowerCase().includes(value) ? 2 : 3);
-  const matches = items.filter((item) => !value || `${item.title} ${item.eyebrow} ${item.text}`.toLowerCase().includes(value)).sort((a, b) => (value ? rank(a) - rank(b) : 0)).slice(0, 40);
+  const rank = (item) => (item.title.toLowerCase().startsWith(value) ? 0 : item.title.toLowerCase().includes(value) ? 1 : item.where.toLowerCase().includes(value) ? 2 : 3);
+  const matches = items.filter((item) => !value || `${item.title} ${item.where} ${item.ref} ${item.text}`.toLowerCase().includes(value)).sort((a, b) => (value ? rank(a) - rank(b) : 0)).slice(0, 40);
   state.searchMatches = matches; state.searchIndex = 0;
-  byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${plural(items.length, "entry")}`.replace("entrys", "entries");
-  byId("searchResults").innerHTML = matches.length ? matches.map((item, index) => `<a class="search-result${index === 0 ? " active" : ""}" href="${item.href}" data-link data-index="${index}">
-      <span class="search-thumb">${item.file && canThumb(item.file) ? `<img src="/api/img?thumb=${encodeURIComponent(item.file.id)}" alt="" loading="lazy" />` : glyph(item.seed)}</span>
-      <span><small>${item.file ? kindIcon(item.file.kind) : ""}${esc(item.eyebrow)}</small><strong>${highlight(item.title, value)}</strong><p>${highlight(snippet(item.text, value), value)}</p></span>
-      <b aria-hidden="true">→</b></a>`).join("") : `<div class="search-empty">Nothing in the archive matches “${esc(query)}”.${indexing ? " Still indexing records…" : ""}</div>`;
-  bindImageFallbacks(byId("searchResults"));
+  byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${items.length} ${items.length === 1 ? "entry" : "entries"} on file`;
+  const header = `<p class="term-sys">› ${value ? `scanning ${items.length} entries for “${esc(query.trim())}”` : "awaiting query · listing every entry on file"}</p>`;
+  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}" href="${item.href}" data-link data-index="${index}">
+      <span class="term-tag">[${esc(item.tag)}]</span>
+      <span class="term-main"><strong>${highlight(item.title, value)}</strong><small>${esc(item.where)}</small>${item.text && value ? `<p>${highlight(snippet(item.text, value), value)}</p>` : ""}</span>
+      <span class="term-ref">${esc(item.ref)}</span></a>`).join("") : `<p class="term-sys term-empty">› no entry matches “${esc(query)}”${indexing ? " · still indexing records" : ""}</p>`);
 }
 function moveSearch(step) {
-  const items = byId("searchResults").querySelectorAll(".search-result");
+  const items = byId("searchResults").querySelectorAll(".term-line");
   if (!items.length) return;
   state.searchIndex = (state.searchIndex + step + items.length) % items.length;
   items.forEach((item, index) => item.classList.toggle("active", index === state.searchIndex));
@@ -818,18 +1050,14 @@ function moveSearch(step) {
 }
 
 /* ───────── Interaction ───────── */
-function closeMenus() {
-  byId("mainNav").classList.remove("open"); byId("menuToggle").setAttribute("aria-expanded", "false");
-  byId("sectionsPopover").classList.remove("open"); byId("sectionsButton").setAttribute("aria-expanded", "false");
-}
 function bindImageFallbacks(root) {
   root.querySelectorAll("img").forEach((image) => {
     if (image.dataset.fallbackBound) return;
     image.dataset.fallbackBound = "1";
     image.addEventListener("error", () => {
-      const thumb = image.closest(".file-thumb, .search-thumb");
+      const thumb = image.closest(".plaque-thumb, .dossier-thumb");
       if (thumb) { thumb.classList.add("is-glyph"); image.replaceWith(document.createRange().createContextualFragment(glyph(thumb.dataset.seed || image.alt || "record"))); return; }
-      if (image.classList.contains("vault-banner")) { image.remove(); return; }
+      if (image.classList.contains("chamber-banner")) { image.closest(".chamber-head")?.classList.remove("has-banner"); image.remove(); return; }
       (image.closest("figure") || image).remove();
     }, { once: true });
   });
@@ -860,16 +1088,20 @@ document.addEventListener("click", (event) => {
   if (zoom) { openLightbox(zoom.dataset.zoom, zoom.dataset.caption || ""); return; }
   if (event.target.closest("#lightbox")) { closeLightbox(); return; }
   if (event.target === byId("searchPanel")) { closeSearch(); return; }
-  if (!event.target.closest(".sections-menu")) { byId("sectionsPopover").classList.remove("open"); byId("sectionsButton").setAttribute("aria-expanded", "false"); }
+  if (event.target === byId("railScrim")) closeMenus();
 });
-/* Hovering a record starts fetching it, so it is usually ready by the time the doors open. */
+/* Hovering a spine reads its plate on the shelf below and starts fetching the record, so
+ * it is usually ready by the time the doors open. */
 document.addEventListener("pointerover", (event) => {
+  const spine = event.target.closest(".spine");
+  if (spine) setPlaque(spine);
   const card = event.target.closest("[data-prefetch]");
   if (!card || card.dataset.prefetched) return;
   card.dataset.prefetched = "1";
   const file = fileByKey(card.dataset.prefetch);
   if (file?.kind === "document") loadDoc(file);
 });
+document.addEventListener("focusin", (event) => { const spine = event.target.closest?.(".spine"); if (spine) setPlaque(spine); });
 
 let revealObserver = null;
 function observeReveals(root) {
@@ -881,25 +1113,14 @@ function observeReveals(root) {
   setTimeout(() => items.forEach((item) => item.classList.add("in")), 1500); // never leave content hidden
 }
 
-let headingObserver = null;
-function spyHeadings() {
-  headingObserver?.disconnect();
-  const links = [...app.querySelectorAll(".article-aside a[data-scroll]")];
-  if (!links.length || !("IntersectionObserver" in window)) return;
-  const activate = (id) => links.forEach((item) => item.classList.toggle("active", item.getAttribute("href") === `#${id}`));
-  links[0].classList.add("active");
-  headingObserver = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) activate(entry.target.id); }), { rootMargin: "-15% 0px -70% 0px" });
-  links.forEach((link) => { const target = byId(decodeURIComponent(link.getAttribute("href").slice(1))); if (target) headingObserver.observe(target); });
-}
-
 function bindMotion(root) {
   if (reducedMotion.matches || !matchMedia("(hover: hover)").matches) return;
-  root.querySelectorAll(".holo, .file-card").forEach((tile) => {
+  root.querySelectorAll(".dossier-card").forEach((tile) => {
     tile.addEventListener("pointermove", (event) => {
       const box = tile.getBoundingClientRect();
       const x = (event.clientX - box.left) / box.width; const y = (event.clientY - box.top) / box.height;
       tile.style.setProperty("--card-x", `${x * 100}%`); tile.style.setProperty("--card-y", `${y * 100}%`);
-      tile.style.setProperty("--tilt-x", `${(x - .5) * 6}deg`); tile.style.setProperty("--tilt-y", `${(.5 - y) * 6}deg`);
+      tile.style.setProperty("--tilt-x", `${(x - .5) * 4}deg`); tile.style.setProperty("--tilt-y", `${(.5 - y) * 4}deg`);
     });
     tile.addEventListener("pointerleave", () => { tile.style.setProperty("--tilt-x", "0deg"); tile.style.setProperty("--tilt-y", "0deg"); });
   });
@@ -929,9 +1150,9 @@ function decryptTitles(root) {
 
 /* ───────── Force lightning ─────────
  * Press and hold on any empty stretch of the archive (not on text or controls) to channel
- * lightning from the pointer; the archive core on the home page discharges on touch; and
- * typing the word "power" anywhere outside a text field calls down a full storm. Bolts are
- * jagged polylines made by midpoint displacement, redrawn every frame with a fading life. */
+ * lightning from the pointer; the archive core at the gate discharges on touch; and typing
+ * the word "power" anywhere outside a text field calls down a full storm. Bolts are jagged
+ * polylines made by midpoint displacement, redrawn every frame with a fading life. */
 const lightningCanvas = byId("lightning");
 const lctx = lightningCanvas.getContext("2d");
 const bolts = [];
@@ -981,25 +1202,23 @@ function drawLightning() {
   else { lightningLoop = false; lctx.clearRect(0, 0, innerWidth, innerHeight); }
 }
 function channelTargets(x, y) {
-  const near = [...document.querySelectorAll(".holo, .file-card, .hero-core, .spotlight, .brand, .droid")]
+  return [...document.querySelectorAll(".spine, .orrery-node, .hero-core, .dossier-card, .slip, .brand, .droid")]
     .map((el) => el.getBoundingClientRect())
     .filter((box) => box.width && box.bottom > 0 && box.top < innerHeight)
     .map((box) => [box.left + box.width * (.2 + Math.random() * .6), box.top + box.height * (.2 + Math.random() * .6)])
     .filter(([tx, ty]) => Math.hypot(tx - x, ty - y) < 460);
-  return near;
 }
 function channelTick() {
   if (!channel.active) return;
   const targets = channelTargets(channel.x, channel.y);
-  const count = perf.lite ? 1 : 2;
-  for (let i = 0; i < count; i += 1) {
+  for (let i = 0; i < (perf.lite ? 1 : 2); i += 1) {
     const angle = Math.random() * Math.PI * 2, reach = 140 + Math.random() * 260;
     const [tx, ty] = targets.length && Math.random() > .35 ? targets[Math.floor(Math.random() * targets.length)] : [channel.x + Math.cos(angle) * reach, channel.y + Math.sin(angle) * reach];
     strike(channel.x, channel.y, tx, ty);
   }
   channel.timer = setTimeout(channelTick, perf.lite ? 140 : 70);
 }
-const NOT_A_CHANNEL = "a, button, input, textarea, select, label, iframe, .prose, p, h1, h2, h3, h4, li, td, th, dd, .search-panel, .lightbox, .droid, .sections-popover, .ticker";
+const NOT_A_CHANNEL = "a, button, input, textarea, select, label, iframe, .prose, p, h1, h2, h3, h4, li, td, th, dd, dt, .rail, .topbar, .terminal, .lightbox, .droid, .scrubber, .shelf, .file-card, .orrery-log";
 document.addEventListener("pointerdown", (event) => {
   if (reducedMotion.matches || event.button !== 0 || event.target.closest(NOT_A_CHANNEL)) return;
   channel.pointerId = event.pointerId; channel.startX = channel.x = event.clientX; channel.startY = channel.y = event.clientY;
@@ -1022,16 +1241,16 @@ document.addEventListener("pointerup", endChannel);
 document.addEventListener("pointercancel", endChannel);
 window.addEventListener("blur", endChannel);
 
+/* Touching the core discharges lightning along every tether to the orbiting vaults. */
 function coreBurst(core) {
   if (reducedMotion.matches) { droidReact("The core hums. Quietly."); return; }
   const box = core.getBoundingClientRect();
   const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
   core.classList.remove("discharge"); void core.offsetWidth; core.classList.add("discharge");
-  for (let i = 0; i < (perf.lite ? 3 : 7); i += 1) {
-    const angle = (i / 7) * Math.PI * 2 + Math.random() * .6;
-    const reach = box.width * (.55 + Math.random() * .5);
-    setTimeout(() => strike(cx, cy, cx + Math.cos(angle) * reach, cy + Math.sin(angle) * reach, { width: 2.2 }), i * 45);
-  }
+  const nodes = [...document.querySelectorAll(".orrery-node .node-orb")].map((orb) => orb.getBoundingClientRect()).filter((r) => r.width);
+  const targets = nodes.length ? nodes.map((r) => [r.left + r.width / 2, r.top + r.height / 2]) : Array.from({ length: 7 }, (_, i) => { const a = (i / 7) * Math.PI * 2; return [cx + Math.cos(a) * box.width, cy + Math.sin(a) * box.width]; });
+  targets.slice(0, perf.lite ? 3 : 12).forEach(([tx, ty], i) => setTimeout(() => strike(cx, cy, tx, ty, { width: 2.2 }), i * 55));
+  document.querySelectorAll(".orrery-line").forEach((line) => { line.classList.remove("surge"); void line.getBoundingClientRect(); line.classList.add("surge"); });
   coreBurst.count = (coreBurst.count || 0) + 1;
   droidReact(coreBurst.count % 3 === 0 ? "Careful. The core remembers every touch." : "The archive core stirs.");
   skyFlash(.5);
@@ -1069,8 +1288,8 @@ function scheduleSkyFlash() {
 
 /* ───────── Interrogator droid ─────────
  * A small mascot wired once here rather than per page. Its lens colour follows the sync
- * state (see updateSyncLabel). On larger screens it patrols the viewport perimeter; pointer
- * events make it draggable with mouse or touch. */
+ * state (see updateSyncLabel). On larger screens it patrols the stage's perimeter, clear of
+ * the index rail; pointer events make it draggable with mouse or touch. */
 const DROID_QUIPS = [
   "The archives remember everything.",
   "Knowledge is power. Power is victory.",
@@ -1081,6 +1300,7 @@ const DROID_QUIPS = [
   "Every record here was earned in blood. And formatting.",
   "Hold still on an empty spot. Feel the power.",
   "Type “power”. I dare you.",
+  "Touch the core. Watch the vaults answer.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
@@ -1099,8 +1319,11 @@ function droidReact(line) {
 function droidLimits() {
   const droid = byId("droid");
   const margin = innerWidth <= 760 ? 10 : 18;
-  const headerBottom = byId("siteHeader")?.getBoundingClientRect().bottom || 0;
-  return { minX: margin, maxX: Math.max(margin, innerWidth - droid.offsetWidth - margin), minY: Math.max(margin, headerBottom + 12), maxY: Math.max(margin, innerHeight - droid.offsetHeight - margin) };
+  const rail = byId("rail").getBoundingClientRect();
+  const left = narrow.matches ? margin : rail.right + margin;
+  const top = narrow.matches ? (byId("siteHeader").getBoundingClientRect().bottom || 0) + 12 : margin;
+  const bottom = innerHeight - droid.offsetHeight - margin - (scrubber.headings.length ? 56 : 0);
+  return { minX: left, maxX: Math.max(left, innerWidth - droid.offsetWidth - margin), minY: top, maxY: Math.max(top, bottom) };
 }
 function placeDroid(x, y, duration = 0) {
   const droid = byId("droid");
@@ -1187,9 +1410,9 @@ function initDroid() {
  * Everyone starts on the full version. Shortly after the first page renders we sample real
  * frame timing for ~1.5s of visible time, and only if the page is consistently choppy does it
  * switch to a lighter mode for the rest of the tab session: the blurred drifting glows become
- * static gradients, the embers and grain stop, and lightning loses its glow. The footer switch
- * lets anyone pick either mode; that choice is remembered and always beats the automatic check.
- * ?fx=lite / ?fx=full force either mode for the current tab. */
+ * static gradients, the embers and grain stop, the orrery holds still and lightning loses its
+ * glow. The rail switch lets anyone pick either mode; that choice is remembered and always
+ * beats the automatic check. ?fx=lite / ?fx=full force either mode for the current tab. */
 const perf = { lite: false, decided: false, resumeAtmosphere: null };
 const FX_SESSION = "tso-fx";
 const FX_PREF = "tso-fx-pref";
@@ -1204,7 +1427,7 @@ function autoSwitchToLite() {
   perf.decided = true;
   setFxMode(true);
   try { sessionStorage.setItem(FX_SESSION, "lite"); } catch {}
-  toast("Lighter effects on for smoother performance — switch back in the footer");
+  toast("Lighter effects on for smoother performance — switch back in the index rail");
 }
 function applyChosenFxMode() {
   let mode = new URLSearchParams(location.search).get("fx");
@@ -1247,7 +1470,7 @@ function watchFrameRate() {
 
 /* ───────── Atmosphere ─────────
  * Embers rise from the bottom of the archive, sway, flicker, and scatter away from the
- * pointer; the crimson aura follows the cursor and the hero core tilts toward it. */
+ * pointer; the crimson aura follows the cursor and the archive core tilts toward it. */
 function createAtmosphere() {
   if (reducedMotion.matches) return;
   let frame = 0;
@@ -1304,7 +1527,7 @@ function createAtmosphere() {
 
 document.addEventListener("pointerdown", (event) => {
   if (reducedMotion.matches || event.button !== 0) return;
-  const target = event.target.closest(".btn, .search-trigger, .holo, .file-card, .next-record a, .hero-random, .spotlight");
+  const target = event.target.closest(".btn, .rail-query, .dossier-card, .slip, .passage a, .plaque, .orrery-node");
   if (!target) return;
   target.classList.add("ripple-host");
   const box = target.getBoundingClientRect();
@@ -1316,17 +1539,17 @@ document.addEventListener("pointerdown", (event) => {
 });
 
 function updateProgress() {
-  const max = document.documentElement.scrollHeight - innerHeight;
-  byId("readingProgress").style.transform = `scaleX(${max > 0 ? Math.min(1, scrollY / max) : 0})`;
+  const progress = Math.min(1, Math.max(0, scrollY / scrollMax()));
+  byId("readingProgress").style.setProperty("--progress", progress.toFixed(4));
   byId("siteHeader").classList.toggle("scrolled", scrollY > 12);
+  updateScrubber();
 }
 window.addEventListener("scroll", updateProgress, { passive: true });
 
 /* ───────── Boot ───────── */
-byId("menuToggle").addEventListener("click", () => { const open = byId("mainNav").classList.toggle("open"); byId("menuToggle").setAttribute("aria-expanded", String(open)); });
-byId("sectionsButton").addEventListener("click", () => { const open = byId("sectionsPopover").classList.toggle("open"); byId("sectionsButton").setAttribute("aria-expanded", String(open)); });
+byId("menuToggle").addEventListener("click", () => (document.body.classList.contains("rail-open") ? closeMenus() : openRail()));
 byId("searchTrigger").addEventListener("click", () => openSearch());
-byId("randomButton").addEventListener("click", jumpToRandomRecord);
+byId("searchTriggerMobile").addEventListener("click", () => openSearch());
 byId("fxToggle").addEventListener("click", toggleFxMode);
 byId("closeSearch").addEventListener("click", closeSearch);
 byId("globalSearch").addEventListener("input", (event) => renderSearch(event.target.value));
@@ -1340,6 +1563,7 @@ document.addEventListener("keydown", (event) => {
   if ((event.key === "/" && !typing && !event.metaKey && !event.ctrlKey) || (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey))) { event.preventDefault(); openSearch(); }
   if (event.key === "Escape") { closeLightbox(); closeSearch(); closeMenus(); }
 });
+narrow.addEventListener("change", () => { closeMenus(); placeDroid(droidMotion.x, droidMotion.y); });
 window.addEventListener("popstate", () => route({ hash: location.hash }));
 applyChosenFxMode();
 createAtmosphere();

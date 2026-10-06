@@ -16,7 +16,7 @@ Source site: https://sites.google.com/view/tso-central-archives/home
 | A linked or embedded Google Doc | A reading page at `/doc/<id>` with contents, footnotes and full-text search |
 | A Google Sheet | A filterable table per tab at `/sheet/<id>` |
 | Slides, Forms, Drive files and folders | A framed viewer at `/slides/…`, `/form/…`, `/file/…`, `/folder/…` |
-| Every linked file | The Codex at `/codex` |
+| Every linked file | The Catalogue (A–Z card index) at `/codex` |
 
 Links between pages and documents are rewritten to the archive's own routes, so the whole site,
 documents included, reads as one place.

@@ -10,7 +10,7 @@
     /* Effects mode, applied before the first paint so a remembered or forced choice
        never flashes the full atmosphere first. Same decision app.js makes in
        applyChosenFxMode(): ?fx=lite / ?fx=full force either mode for this tab, a pick
-       from the footer switch is remembered across visits, and the automatic verdict
+       from the rail switch is remembered across visits, and the automatic verdict
        from the frame-rate guard lasts for this tab only. */
     (function () {
       var mode = new URLSearchParams(location.search).get("fx");
@@ -39,59 +39,59 @@
     <div class="scene-scan"></div>
     <div class="scene-grain"></div>
   </div>
-  <div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
 
-  <header class="site-header" id="siteHeader">
-    <a class="brand" href="/" data-link aria-label="Central Archives home">
+  <!-- Narrow screens only: the rail folds into a drawer behind this bar. -->
+  <header class="topbar" id="siteHeader">
+    <a class="brand" href="/" data-link aria-label="Central Archives — the gate">
       <svg viewBox="0 0 64 64" aria-hidden="true"><path class="brand-hex" d="M32 5 55 18v28L32 59 9 46V18Z"/><path class="brand-crystal" d="m32 17 8 15-8 15-8-15Z"/><path d="M9 18 32 32 55 18M32 32v27"/></svg>
       <span><strong>TSO</strong><small>Central Archives</small></span>
     </a>
-    <button class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-expanded="false"><i></i><i></i></button>
-    <nav class="main-nav" id="mainNav" aria-label="Primary navigation">
-      <a class="nav-link" href="/" data-link>Archives</a>
-      <div class="sections-menu">
-        <button class="nav-link" id="sectionsButton" aria-expanded="false">Vaults <span aria-hidden="true">▾</span></button>
-        <div class="sections-popover" id="sectionsPopover"></div>
-      </div>
-      <a class="nav-link" href="/codex" data-link>Codex</a>
-      <button class="nav-link random-trigger" id="randomButton" title="Open a random document">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-        <span>Random</span>
-      </button>
-      <button class="search-trigger" id="searchTrigger" aria-label="Search the archives">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-        <span>Search the archives</span><kbd>/</kbd>
-      </button>
-      <span class="sync-pill" id="syncPill" data-state="connecting" title="Content is read live from the Order's Google Site"><i></i><span id="syncStatus">Connecting</span></span>
-    </nav>
+    <button type="button" class="topbar-query" id="searchTriggerMobile" aria-label="Query the archive"><span aria-hidden="true">›_</span></button>
+    <button type="button" class="menu-toggle" id="menuToggle" aria-label="Open the archive index" aria-expanded="false" aria-controls="rail"><i></i><i></i></button>
   </header>
 
-  <div class="search-panel" id="searchPanel" role="dialog" aria-modal="true" aria-label="Search the archives" hidden>
-    <div class="search-frame">
-      <div class="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-        <input id="globalSearch" type="search" placeholder="Search vaults and documents…" autocomplete="off" aria-label="Search vaults and documents" />
-        <button id="closeSearch" aria-label="Close search">Esc</button>
-      </div>
-      <div class="search-results" id="searchResults"></div>
-      <div class="search-hints"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span id="searchIndexing"></span><span id="searchCount"></span></div>
+  <aside class="rail" id="rail" aria-label="Archive index">
+    <a class="brand rail-brand" href="/" data-link aria-label="Central Archives — the gate">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path class="brand-hex" d="M32 5 55 18v28L32 59 9 46V18Z"/><path class="brand-crystal" d="m32 17 8 15-8 15-8-15Z"/><path d="M9 18 32 32 55 18M32 32v27"/></svg>
+      <span><strong>TSO</strong><small>Central Archives</small></span>
+    </a>
+    <button type="button" class="rail-query" id="searchTrigger"><span class="prompt" aria-hidden="true">›</span><span>Query the archive</span><kbd>/</kbd></button>
+    <nav class="rail-nav" id="railNav" aria-label="Vaults and records"></nav>
+    <div class="rail-foot">
+      <span class="sync-pill" id="syncPill" data-state="connecting" title="Content is read live from the Order's Google Site"><i></i><span id="syncStatus">Connecting</span></span>
+      <span class="rail-sync" id="footerSync">Source: Google Sites</span>
+      <button type="button" class="fx-toggle" id="fxToggle" role="switch" aria-checked="false" aria-label="Lite effects" title="Lite effects: calmer background animation for slower devices">
+        <span>Effects</span><span class="fx-toggle-track" aria-hidden="true"><i></i></span><span id="fxToggleState">Full</span>
+      </button>
+      <a class="rail-source" id="footerSource" href="https://sites.google.com/view/tso-central-archives/home" target="_blank" rel="noopener">Open the Google Site ↗</a>
     </div>
+  </aside>
+  <div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
+  <div class="rail-scrim" id="railScrim" hidden></div>
+
+  <div class="stage">
+    <main id="app" tabindex="-1">
+      <div class="loading-page">
+        <svg class="loader-sigil" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 5 55 18v28L32 59 9 46V18Z"/><path d="m32 17 8 15-8 15-8-15Z"/></svg>
+        <p>Unsealing the archives</p>
+      </div>
+    </main>
+    <footer class="colophon">TSO · Central Archives · read live from the Order's Google Site</footer>
   </div>
 
-  <main id="app" tabindex="-1">
-    <div class="loading-page">
-      <svg class="loader-sigil" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 5 55 18v28L32 59 9 46V18Z"/><path d="m32 17 8 15-8 15-8-15Z"/></svg>
-      <p>Unsealing the archives</p>
-    </div>
-  </main>
+  <nav class="scrubber" id="scrubber" aria-label="Chapters" hidden>
+    <span class="scrub-label" id="scrubLabel" aria-live="polite"></span>
+    <div class="scrub-track" id="scrubTrack"><i class="scrub-fill" id="scrubFill"></i><div class="scrub-ticks" id="scrubTicks"></div></div>
+  </nav>
 
-  <footer class="site-footer">
-    <span>TSO · Central Archives</span>
-    <button type="button" class="fx-toggle" id="fxToggle" role="switch" aria-checked="false" aria-label="Lite effects" title="Lite effects: calmer background animation for slower devices">
-      <span>Effects</span><span class="fx-toggle-track" aria-hidden="true"><i></i></span><span id="fxToggleState">Full</span>
-    </button>
-    <span class="footer-source"><a id="footerSource" href="https://sites.google.com/view/tso-central-archives/home" target="_blank" rel="noopener">Google Site ↗</a><span id="footerSync">Source: Google Sites</span></span>
-  </footer>
+  <div class="terminal" id="searchPanel" role="dialog" aria-modal="true" aria-label="Archive terminal" hidden>
+    <div class="terminal-frame">
+      <div class="terminal-bar"><span><i></i><i></i><i></i></span><b>Archive terminal · TSO-CA</b><span id="searchIndexing"></span><button type="button" id="closeSearch" aria-label="Close the terminal">Esc</button></div>
+      <label class="terminal-prompt"><span aria-hidden="true">query ›</span><input id="globalSearch" type="search" placeholder="handbook, trials, ranks…" autocomplete="off" spellcheck="false" aria-label="Search vaults and records" /></label>
+      <div class="terminal-results" id="searchResults"></div>
+      <div class="terminal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move · <kbd>↵</kbd> open</span><span id="searchCount"></span></div>
+    </div>
+  </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="lightbox" id="lightbox" hidden><button id="lightboxClose" aria-label="Close image">Close</button><img id="lightboxImage" alt="" /><p id="lightboxCaption"></p></div>
