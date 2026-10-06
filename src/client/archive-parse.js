@@ -55,6 +55,16 @@
     }
     return null;
   }
+  /* Embeds are labelled for screen readers as "Open Document, <title> in new window" or
+   * "Google Docs, <title>"; keep the title, and the kind it names. */
+  const EMBED_KINDS = { document: "document", docs: "document", spreadsheet: "spreadsheets", sheets: "spreadsheets", presentation: "presentation", slides: "presentation", form: "forms", forms: "forms", drawing: "drawings", folder: "folder" };
+  function embedLabel(label = "") {
+    const open = label.match(/^Open\s+(\w+)?,?\s*(.*?)\s+in new window$/i);
+    if (open) return { title: open[2].trim(), kind: EMBED_KINDS[(open[1] || "").toLowerCase()] || "" };
+    const app = label.match(/^Google (Docs|Sheets|Slides|Forms|Drive|Drawings)\s*[,:-]\s*(.*)$/i);
+    if (app) return { title: app[2].trim(), kind: EMBED_KINDS[app[1].toLowerCase()] || "" };
+    return { title: label, kind: "" };
+  }
   const fileKey = (ref) => `${ref.kind}:${ref.pub ? "e/" : ""}${ref.id}`;
   const fileRoute = (ref) => `/${KIND_ROUTE[ref.kind] || "file"}/${ref.pub ? "e/" : ""}${ref.id}${ref.gid ? `?gid=${ref.gid}` : ""}`;
   function sitePageRoute(href) {
@@ -90,10 +100,12 @@
   }
   /* Images go through the Worker's allowlisted image proxy. */
   function imageSrc(raw = "") {
+    // Docs exports carry their images inline; raster data URIs are inert inside <img>.
+    if (/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(raw)) return raw;
     try {
       const url = new URL(raw, "https://sites.google.com");
       if (url.protocol === "data:") return "";
-      if (/(^|\.)(googleusercontent\.com|ggpht\.com)$/.test(url.hostname) || (url.hostname === "docs.google.com" && url.pathname.startsWith("/drawings/"))) return `/api/img?u=${encodeURIComponent(url.href)}`;
+      if (/(^|\.)(googleusercontent\.com|ggpht\.com)$/.test(url.hostname) || (url.hostname === "docs.google.com" && url.pathname.startsWith("/drawings/")) || (url.hostname === "sites.google.com" && /^\/sitesv-images[\w-]*\//.test(url.pathname))) return `/api/img?u=${encodeURIComponent(url.href)}`;
       if (url.protocol === "https:") return url.href;
     } catch {}
     return "";
@@ -145,8 +157,7 @@
       const key = fileKey(ref);
       if (seenFiles.has(key)) return;
       seenFiles.add(key);
-      // Embeds are labelled for screen readers as "Google Docs, <title>"; keep just the title.
-      push({ type: "file", key, ref, label: squash(label).replace(/^Google (Docs|Sheets|Slides|Forms|Drive|Drawings)\s*[,:-]\s*/i, "") });
+      push({ type: "file", key, ref, label: embedLabel(squash(label)).title });
     };
     let stray = "";
     const flushStray = () => { const text = squash(stray); if (text.length > 1) push({ type: "p", html: esc(text), text }); stray = ""; };
@@ -167,7 +178,13 @@
           flushStray();
           const ref = fileRef(embedUrl) || (embedId ? { kind: "file", id: embedId, pub: false } : null);
           const frame = el.querySelector("iframe[aria-label], iframe[title]");
-          if (ref) { fileBlock(ref, el.getAttribute("aria-label") || el.getAttribute("data-embed-title") || frame?.getAttribute("aria-label") || frame?.getAttribute("title") || ""); continue; }
+          const opener = el.querySelector("a[aria-label], a[title]");
+          // Prefer the preview's own address (it names the kind: Docs, Sheets…) over the generic Drive link.
+          const preview = fileRef(el.querySelector("iframe")?.getAttribute("src") || el.querySelector("iframe")?.getAttribute("data-src") || "");
+          const label = el.getAttribute("aria-label") || el.getAttribute("data-embed-title") || frame?.getAttribute("aria-label") || frame?.getAttribute("title") || opener?.getAttribute("aria-label") || opener?.getAttribute("title") || "";
+          const named = embedLabel(label);
+          const chosen = preview && preview.id === ref?.id ? preview : ref && ref.kind === "file" && named.kind ? { ...ref, kind: named.kind } : ref;
+          if (chosen) { fileBlock(chosen, named.title); continue; }
         }
         if (/^h[1-6]$/.test(tag)) {
           flushStray();

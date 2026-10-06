@@ -58,6 +58,8 @@ function prepareSite(raw) {
     // Embedded files with no name of their own borrow the label they were given on the page.
     for (const block of parsed.blocks) {
       if (block.type !== "file") continue;
+      // The Worker may know this file under a more specific kind (an embed's Drive link vs its Docs preview).
+      if (!files.has(block.key)) { const same = [...files.values()].find((file) => file.id === block.ref.id); if (same) { block.key = same.key; block.ref = { ...block.ref, kind: same.kind, pub: same.pub }; } }
       if (!files.has(block.key)) files.set(block.key, { key: block.key, kind: block.ref.kind, id: block.ref.id, pub: block.ref.pub, gid: block.ref.gid || "", label: block.label, title: "", pages: [page.path], docTitle: "", order: files.size });
       const file = files.get(block.key);
       if (!file.label && block.label) file.label = block.label;
@@ -72,20 +74,23 @@ function prepareSite(raw) {
 }
 
 /* The archive mirrors the Google Site's own menu: its tabs become sections (I, II, III…) and
- * the pages in each tab's dropdown sit inside them (II.1, II.2…). Links in the menu that leave
+ * the pages in each tab's dropdown sit inside them (II.1, II.2…). A dropdown tab that isn't a
+ * page of its own (Google draws it as a link with no address) becomes a section page here. Links in the menu that leave
  * the site keep their place. Pages that aren't in the menu hang under the page their address
  * sits beneath, or join the end. Without a menu (an older Worker) the addresses alone decide. */
 function buildTree(nav, pages) {
   const byPath = new Map(pages.map((page) => [page.path, page]));
   const roots = [];
   const nodes = new Map();
+  const groups = new Map();
   const stack = [];
   for (const item of Array.isArray(nav) ? nav : []) {
     if (item.path === "") continue; // the home page is the gate itself
     if (item.path !== undefined && !byPath.has(item.path)) continue;
-    if (item.path === undefined && !/^https?:\/\//i.test(item.href || "")) continue;
+    if (item.path === undefined && !item.group && !/^https?:\/\//i.test(item.href || "")) continue;
     if (item.path !== undefined && nodes.has(item.path)) continue;
-    const node = { page: item.path !== undefined ? byPath.get(item.path) : null, href: item.href || "", label: item.label || "", level: Math.max(1, Number(item.level) || 1), children: [], parent: null };
+    const node = { page: item.path !== undefined ? byPath.get(item.path) : null, group: Boolean(item.group), href: item.group ? "" : item.href || "", label: item.label || "", level: Math.max(1, Number(item.level) || 1), children: [], parent: null };
+    if (node.group) { let base = P.slug(node.label), key = base, n = 2; while (groups.has(key)) key = `${base}-${n++}`; node.slug = key; groups.set(key, node); }
     while (stack.length && stack[stack.length - 1].level >= node.level) stack.pop();
     node.parent = stack[stack.length - 1] || null;
     if (node.parent) node.level = node.parent.level + 1;
@@ -96,29 +101,33 @@ function buildTree(nav, pages) {
   const unlisted = pages.filter((page) => page.path && !nodes.has(page.path)).sort((a, b) => a.path.split("/").length - b.path.split("/").length);
   for (const page of unlisted) {
     let parentPath = page.path.split("/").slice(0, -1).join("/");
-    while (parentPath && !nodes.has(parentPath)) parentPath = parentPath.split("/").slice(0, -1).join("/");
-    const parent = parentPath ? nodes.get(parentPath) : null;
+    // A page's address can also sit under a dropdown tab's name (pathways/… under "Pathways").
+    while (parentPath && !nodes.has(parentPath) && !groups.has(parentPath)) parentPath = parentPath.split("/").slice(0, -1).join("/");
+    const parent = parentPath ? nodes.get(parentPath) || groups.get(parentPath) : null;
     const node = { page, href: "", label: page.title, level: parent ? parent.level + 1 : 1, children: [], parent };
     (parent ? parent.children : roots).push(node);
     nodes.set(page.path, node);
   }
+  const prune0 = (list) => { for (let i = list.length - 1; i >= 0; i -= 1) { prune0(list[i].children); if (list[i].group && !list[i].children.length) { groups.delete(list[i].slug); list.splice(i, 1); } } return list; };
   const order = [];
   const number = (list, prefix) => {
     let count = 0;
     for (const node of list) {
-      if (node.page) { count += 1; node.numeral = prefix ? `${prefix}.${count}` : roman(count); node.page.node = node; order.push(node.page); }
-      number(node.children, node.page ? node.numeral : prefix);
+      if (node.page || node.group) { count += 1; node.numeral = prefix ? `${prefix}.${count}` : roman(count); }
+      if (node.page) { node.page.node = node; order.push(node.page); }
+      number(node.children, node.numeral || prefix);
     }
   };
-  number(roots, "");
-  return { tree: roots, order };
+  number(prune0(roots), "");
+  return { tree: roots, order, groups };
 }
 
 async function start() {
   try {
     state.site = await loadSite();
     state.live = true;
-  } catch {
+  } catch (error) {
+    console.error("Central Archives: could not load the site", error);
     state.site = prepareSite(fallback);
     state.live = false;
   }
@@ -206,10 +215,14 @@ const pageHref = (page) => (page.path ? `/p/${page.path}` : "/");
 const fileHref = (file) => P.fileRoute(file);
 const fileByKey = (key) => state.site.files.find((file) => file.key === key);
 const depthOf = (page) => Math.max(0, (page.node?.level || 1) - 1);
-const sectionOf = (page) => { let node = page?.node; while (node?.parent?.page) node = node.parent; return node?.page || null; };
-const ancestors = (page) => { const chain = []; let node = page?.node?.parent; while (node) { if (node.page) chain.unshift(node.page); node = node.parent; } return chain; };
-const trail = (page) => [...ancestors(page), page].filter(Boolean).map((item) => item.title).join(" › ");
-const childPages = (page) => (page?.node?.children || []).filter((node) => node.page).map((node) => node.page);
+const nodeTitle = (node) => node.page?.title || node.label;
+const nodeHref = (node) => (node.page ? pageHref(node.page) : node.group ? `/s/${node.slug}` : node.href);
+const nodeKey = (node) => (node.page ? node.page.path : node.group ? `s:${node.slug}` : node.href);
+const rootOf = (page) => { let node = page?.node; while (node?.parent) node = node.parent; return node || null; };
+const ancestorNodes = (node) => { const chain = []; let item = node?.parent; while (item) { chain.unshift(item); item = item.parent; } return chain; };
+const ancestors = (page) => ancestorNodes(page?.node);
+const crumbTrail = (node) => [...ancestorNodes(node), node].map((item) => ({ href: nodeHref(item), label: nodeTitle(item) }));
+const trail = (page) => (page?.node ? [...ancestors(page), page.node].map(nodeTitle).join(" › ") : page?.title || "");
 function subtreeFiles(node) {
   const keys = new Set();
   const walk = (item) => { item.page?.fileKeys.forEach((key) => keys.add(key)); item.children.forEach(walk); };
@@ -283,6 +296,7 @@ function parseRoute(path = currentPath()) {
   if (!parts.length) return { view: "home" };
   if (parts[0] === "p") return { view: "page", path: parts.slice(1).join("/") };
   if (parts[0] === "codex" || parts[0] === "catalogue") return { view: "codex" };
+  if (parts[0] === "s" && parts[1]) return { view: "section", slug: parts[1] };
   const kind = P.ROUTE_KIND[parts[0]];
   if (kind) {
     const pub = parts[1] === "e";
@@ -301,6 +315,10 @@ function route(options = {}) {
     markActiveRail(target);
     if (target.view === "home") return renderGate(options);
     if (target.view === "codex") return renderCatalogue(options);
+    if (target.view === "section") {
+      const node = state.site.groups.get(target.slug);
+      return node ? renderSection(node, options) : renderNotFound();
+    }
     if (target.view === "page") {
       const page = state.site.pages.find((item) => item.path === target.path);
       return page ? renderChamber(page, options) : renderNotFound();
@@ -380,14 +398,15 @@ function afterRender(options = {}) {
 const railOpen = new Set();
 const CHEVRON = `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 function railNode(node) {
-  if (!node.page) return `<a class="rail-link rail-external${node.level > 1 ? " sub" : ""}" href="${esc(node.href)}" target="_blank" rel="noopener" style="--depth:${node.level - 1}"><em aria-hidden="true">↗</em><span>${esc(node.label)}</span></a>`;
-  const page = node.page;
+  if (!node.page && !node.group) return `<a class="rail-link rail-external${node.level > 1 ? " sub" : ""}" href="${esc(node.href)}" target="_blank" rel="noopener" style="--depth:${node.level - 1}"><em aria-hidden="true">↗</em><span>${esc(node.label)}</span></a>`;
   const count = subtreeFiles(node).length;
-  const link = `<a class="rail-link${node.level > 1 ? " sub" : ""}" href="${pageHref(page)}" data-link data-route="${pageHref(page)}" style="--depth:${node.level - 1}"><em>${node.numeral}</em><span>${esc(page.title)}</span>${count ? `<small>${count}</small>` : ""}</a>`;
+  const href = nodeHref(node);
+  const link = `<a class="rail-link${node.level > 1 ? " sub" : ""}${node.group ? " rail-section" : ""}" href="${href}" data-link data-route="${href}" style="--depth:${node.level - 1}"><em>${node.numeral}</em><span>${esc(nodeTitle(node))}</span>${count ? `<small>${count}</small>` : ""}</a>`;
   if (!node.children.length) return link;
-  const open = railOpen.has(page.path);
-  return `<div class="rail-group${open ? " open" : ""}" data-group="${esc(page.path)}">
-    <div class="rail-row">${link}<button type="button" class="rail-expand" aria-expanded="${open}" aria-label="${open ? "Hide" : "Show"} the pages in ${esc(page.title)}">${CHEVRON}</button></div>
+  const key = nodeKey(node);
+  const open = railOpen.has(key);
+  return `<div class="rail-group${open ? " open" : ""}" data-group="${esc(key)}">
+    <div class="rail-row">${link}<button type="button" class="rail-expand" aria-expanded="${open}" aria-label="${open ? "Hide" : "Show"} the pages in ${esc(nodeTitle(node))}">${CHEVRON}</button></div>
     <div class="rail-children"${open ? "" : " inert"}><div>${node.children.map(railNode).join("")}</div></div>
   </div>`;
 }
@@ -422,14 +441,17 @@ byId("railNav").addEventListener("click", (event) => {
 function markActiveRail(target) {
   let active = currentPath();
   if (target.view === "file") { const file = fileByKey(P.fileKey(target)); const vault = file && fileVault(file); active = vault ? pageHref(vault) : "/codex"; }
+  if (target.view === "section") active = `/s/${target.slug}`;
   if (target.view === "codex") active = "/codex";
   document.querySelectorAll(".rail-link[data-route]").forEach((link) => {
     if (link.dataset.route === active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   });
   // Open every section on the way to the current page, so the rail always shows where you are.
   const page = active.startsWith("/p/") ? state.site?.pages.find((item) => pageHref(item) === active) : null;
-  [...ancestors(page), page].filter(Boolean).forEach((item) => {
-    const group = byId("railNav").querySelector(`.rail-group[data-group="${CSS.escape(item.path)}"]`);
+  const here = page?.node || (active.startsWith("/s/") ? state.site?.groups.get(decodeURIComponent(active.slice(3))) : null);
+  if (!here) return;
+  [...ancestorNodes(here), here].forEach((item) => {
+    const group = byId("railNav").querySelector(`.rail-group[data-group="${CSS.escape(nodeKey(item))}"]`);
     if (group && !group.classList.contains("open")) setRailGroup(group, true);
   });
 }
@@ -536,9 +558,9 @@ const HERO_CORE = (() => {
 })();
 
 function stackGroups() {
-  const groups = state.site.tree.filter((node) => node.page).map((node) => ({ page: node.page, files: state.site.files.filter((file) => sectionOf(fileVault(file)) === node.page) })).filter((group) => group.files.length);
+  const groups = state.site.tree.filter((node) => node.page || node.group).map((node) => ({ node, files: state.site.files.filter((file) => rootOf(fileVault(file)) === node) })).filter((group) => group.files.length);
   const loose = state.site.files.filter((file) => !fileVault(file));
-  if (loose.length) groups.unshift({ page: null, files: loose });
+  if (loose.length) groups.unshift({ node: null, files: loose });
   return groups;
 }
 /* The stacks: one long library shelf, every record a spine, each vault's run of records
@@ -549,8 +571,8 @@ function stacksHtml() {
   let index = 0;
   const first = groups[0].files[0];
   return `<div class="shelf-wrap library" data-reveal>
-    <div class="shelf" role="list">${groups.map(({ page, files }) => `${page
-      ? `<a class="bookend" role="listitem" href="${pageHref(page)}" data-link title="Vault ${vaultNumeral(page)} · ${esc(page.title)}"><em>${vaultNumeral(page)}</em><span>${esc(page.title)}</span></a>`
+    <div class="shelf" role="list">${groups.map(({ node, files }) => `${node
+      ? `<a class="bookend" role="listitem" href="${nodeHref(node)}" data-link title="Vault ${node.numeral} · ${esc(nodeTitle(node))}"><em>${node.numeral}</em><span>${esc(nodeTitle(node))}</span></a>`
       : `<span class="bookend" role="listitem"><em>◆</em><span>The gate</span></span>`}${files.map((file) => spineHtml(file, index++)).join("")}`).join("")}</div>
     <a class="plaque" href="${fileHref(first)}" data-link data-plaque="${esc(first.key)}" tabindex="-1">${plaqueHtml(first)}</a>
   </div>`;
@@ -559,7 +581,7 @@ function stacksHtml() {
 function renderGate(options) {
   const home = homePage();
   const files = state.site.files;
-  const list = state.site.tree.filter((node) => node.page);
+  const list = state.site.tree.filter((node) => node.page || node.group);
   document.title = /central archives/i.test(state.site.name) ? state.site.name : `${state.site.name} — Central Archives`;
   const leadBlock = home.blocks.find((block) => block.type === "p" && block.text.length > 30 && block.text.length < 420);
   const lead = leadBlock ? leadBlock.text : "The central archive of the Sith Order: every vault, every handbook, every record — unsealed for those with the will to read them.";
@@ -586,10 +608,10 @@ function renderGate(options) {
       <span class="orrery-ring ring-a" aria-hidden="true"></span><span class="orrery-ring ring-b" aria-hidden="true"></span>
       <button type="button" class="hero-core" id="heroCore" aria-label="Touch the archive core">${HERO_CORE}</button>
       ${list.map((node, index) => {
-        const inner = node.children.filter((child) => child.page).length;
-        return `<a class="orrery-node" href="${pageHref(node.page)}" data-link data-node="${index}" style="--d:${300 + index * 90}ms">
-        <span class="node-orb">${glyph(node.page.path)}</span>
-        <span class="node-label"><em>Vault ${node.numeral}</em><strong>${esc(node.page.title)}</strong><small>${[inner ? plural(inner, "inner vault") : "", plural(subtreeFiles(node).length, "record")].filter(Boolean).join(" · ")}</small></span>
+        const inner = node.children.filter((child) => child.page || child.group).length;
+        return `<a class="orrery-node" href="${nodeHref(node)}" data-link data-node="${index}" style="--d:${300 + index * 90}ms">
+        <span class="node-orb">${glyph(nodeKey(node))}</span>
+        <span class="node-label"><em>Vault ${node.numeral}</em><strong>${esc(nodeTitle(node))}</strong><small>${[inner ? plural(inner, "inner vault") : "", plural(subtreeFiles(node).length, "record")].filter(Boolean).join(" · ")}</small></span>
       </a>`;
       }).join("")}
       <p class="orrery-log"><span class="log-caret" aria-hidden="true">›</span><span id="gateLog"></span></p>
@@ -669,11 +691,11 @@ function startGateLog() {
   if (!node) return;
   let index = 0;
   const lines = () => {
-    const list = state.site.tree.filter((node) => node.page);
+    const list = state.site.tree.filter((node) => node.page || node.group);
     return [
       `Archive synced with Google Sites ${syncAgo()}`,
       `${plural(list.length, "section")} · ${plural(vaults().length, "vault")} · ${plural(state.site.files.length, "record")} on file`,
-      ...list.slice(0, 10).map((node) => `Vault ${node.numeral} · ${node.page.title} · ${plural(subtreeFiles(node).length, "record")}`),
+      ...list.slice(0, 10).map((node) => `Vault ${node.numeral} · ${nodeTitle(node)} · ${node.group ? `${plural(node.children.length, "inner vault")} · ` : ""}${plural(subtreeFiles(node).length, "record")}`),
       "Hold still on empty ground to channel the Force",
     ].filter(Boolean);
   };
@@ -701,6 +723,36 @@ function jumpToRandomRecord() {
   navigate(fileHref(pick));
 }
 
+/* ───────── A section (a dropdown tab of the Google Site's menu) ─────────
+ * The tab has no page of its own on Google Sites, so its chamber here is the index of what
+ * it holds: its pages as inner vaults, then every record filed anywhere inside it. */
+function innerVaultsHtml(nodes, owner) {
+  if (!nodes.length) return "";
+  return `<nav class="inner-vaults" aria-label="Inner vaults of ${esc(owner)}">${nodes.map((child) => (child.page || child.group)
+    ? `<a class="inner-vault" href="${nodeHref(child)}" data-link><em>${child.numeral}</em><strong>${esc(nodeTitle(child))}</strong><small>${[child.children.length ? plural(child.children.length, "inner vault") : "", plural(subtreeFiles(child).length, "record")].filter(Boolean).join(" · ")}</small><span aria-hidden="true">→</span></a>`
+    : `<a class="inner-vault" href="${esc(child.href)}" target="_blank" rel="noopener"><em>↗</em><strong>${esc(child.label)}</strong><small>Outside the archive</small><span aria-hidden="true">↗</span></a>`).join("")}</nav>`;
+}
+function renderSection(node, options) {
+  const title = nodeTitle(node);
+  document.title = `${title} — TSO Central Archives`;
+  const files = subtreeFiles(node).map(fileByKey).filter(Boolean);
+  const sections = state.site.tree.filter((item) => item.page || item.group);
+  const index = sections.indexOf(node);
+  app.innerHTML = `<article class="page chamber section-page">
+    <header class="chamber-head">
+      <span class="chamber-numeral" aria-hidden="true">${node.numeral}</span>
+      ${crumbs([{ href: "/", label: "The Gate" }, ...ancestorNodes(node).map((item) => ({ href: nodeHref(item), label: nodeTitle(item) })), { label: title }])}
+      <p class="eyebrow">Vault ${node.numeral}</p>
+      <h1 data-decrypt>${esc(title)}</h1>
+      <div class="chamber-meta"><span>${plural(node.children.length, "inner vault")}</span><span>${plural(files.length, "record")} filed within</span></div>
+    </header>
+    ${innerVaultsHtml(node.children, title)}
+    ${files.length ? `${SABER_RULE(`Records within ${title}`)}<div class="stacks">${shelfHtml(files)}</div>` : ""}
+    ${passage(index > 0 ? sections[index - 1] : null, index >= 0 && index < sections.length - 1 ? sections[index + 1] : null, "section", nodeHref, nodeTitle)}
+  </article>`;
+  afterRender(options);
+}
+
 /* ───────── A vault chamber (a page of the Google Site) ───────── */
 function renderChamber(page, options) {
   document.title = `${page.title} — TSO Central Archives`;
@@ -715,14 +767,12 @@ function renderChamber(page, options) {
     <header class="chamber-head${page.banner ? " has-banner" : ""}">
       <span class="chamber-numeral" aria-hidden="true">${numeral}</span>
       ${page.banner ? `<img class="chamber-banner" src="${esc(page.banner)}" alt="" />` : ""}
-      ${crumbs([{ href: "/", label: "The Gate" }, ...ancestors(page).map((item) => ({ href: pageHref(item), label: item.title })), { label: page.title }])}
+      ${crumbs([{ href: "/", label: "The Gate" }, ...(page.node ? ancestors(page).map((item) => ({ href: nodeHref(item), label: nodeTitle(item) })) : []), { label: page.title }])}
       <p class="eyebrow">${index >= 0 ? `Vault ${numeral}` : "The gate"}</p>
       <h1 data-decrypt>${esc(page.title)}</h1>
       <div class="chamber-meta"><span>${plural(page.fileKeys.length, "record")} filed</span>${words > 40 ? `<span>${readingMinutes(words)} min read</span>` : ""}<a href="${esc(page.source)}" target="_blank" rel="noopener">View on Google Sites ↗</a></div>
     </header>
-    ${children.length ? `<nav class="inner-vaults" aria-label="Inner vaults of ${esc(page.title)}">${children.map((child) => child.page
-      ? `<a class="inner-vault" href="${pageHref(child.page)}" data-link><em>${child.numeral}</em><strong>${esc(child.page.title)}</strong><small>${[child.children.length ? plural(child.children.filter((item) => item.page).length, "inner vault") : "", plural(subtreeFiles(child).length, "record")].filter(Boolean).join(" · ")}</small><span aria-hidden="true">→</span></a>`
-      : `<a class="inner-vault" href="${esc(child.href)}" target="_blank" rel="noopener"><em>↗</em><strong>${esc(child.label)}</strong><small>Outside the archive</small><span aria-hidden="true">↗</span></a>`).join("")}</nav>` : ""}
+    ${innerVaultsHtml(children, page.title)}
     ${page.blocks.length ? `<div class="prose chamber-prose">${blocksHtml(page.blocks)}</div>` : children.length ? "" : `<div class="prose chamber-prose"><p class="notice">This vault holds no inscriptions of its own${extra.length ? " — only the records on its shelf" : " yet"}.</p></div>`}
     ${extra.length ? `${SABER_RULE(shown.size ? "Also on this vault's shelf" : "This vault's shelf")}<div class="stacks">${shelfHtml(extra)}</div>` : ""}
     ${passage(index > 0 ? list[index - 1] : null, index >= 0 && index < list.length - 1 ? list[index + 1] : null, "vault", pageHref, (item) => item.title)}
@@ -806,7 +856,7 @@ function dossierHead(file, length = "…", status = "Decrypting") {
   const vault = fileVault(file);
   return `<header class="file-head">
       <div class="file-head-main">
-        ${crumbs([{ href: "/", label: "The Gate" }, ...(vault ? [...ancestors(vault), vault].map((item) => ({ href: pageHref(item), label: item.title })) : [{ href: "/codex", label: "Catalogue" }]), { label: fileTitle(file) }])}
+        ${crumbs([{ href: "/", label: "The Gate" }, ...(vault ? (vault.node ? crumbTrail(vault.node) : [{ href: pageHref(vault), label: vault.title }]) : [{ href: "/codex", label: "Catalogue" }]), { label: fileTitle(file) }])}
         <p class="eyebrow">${kindIcon(file.kind)}${esc(KIND[file.kind]?.label || "File")}</p>
         <h1 data-decrypt data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</h1>
       </div>
@@ -989,7 +1039,9 @@ function renderNotFound() {
 const scrubber = { headings: [] };
 function hideScrubber() { byId("scrubber").hidden = true; scrubber.headings = []; document.body.classList.remove("has-scrubber"); }
 function setupScrubber(headings = []) {
-  const usable = headings.filter((heading) => heading.level <= 3).map((heading) => ({ ...heading, el: byId(heading.id) })).filter((heading) => heading.el);
+  let usable = headings.filter((heading) => heading.level <= 3).map((heading) => ({ ...heading, el: byId(heading.id) })).filter((heading) => heading.el);
+  // Long handbooks: keep the bar readable by marking only the major chapters.
+  if (usable.length > 20 && usable.some((heading) => heading.level === 2)) usable = usable.filter((heading) => heading.level === 2);
   if (usable.length < 2) { hideScrubber(); return; }
   scrubber.headings = usable;
   byId("scrubTicks").innerHTML = usable.map((heading, index) => `<button type="button" class="scrub-tick${heading.level === 3 ? " minor" : ""}" data-tick="${index}" aria-label="Jump to ${esc(heading.text)}"><span>${esc(heading.text)}</span></button>`).join("");
@@ -1047,7 +1099,7 @@ async function indexDocuments() {
   update();
 }
 function searchItems() {
-  const pages = state.site.pages.map((page) => ({ tag: page.path ? "VAULT" : "GATE", title: page.path ? page.title : `${state.site.name}`, text: page.text, href: pageHref(page), where: page.path ? `Vault ${vaultNumeral(page)}${ancestors(page).length ? ` · ${ancestors(page).map((item) => item.title).join(" › ")}` : ""}` : "The gate", ref: page.path ? `VAULT ${vaultNumeral(page)}` : "GATE" }));
+  const pages = state.site.pages.map((page) => ({ tag: page.path ? "VAULT" : "GATE", title: page.path ? page.title : `${state.site.name}`, text: page.text, href: pageHref(page), where: page.path ? `Vault ${vaultNumeral(page)}${ancestors(page).length ? ` · ${ancestors(page).map(nodeTitle).join(" › ")}` : ""}` : "The gate", ref: page.path ? `VAULT ${vaultNumeral(page)}` : "GATE" }));
   const files = state.site.files.map((file) => ({ tag: (KIND[file.kind]?.short || "File").toUpperCase(), file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), where: [KIND[file.kind]?.label, fileVault(file) && trail(fileVault(file))].filter(Boolean).join(" · "), ref: fileRefNo(file) }));
   return [...files, ...pages];
 }

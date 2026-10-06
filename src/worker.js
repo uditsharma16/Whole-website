@@ -72,12 +72,24 @@ function upstreamUrl(env, target) {
   const parsed = new URL(target);
   return `${env.GOOGLE_UPSTREAM.replace(/\/$/, "")}/${parsed.host}${parsed.pathname}${parsed.search}`;
 }
-function google(env, target, ttl = 60) {
-  return fetch(upstreamUrl(env, target), {
-    headers: { "User-Agent": BROWSER_UA, "Accept-Language": "en-GB,en;q=0.9" },
+/* Google Sites serves its own uploads (banners, logos) only to visitors carrying the NID
+ * cookie it sets when a page of the site loads, so the Worker keeps the latest one it was
+ * given and presents it when it fetches those images. */
+let siteCookie = "";
+async function google(env, target, ttl = 60) {
+  const toSite = new URL(target).hostname === "sites.google.com";
+  const headers = { "User-Agent": BROWSER_UA, "Accept-Language": "en-GB,en;q=0.9" };
+  if (toSite && siteCookie) headers.Cookie = siteCookie;
+  const response = await fetch(upstreamUrl(env, target), {
+    headers,
     redirect: "follow",
     cf: { cacheTtlByStatus: { "200-299": ttl, "404": Math.min(ttl, 30), "300-399": 0, "400-403": 0, "405-599": 0 }, cacheEverything: true }
   });
+  if (toSite) {
+    const nid = (response.headers.get("set-cookie") || "").match(/\bNID=[^;,\s]+/);
+    if (nid) siteCookie = nid[0];
+  }
+  return response;
 }
 /* A file that is not shared publicly answers with Google's sign-in page rather than an error. */
 function isSignIn(response) {
@@ -214,7 +226,8 @@ function decodeEntities(value = "") {
  * any, in order, with its depth in the menu (a dropdown's pages sit one level below the
  * tab they hang from). The depth comes from the item's data-nav-level / aria-level when
  * Google provides one, otherwise from how deeply its list is nested. Entries are pages of
- * this site ({ path }) or links that leave it ({ href }). */
+ * this site ({ path }), links that leave it ({ href }), or dropdown tabs that only group
+ * other entries ({ group: true }). */
 function navItems(html) {
   for (const region of html.match(/<nav\b[\s\S]*?<\/nav>/gi) || []) {
     const raw = [];
@@ -229,9 +242,11 @@ function navItems(html) {
       const end = region.indexOf("</a>", tag.lastIndex);
       const inner = end > 0 ? region.slice(tag.lastIndex, end) : "";
       const href = decodeEntities((attrs.match(/\bhref="([^"]*)"/i) || [])[1] || "").trim();
-      if (!href || href.startsWith("#") || /^javascript:/i.test(href)) continue;
       const label = cleanLabel(stripTags(inner) || decodeEntities((attrs.match(/\baria-label="([^"]*)"/i) || [])[1] || ""));
       if (!label) continue;
+      // A dropdown tab that isn't a page itself is an anchor with no address that opens a submenu.
+      if (!href && /\baria-haspopup="true"|\bdata-navtype="4"/i.test(attrs)) { raw.push({ group: true, label, level: liLevel || depth }); continue; }
+      if (!href || href.startsWith("#") || /^javascript:/i.test(href)) continue;
       raw.push({ href, label, level: liLevel || depth });
     }
     const listed = raw.filter((item) => item.level > 0);
@@ -240,9 +255,10 @@ function navItems(html) {
     const seen = new Set();
     const items = [];
     for (const item of listed) {
-      const path = sitePath(item.href);
+      const path = item.group ? "" : sitePath(item.href);
       let entry;
-      if (path) entry = { path: path === SITE_HOME ? "" : path.slice(SITE_PREFIX.length + 1) };
+      if (item.group) entry = { group: true };
+      else if (path) entry = { path: path === SITE_HOME ? "" : path.slice(SITE_PREFIX.length + 1) };
       else {
         try {
           const url = new URL(unwrapGoogleRedirect(item.href), SITE_ORIGIN);
@@ -250,7 +266,7 @@ function navItems(html) {
           entry = { href: url.href };
         } catch { continue; }
       }
-      const key = entry.path ?? entry.href;
+      const key = entry.group ? `group:${item.level}:${item.label}` : entry.path ?? entry.href;
       if (seen.has(key)) continue;
       seen.add(key);
       items.push({ ...entry, label: item.label, level: Math.min(4, item.level - base + 1) });
@@ -335,7 +351,27 @@ function fileRefs(main, raw) {
     const ref = parseFileUrl(value) || (ID.test(value) ? { kind: "file", id: value } : null);
     if (ref && ![...refs.values()].some((item) => item.id === ref.id)) add(ref);
   }
-  return [...refs.values()];
+  // An embed links the same file twice: a generic Drive link ("Open Document, <title> in new
+  // window") and its Docs/Sheets/Slides preview. One record per file: the specific kind wins,
+  // and the embed's own label is reduced to the title.
+  const byId = new Map();
+  for (const ref of refs.values()) {
+    const old = byId.get(ref.id);
+    if (!old) { byId.set(ref.id, ref); continue; }
+    const keep = old.kind === "file" && ref.kind !== "file" ? ref : old;
+    const other = keep === ref ? old : ref;
+    byId.set(ref.id, { ...keep, label: keep.label || other.label, gid: keep.gid || other.gid || "" });
+  }
+  return [...byId.values()].map((ref) => {
+    const embed = embedLabel(ref.label);
+    return { ...ref, kind: ref.kind === "file" && embed.kind ? embed.kind : ref.kind, label: embed.title };
+  });
+}
+const EMBED_KINDS = { document: "document", spreadsheet: "spreadsheets", presentation: "presentation", form: "forms", drawing: "drawings", folder: "folder" };
+function embedLabel(label = "") {
+  const match = label.match(/^Open\s+(\w+)?,?\s*(.*?)\s+in new window$/i);
+  if (!match) return { title: label, kind: "" };
+  return { title: match[2].trim(), kind: EMBED_KINDS[(match[1] || "").toLowerCase()] || "" };
 }
 function unescapeUrls(text) {
   return decodeEntities(text)
@@ -451,10 +487,19 @@ async function imageResponse(env, url) {
   } else {
     try { target = new URL(url.searchParams.get("u") || ""); } catch { return new Response("Bad image reference", { status: 400 }); }
     const drawing = target.hostname === "docs.google.com" && /^\/drawings\/d\/[A-Za-z0-9_-]{20,}\/(export\/png|image)/.test(target.pathname);
-    if (target.protocol !== "https:" || !(IMAGE_HOSTS.test(target.hostname) || drawing)) return new Response("Image host not allowed", { status: 403 });
+    // Google Sites serves its own uploads (banners, logos) from sites.google.com, same-site only.
+    const siteImage = target.hostname === "sites.google.com" && /^\/sitesv-images[\w-]*\//.test(target.pathname);
+    if (target.protocol !== "https:" || !(IMAGE_HOSTS.test(target.hostname) || drawing || siteImage)) return new Response("Image host not allowed", { status: 403 });
     target = target.href;
   }
-  const media = await google(env, target, 86400);
+  if (new URL(target).hostname === "sites.google.com" && !siteCookie) await readPage(env, SITE_HOME).catch(() => {});
+  let media = await google(env, target, 86400);
+  // An old cookie (or none yet) is refused; load a page for a fresh one and try once more.
+  if (media.status === 403 && new URL(target).hostname === "sites.google.com") {
+    siteCookie = "";
+    await google(env, `${SITE_ORIGIN}${SITE_HOME}`, 0).catch(() => {});
+    media = await google(env, target, 86400);
+  }
   const type = media.headers.get("content-type") || "";
   if (!media.ok || !type.toLowerCase().startsWith("image/")) return new Response("Image unavailable", { status: 404 });
   return new Response(media.body, {
