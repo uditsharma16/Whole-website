@@ -217,11 +217,6 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 .query-prompt { color: var(--red-light); font: 400 .85rem var(--mono); letter-spacing: .06em; }
 .query input { min-width: 0; padding: .95rem 0; border: 0; outline: 0; background: none; color: var(--ink); font: 400 1rem var(--mono); caret-color: var(--red-light); }
 .query input::placeholder { color: var(--faint); }
-.gate-stats { display: flex; flex-wrap: wrap; gap: .6rem 2.2rem; margin: 0; }
-.gate-stats div { display: grid; gap: .05rem; padding-left: .8rem; border-left: 2px solid var(--red); box-shadow: -6px 0 10px -8px var(--red); }
-.gate-stats dt { color: var(--faint); font: 400 .68rem var(--mono); letter-spacing: .22em; text-transform: uppercase; }
-.gate-stats dd { margin: 0; color: var(--ink); font: 700 1.8rem/1.1 var(--display); font-variant-numeric: tabular-nums; }
-.gate-stats .stat-live { color: var(--red-light); text-shadow: 0 0 1rem rgba(227,38,47,.5); }
 
 /* The orrery: vaults orbit the archive core (positions and depth are set per frame in
  * startOrrery()); the panel itself is a star chart with two tilted orbit rings. */
@@ -281,24 +276,6 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 .orrery.is-stacked .hero-core { position: relative; left: auto; top: auto; translate: none; width: min(13rem, 60vw); }
 .orrery.is-stacked .orrery-node { position: relative; width: 100%; max-width: 26rem; flex-direction: row; text-align: left; opacity: 1; }
 
-/* Record of the day: a classified file folder with its tab, thumbnail and a stamp. */
-.dossier-card { --card-x: 50%; --card-y: 50%; position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 16rem); gap: 1.6rem; align-items: center; margin-top: clamp(3rem, 6vw, 4.5rem); padding: 2.4rem 1.8rem 1.6rem; border: 1px solid rgba(216,176,106,.35); border-radius: 0 6px 6px 6px; background: linear-gradient(160deg, rgba(48,30,20,.82), rgba(16,9,8,.9)); box-shadow: var(--shadow); text-decoration: none; transform: perspective(60rem) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg)); transition: transform .4s var(--ease), border-color .3s ease, box-shadow .3s ease; }
-.dossier-card::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: radial-gradient(26rem circle at var(--card-x) var(--card-y), rgba(216,176,106,.16), transparent 60%); }
-.dossier-card:hover { border-color: rgba(216,176,106,.65); box-shadow: var(--shadow), 0 0 3rem rgba(216,176,106,.18); }
-.dossier-tab { position: absolute; left: -1px; bottom: 100%; padding: .35rem 1rem .25rem; border: 1px solid rgba(216,176,106,.35); border-bottom: 0; border-radius: 6px 6px 0 0; background: rgba(48,30,20,.95); color: var(--gold); font: 400 .7rem var(--mono); letter-spacing: .18em; text-transform: uppercase; white-space: nowrap; }
-.dossier-copy { display: grid; gap: .55rem; min-width: 0; }
-.dossier-copy small { color: var(--gold); font: 400 .72rem var(--mono); letter-spacing: .14em; text-transform: uppercase; }
-.dossier-copy strong { color: var(--ink); font: 700 clamp(1.8rem, 3.6vw, 2.8rem)/1.08 var(--display); transition: color .3s ease; }
-.dossier-card:hover .dossier-copy strong { color: var(--gold-light); }
-.dossier-copy > span { color: var(--muted); }
-.dossier-copy em { color: var(--gold); font: 400 .76rem var(--mono); font-style: normal; letter-spacing: .14em; text-transform: uppercase; transition: letter-spacing .3s var(--ease); }
-.dossier-card:hover .dossier-copy em { letter-spacing: .2em; }
-.dossier-thumb { display: grid; place-items: center; aspect-ratio: 3 / 4; overflow: hidden; border: 1px solid rgba(216,176,106,.3); background: #f1e7dc; color: rgba(216,176,106,.55); transform: rotate(2.5deg); box-shadow: 0 .8rem 1.6rem rgba(0,0,0,.5); transition: transform .5s var(--ease); }
-.dossier-thumb.is-glyph { background: linear-gradient(160deg, var(--bg-3), #0a0406); }
-.dossier-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; filter: sepia(.35) contrast(1.05); }
-.dossier-thumb .glyph { width: 60%; }
-.dossier-card:hover .dossier-thumb { transform: rotate(0deg) scale(1.03); }
-.dossier-stamp { position: absolute; right: 1.6rem; top: 1rem; padding: .2rem .7rem; border: 2px solid rgba(227,38,47,.75); border-radius: 3px; color: rgba(255,90,95,.9); font: 700 1rem var(--display); letter-spacing: .2em; text-transform: uppercase; transform: rotate(-8deg); mix-blend-mode: screen; opacity: .85; }
 
 /* The stacks: each vault's records as bound spines on a shelf, with a nameplate below
  * that reads whichever spine is under the pointer (setPlaque() in app.js). */
@@ -672,12 +649,8 @@ body.quake { animation: quake .5s linear 3; }
   body { font-size: 1.06rem; }
   .brand small { display: none; }
   .gate-heading span:nth-child(2) { padding-left: 0; }
-  .gate-stats dd { font-size: 1.5rem; }
   .query kbd { display: none; }
   .node-orb { width: 3rem; }
-  .dossier-card { grid-template-columns: minmax(0, 1fr); padding: 2.2rem 1.1rem 1.2rem; }
-  .dossier-thumb { width: 8rem; justify-self: start; }
-  .dossier-stamp { top: .8rem; right: 1rem; font-size: .8rem; }
   .shelf { min-height: 17rem; }
   .spine { --h: 14rem !important; }
   .slip { grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .8rem; }

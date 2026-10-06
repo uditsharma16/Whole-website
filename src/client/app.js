@@ -174,7 +174,6 @@ const fileRefNo = (file) => (Number.isFinite(file.order) ? `TSO-CA/${String(file
 const canThumb = (file) => !file.pub && ["document", "spreadsheets", "presentation", "drawings", "file"].includes(file.kind);
 const thumbSrc = (file) => `/api/img?thumb=${encodeURIComponent(file.id)}`;
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-const pad = (number) => String(number).padStart(2, "0");
 function roman(number) {
   const map = [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
   let out = ""; for (const [value, numeral] of map) while (number >= value) { out += numeral; number -= value; }
@@ -195,19 +194,6 @@ function seededRandom(seed = "") {
   let t = Math.imul(h ^ (h >>> 15), 1 | h);
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-}
-/* "Record of the day": the same file for every visitor, all day (UTC), with no storage —
- * each file is scored by hashing today's date with its key and the highest score wins. */
-function recordOfTheDay(files) {
-  const day = new Date().toISOString().slice(0, 10);
-  let best = null, bestScore = -1;
-  for (const file of files) { const score = seededRandom(`${day}:${file.key}`); if (score > bestScore) { bestScore = score; best = file; } }
-  return best;
-}
-function spotlightFile() {
-  const files = state.site.files;
-  const documents = files.filter((file) => file.kind === "document");
-  return files.length ? recordOfTheDay(documents.length ? documents : files) : null;
 }
 
 /* A deterministic seal per vault/file, so entries without artwork still have a face. */
@@ -327,7 +313,7 @@ async function blastDoors(swap) {
 }
 
 function afterRender(options = {}) {
-  bindImageFallbacks(app); bindMotion(app); observeReveals(app); decryptTitles(app);
+  bindImageFallbacks(app); observeReveals(app); decryptTitles(app);
   if (options.hash) {
     const target = byId(decodeURIComponent(options.hash.slice(1)));
     if (target) { setTimeout(() => target.scrollIntoView({ behavior: "auto", block: "start" }), 30); updateProgress(); return; }
@@ -488,7 +474,6 @@ function renderGate(options) {
   const leadBlock = home.blocks.find((block) => block.type === "p" && block.text.length > 30 && block.text.length < 420);
   const lead = leadBlock ? leadBlock.text : "The central archive of the Sith Order: every vault, every handbook, every record — unsealed for those with the will to read them.";
   const rest = home.blocks.filter((block) => block !== leadBlock);
-  const spotlight = spotlightFile();
   app.innerHTML = `<div class="page gate">
     <section class="gate-head">
       <div class="gate-title">
@@ -503,11 +488,6 @@ function renderGate(options) {
           <input type="search" placeholder="search every vault and record" autocomplete="off" spellcheck="false" aria-label="Query the archive" />
           <kbd aria-hidden="true">/</kbd>
         </form>
-        <dl class="gate-stats">
-          <div><dt>Vaults</dt><dd data-count="${list.length}">00</dd></div>
-          <div><dt>Records</dt><dd data-count="${files.length}">00</dd></div>
-          <div><dt>Gate</dt><dd class="stat-live">${state.live ? "Unsealed" : "Sealed"}</dd></div>
-        </dl>
       </div>
     </section>
 
@@ -522,18 +502,6 @@ function renderGate(options) {
       <p class="orrery-log"><span class="log-caret" aria-hidden="true">›</span><span id="gateLog"></span></p>
     </section>
 
-    ${spotlight ? `<a class="dossier-card" href="${fileHref(spotlight)}" data-link data-prefetch="${esc(spotlight.key)}" data-reveal>
-      <span class="dossier-tab">Record of the day · ${esc(formatDate(new Date()))}</span>
-      <span class="dossier-copy">
-        <small>${esc(fileRefNo(spotlight))} · ${esc(KIND[spotlight.kind]?.label || "File")}${fileVault(spotlight) ? ` · ${esc(fileVault(spotlight).title)}` : ""}</small>
-        <strong data-file-name="${esc(spotlight.key)}">${esc(fileTitle(spotlight))}</strong>
-        <span>Drawn from the stacks for today. Every acolyte reads the same record until midnight.</span>
-        <em>Unseal the record →</em>
-      </span>
-      <span class="dossier-thumb" data-seed="${esc(spotlight.key)}">${thumbHtml(spotlight)}</span>
-      <span class="dossier-stamp" aria-hidden="true">Unsealed</span>
-    </a>` : ""}
-
     ${files.length ? `${SABER_RULE("The stacks", "stacks")}<div class="stacks">${stacksHtml()}</div>
       <div class="more-row"><a class="btn" href="/codex" data-link>Open the catalogue · ${plural(files.length, "record")} <span aria-hidden="true">→</span></a></div>` : ""}
     ${rest.length ? `${SABER_RULE("Inscribed at the gate")}<section class="prose gate-prose" data-reveal>${blocksHtml(rest)}</section>` : ""}
@@ -542,19 +510,9 @@ function renderGate(options) {
   search.addEventListener("submit", (event) => { event.preventDefault(); openSearch(search.querySelector("input").value); });
   search.querySelector("input").addEventListener("focus", () => openSearch(search.querySelector("input").value));
   byId("heroCore").addEventListener("click", (event) => coreBurst(event.currentTarget));
-  countUp(app);
   afterRender(options);
   startOrrery();
-  startGateLog(spotlight);
-}
-function countUp(root) {
-  root.querySelectorAll("[data-count]").forEach((node) => {
-    const target = Number(node.dataset.count) || 0;
-    if (reducedMotion.matches || !target) { node.textContent = pad(target); return; }
-    const begin = performance.now();
-    const tick = (now) => { const t = Math.min(1, (now - begin) / 1100); node.textContent = pad(Math.round(target * (1 - Math.pow(1 - t, 3)))); if (t < 1) requestAnimationFrame(tick); };
-    requestAnimationFrame(tick);
-  });
+  startGateLog();
 }
 
 /* The orrery: every vault orbits the archive core on a tilted ellipse, nearer nodes larger
@@ -612,7 +570,7 @@ function startOrrery() {
 
 /* The transmission log under the orrery types out the archive's own status, line by line. */
 let gateLogTimer = 0;
-function startGateLog(spotlight) {
+function startGateLog() {
   clearTimeout(gateLogTimer);
   const node = byId("gateLog");
   if (!node) return;
@@ -623,7 +581,6 @@ function startGateLog(spotlight) {
       `Archive synced with Google Sites ${syncAgo()}`,
       `${plural(list.length, "vault")} unsealed · ${plural(state.site.files.length, "record")} on file`,
       ...list.slice(0, 8).map((page, i) => `Vault ${roman(i + 1)} · ${page.title} · ${plural(page.fileKeys.length, "record")}`),
-      spotlight ? `Record of the day · ${fileTitle(spotlight)}` : "",
       "Hold still on empty ground to channel the Force",
     ].filter(Boolean);
   };
@@ -1113,18 +1070,6 @@ function observeReveals(root) {
   setTimeout(() => items.forEach((item) => item.classList.add("in")), 1500); // never leave content hidden
 }
 
-function bindMotion(root) {
-  if (reducedMotion.matches || !matchMedia("(hover: hover)").matches) return;
-  root.querySelectorAll(".dossier-card").forEach((tile) => {
-    tile.addEventListener("pointermove", (event) => {
-      const box = tile.getBoundingClientRect();
-      const x = (event.clientX - box.left) / box.width; const y = (event.clientY - box.top) / box.height;
-      tile.style.setProperty("--card-x", `${x * 100}%`); tile.style.setProperty("--card-y", `${y * 100}%`);
-      tile.style.setProperty("--tilt-x", `${(x - .5) * 4}deg`); tile.style.setProperty("--tilt-y", `${(.5 - y) * 4}deg`);
-    });
-    tile.addEventListener("pointerleave", () => { tile.style.setProperty("--tilt-x", "0deg"); tile.style.setProperty("--tilt-y", "0deg"); });
-  });
-}
 
 /* Titles arrive "encrypted" and resolve left to right, as if being decoded by the archive.
  * The real title is set as aria-label first, so assistive tech never hears the noise. */
@@ -1202,7 +1147,7 @@ function drawLightning() {
   else { lightningLoop = false; lctx.clearRect(0, 0, innerWidth, innerHeight); }
 }
 function channelTargets(x, y) {
-  return [...document.querySelectorAll(".spine, .orrery-node, .hero-core, .dossier-card, .slip, .brand, .droid")]
+  return [...document.querySelectorAll(".spine, .orrery-node, .hero-core, .slip, .brand, .droid")]
     .map((el) => el.getBoundingClientRect())
     .filter((box) => box.width && box.bottom > 0 && box.top < innerHeight)
     .map((box) => [box.left + box.width * (.2 + Math.random() * .6), box.top + box.height * (.2 + Math.random() * .6)])
@@ -1527,7 +1472,7 @@ function createAtmosphere() {
 
 document.addEventListener("pointerdown", (event) => {
   if (reducedMotion.matches || event.button !== 0) return;
-  const target = event.target.closest(".btn, .rail-query, .dossier-card, .slip, .passage a, .plaque, .orrery-node");
+  const target = event.target.closest(".btn, .rail-query, .slip, .passage a, .plaque, .orrery-node");
   if (!target) return;
   target.classList.add("ripple-host");
   const box = target.getBoundingClientRect();
