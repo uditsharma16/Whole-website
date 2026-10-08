@@ -5,7 +5,7 @@
  * Sheets become tables, and Slides, Forms and Drive files open in a framed viewer.
  *
  * The archive is laid out like one: an index rail down the left, an orrery of vaults around
- * the archive core at the gate, records shelved as spines in the stacks, documents opened as
+ * the archive core at the gate, records kept as holocrons in the vault, documents opened as
  * dossiers with a chapter scrubber, a card catalogue, and a terminal for queries. */
 
 const P = window.ArchiveParse;
@@ -459,17 +459,62 @@ function openRail() { document.body.classList.add("rail-open"); byId("railScrim"
 function closeMenus() { document.body.classList.remove("rail-open"); byId("railScrim").hidden = true; byId("menuToggle").setAttribute("aria-expanded", "false"); }
 
 /* ───────── Shared pieces ───────── */
-/* A record on the shelf: a bound spine whose height, width and binding come from the record
- * itself, so the stacks look collected over time rather than printed in one batch. */
-function spineHtml(file, index = 0) {
+/* A record in the vault: a Sith holocron. Each is a pyramid of dark metal in three-quarter
+ * view, its capstone a separate piece that lifts when the holocron is opened, light leaking
+ * from the seams, runes cut into both faces. Size, runes and the colour of its light all
+ * come from the record itself, so no two holocrons in the vault are alike. */
+const HOLO = { A: [0, -58], L: [-48, 26], R: [48, 26], F: [8, 40] };
+const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+const pts = (...points) => points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+function holocronSvg(seed) {
+  let h = hash(seed);
+  const rand = () => { h |= 0; h = (h + 0x6d2b79f5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const { A, L, R, F } = HOLO;
+  const cut = .36 + rand() * .08;
+  const CL = lerp(A, L, cut), CF = lerp(A, F, cut), CR = lerp(A, R, cut);
+  // Runes: short angular strokes placed inside a face (by mixing its corners) and drawn in its plane.
+  const runes = (p, q, r, count) => Array.from({ length: count }, () => {
+    let u = rand(), v = rand(); if (u + v > .92) { u = .92 - u; v = .92 - v; }
+    const base = [p[0] + (q[0] - p[0]) * u + (r[0] - p[0]) * v, p[1] + (q[1] - p[1]) * u + (r[1] - p[1]) * v];
+    const size = 3 + rand() * 3.5;
+    const shape = Math.floor(rand() * 4);
+    const d = [
+      `M${base[0] - size},${base[1] + size} L${base[0]},${base[1] - size} L${base[0] + size},${base[1] + size}`,
+      `M${base[0] - size},${base[1]} L${base[0] + size},${base[1]} M${base[0]},${base[1] - size} L${base[0]},${base[1] + size}`,
+      `M${base[0] - size},${base[1] - size} L${base[0] + size},${base[1] - size} L${base[0] - size},${base[1] + size} L${base[0] + size},${base[1] + size}`,
+      `M${base[0]},${base[1] - size} L${base[0] + size},${base[1]} L${base[0]},${base[1] + size} L${base[0] - size},${base[1]} Z`
+    ][shape];
+    return `<path d="${d}"/>`;
+  }).join("");
+  return `<svg class="holocron-art" viewBox="-62 -96 124 146" aria-hidden="true">
+    <polygon class="beam" points="${pts([CL[0] * .55, CL[1]], [CR[0] * .55, CR[1]], [CR[0] * .2, -96], [CL[0] * .2, -96])}"/>
+    <ellipse class="core" cx="4" cy="6" rx="34" ry="30"/>
+    <g class="base">
+      <polygon class="face face-left" points="${pts(CL, L, F, CF)}"/>
+      <polygon class="face face-right" points="${pts(CF, F, R, CR)}"/>
+      <polygon class="sheen" points="${pts(CF, F, R, CR)}"/>
+      <g class="runes">${runes(CL, L, F, 4 + Math.floor(rand() * 3))}${runes(CF, F, R, 4 + Math.floor(rand() * 3))}</g>
+      <path class="seam" d="M${CF[0]},${CF[1]} L${F[0]},${F[1]}"/>
+      <path class="edge" d="M${CL[0]},${CL[1]} L${L[0]},${L[1]} L${F[0]},${F[1]} L${R[0]},${R[1]} L${CR[0]},${CR[1]}"/>
+    </g>
+    <g class="cap">
+      <polygon class="face face-left" points="${pts(A, CL, CF)}"/>
+      <polygon class="face face-right" points="${pts(A, CF, CR)}"/>
+      <polygon class="sheen" points="${pts(A, CF, CR)}"/>
+      <path class="edge" d="M${CL[0]},${CL[1]} L${A[0]},${A[1]} L${CR[0]},${CR[1]} M${A[0]},${A[1]} L${CF[0]},${CF[1]}"/>
+      <circle class="apex" cx="${A[0]}" cy="${A[1]}" r="2.2"/>
+    </g>
+    <path class="seam cut" d="M${CL[0]},${CL[1]} L${CF[0]},${CF[1]} L${CR[0]},${CR[1]}"/>
+  </svg>`;
+}
+function holocronHtml(file, index = 0) {
   const r = seededRandom(file.key), r2 = seededRandom(`${file.key}:w`);
-  const title = fileTitle(file);
-  const height = 13 + r * 4.6;
-  const width = Math.min(5.1, 3.2 + Math.min(title.length, 60) / 38 + r2 * .5);
-  return `<a class="spine tone-${Math.floor(r2 * 4)}" role="listitem" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}" data-spine="${esc(file.key)}" style="--h:${height.toFixed(2)}rem;--w:${width.toFixed(2)}rem;--d:${Math.min(index * 45, 420)}ms">
-    <span class="spine-cap">${kindIcon(file.kind)}</span>
-    <span class="spine-title" data-file-name="${esc(file.key)}">${esc(title)}</span>
-    <span class="spine-foot">${esc(fileRefNo(file).slice(-3))}</span>
+  const tone = r2 < .5 ? 0 : r2 < .68 ? 1 : r2 < .84 ? 2 : 3; // crimson most of all, then ember, violet, gold
+  return `<a class="holocron tone-${tone}" role="listitem" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}" data-holocron="${esc(file.key)}" style="--scale:${(.86 + r * .26).toFixed(3)};--d:${Math.min(index * 70, 700)}ms;--bob:${(4.2 + r2 * 2.6).toFixed(2)}s">
+    <span class="holocron-float">${holocronSvg(file.key)}</span>
+    <span class="holocron-pool" aria-hidden="true"></span>
+    <span class="holocron-name" data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</span>
+    <span class="holocron-ref">${esc(fileRefNo(file).slice(-3))} · ${esc(KIND[file.kind]?.short || "File")}</span>
   </a>`;
 }
 function plaqueHtml(file) {
@@ -481,13 +526,13 @@ function plaqueHtml(file) {
 function shelfHtml(files) {
   if (!files.length) return "";
   return `<div class="shelf-wrap" data-reveal>
-    <div class="shelf" role="list">${files.map(spineHtml).join("")}</div>
+    <div class="shelf" role="list">${files.map(holocronHtml).join("")}</div>
     <a class="plaque" href="${fileHref(files[0])}" data-link data-plaque="${esc(files[0].key)}" tabindex="-1">${plaqueHtml(files[0])}</a>
   </div>`;
 }
-function setPlaque(spine) {
-  const plaque = spine.closest(".shelf-wrap")?.querySelector(".plaque");
-  const file = fileByKey(spine.dataset.spine);
+function setPlaque(holocron) {
+  const plaque = holocron.closest(".shelf-wrap")?.querySelector(".plaque");
+  const file = fileByKey(holocron.dataset.holocron);
   if (!plaque || !file || plaque.dataset.plaque === file.key) return;
   plaque.dataset.plaque = file.key;
   plaque.href = fileHref(file);
@@ -563,8 +608,8 @@ function stackGroups() {
   if (loose.length) groups.unshift({ node: null, files: loose });
   return groups;
 }
-/* The stacks: one long library shelf, every record a spine, each vault's run of records
- * introduced by a bookend carrying its numeral. */
+/* The holocron vault: every record a holocron on one long altar, each section's run of
+ * holocrons introduced by an obelisk carrying its numeral. */
 function stacksHtml() {
   const groups = stackGroups();
   if (!groups.length) return "";
@@ -572,8 +617,8 @@ function stacksHtml() {
   const first = groups[0].files[0];
   return `<div class="shelf-wrap library" data-reveal>
     <div class="shelf" role="list">${groups.map(({ node, files }) => `${node
-      ? `<a class="bookend" role="listitem" href="${nodeHref(node)}" data-link title="Vault ${node.numeral} · ${esc(nodeTitle(node))}"><em>${node.numeral}</em><span>${esc(nodeTitle(node))}</span></a>`
-      : `<span class="bookend" role="listitem"><em>◆</em><span>The gate</span></span>`}${files.map((file) => spineHtml(file, index++)).join("")}`).join("")}</div>
+      ? `<a class="obelisk" role="listitem" href="${nodeHref(node)}" data-link title="Vault ${node.numeral} · ${esc(nodeTitle(node))}"><em>${node.numeral}</em><span>${esc(nodeTitle(node))}</span></a>`
+      : `<span class="obelisk" role="listitem"><em>◆</em><span>The gate</span></span>`}${files.map((file) => holocronHtml(file, index++)).join("")}`).join("")}</div>
     <a class="plaque" href="${fileHref(first)}" data-link data-plaque="${esc(first.key)}" tabindex="-1">${plaqueHtml(first)}</a>
   </div>`;
 }
@@ -617,7 +662,7 @@ function renderGate(options) {
       <p class="orrery-log"><span class="log-caret" aria-hidden="true">›</span><span id="gateLog"></span></p>
     </section>
 
-    ${files.length ? `${SABER_RULE("The stacks", "stacks")}<div class="stacks">${stacksHtml()}</div>
+    ${files.length ? `${SABER_RULE("The holocron vault", "stacks")}<div class="stacks">${stacksHtml()}</div>
       <div class="more-row"><a class="btn" href="/codex" data-link>Open the catalogue · ${plural(files.length, "record")} <span aria-hidden="true">→</span></a></div>` : ""}
     ${rest.length ? `${SABER_RULE("Inscribed at the gate")}<section class="prose gate-prose" data-reveal>${blocksHtml(rest)}</section>` : ""}
   </div>`;
@@ -716,7 +761,7 @@ function startGateLog() {
 }
 function jumpToRandomRecord() {
   const files = state.site.files;
-  if (!files.length) { droidReact("The stacks are empty. For now."); return; }
+  if (!files.length) { droidReact("The holocron vault is empty. For now."); return; }
   let pick = files[Math.floor(Math.random() * files.length)];
   for (let guard = 0; guard < 8 && files.length > 1 && fileHref(pick) === currentPath() + location.search; guard += 1) pick = files[Math.floor(Math.random() * files.length)];
   droidReact("Retrieving a record at random.");
@@ -747,7 +792,7 @@ function renderSection(node, options) {
       <div class="chamber-meta"><span>${plural(node.children.length, "inner vault")}</span><span>${plural(files.length, "record")} filed within</span></div>
     </header>
     ${innerVaultsHtml(node.children, title)}
-    ${files.length ? `${SABER_RULE(`Records within ${title}`)}<div class="stacks">${shelfHtml(files)}</div>` : ""}
+    ${files.length ? `${SABER_RULE(`Holocrons within ${title}`)}<div class="stacks">${shelfHtml(files)}</div>` : ""}
     ${passage(index > 0 ? sections[index - 1] : null, index >= 0 && index < sections.length - 1 ? sections[index + 1] : null, "section", nodeHref, nodeTitle)}
   </article>`;
   afterRender(options);
@@ -774,7 +819,7 @@ function renderChamber(page, options) {
     </header>
     ${innerVaultsHtml(children, page.title)}
     ${page.blocks.length ? `<div class="prose chamber-prose">${blocksHtml(page.blocks)}</div>` : children.length ? "" : `<div class="prose chamber-prose"><p class="notice">This vault holds no inscriptions of its own${extra.length ? " — only the records on its shelf" : " yet"}.</p></div>`}
-    ${extra.length ? `${SABER_RULE(shown.size ? "Also on this vault's shelf" : "This vault's shelf")}<div class="stacks">${shelfHtml(extra)}</div>` : ""}
+    ${extra.length ? `${SABER_RULE(shown.size ? "More holocrons in this vault" : "Holocrons in this vault")}<div class="stacks">${shelfHtml(extra)}</div>` : ""}
     ${passage(index > 0 ? list[index - 1] : null, index >= 0 && index < list.length - 1 ? list[index + 1] : null, "vault", pageHref, (item) => item.title)}
   </article>`;
   afterRender(options);
@@ -943,7 +988,7 @@ async function renderDoc(file, options) {
   const vault = fileVault(file);
   const related = vault ? vault.fileKeys.map(fileByKey).filter((item) => item && item.key !== file.key) : [];
   byId("docBody").innerHTML = `<div class="prose doc-prose" style="--doc-scale:${docScale}">${doc.html || `<p class="notice">This record is blank.</p>`}</div>
-    ${related.length ? `${SABER_RULE(`Also on the shelf of ${vault.title}`)}<div class="stacks">${shelfHtml(related)}</div>` : ""}
+    ${related.length ? `${SABER_RULE(`More holocrons from ${vault.title}`)}<div class="stacks">${shelfHtml(related)}</div>` : ""}
     ${siblingsNav(file)}`;
   app.querySelectorAll("[data-scale]").forEach((button) => button.addEventListener("click", () => {
     docScale = Math.min(1.3, Math.max(.85, docScale + Number(button.dataset.scale) * .075));
@@ -1192,18 +1237,18 @@ document.addEventListener("click", (event) => {
   if (event.target === byId("searchPanel")) { closeSearch(); return; }
   if (event.target === byId("railScrim")) closeMenus();
 });
-/* Hovering a spine reads its plate on the shelf below and starts fetching the record, so
- * it is usually ready by the time the doors open. */
+/* Hovering a holocron reads its inscription below the altar and starts fetching the record,
+ * so it is usually ready by the time the doors open. */
 document.addEventListener("pointerover", (event) => {
-  const spine = event.target.closest(".spine");
-  if (spine) setPlaque(spine);
+  const holocron = event.target.closest(".holocron");
+  if (holocron) setPlaque(holocron);
   const card = event.target.closest("[data-prefetch]");
   if (!card || card.dataset.prefetched) return;
   card.dataset.prefetched = "1";
   const file = fileByKey(card.dataset.prefetch);
   if (file?.kind === "document") loadDoc(file);
 });
-document.addEventListener("focusin", (event) => { const spine = event.target.closest?.(".spine"); if (spine) setPlaque(spine); });
+document.addEventListener("focusin", (event) => { const holocron = event.target.closest?.(".holocron"); if (holocron) setPlaque(holocron); });
 
 let revealObserver = null;
 function observeReveals(root) {
@@ -1292,7 +1337,7 @@ function drawLightning() {
   else { lightningLoop = false; lctx.clearRect(0, 0, innerWidth, innerHeight); }
 }
 function channelTargets(x, y) {
-  return [...document.querySelectorAll(".spine, .orrery-node, .hero-core, .slip, .brand, .droid")]
+  return [...document.querySelectorAll(".holocron, .orrery-node, .hero-core, .slip, .brand, .droid")]
     .map((el) => el.getBoundingClientRect())
     .filter((box) => box.width && box.bottom > 0 && box.top < innerHeight)
     .map((box) => [box.left + box.width * (.2 + Math.random() * .6), box.top + box.height * (.2 + Math.random() * .6)])

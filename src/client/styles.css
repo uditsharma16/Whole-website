@@ -1,6 +1,6 @@
 /* TSO Central Archives
  * Layout: an index rail fixed down the left; the stage to its right holds the gate (orrery of
- * vaults around the archive core, the stacks of record spines), vault chambers, record
+ * vaults around the archive core, the holocron vault), vault chambers, record
  * dossiers with a bottom chapter scrubber, and the card catalogue. */
 :root {
   color-scheme: dark;
@@ -292,32 +292,60 @@ input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webki
 .orrery.is-stacked .orrery-node { position: relative; width: 100%; max-width: 26rem; flex-direction: row; text-align: left; opacity: 1; }
 
 
-/* The stacks: each vault's records as bound spines on a shelf, with a nameplate below
- * that reads whichever spine is under the pointer (setPlaque() in app.js). */
+/* The holocron vault: every record a Sith holocron floating above a stone altar, each
+ * section's run marked by an obelisk, and an inscription below that reads whichever
+ * holocron is under the pointer (setPlaque() in app.js). Hovering a holocron opens it:
+ * it rises, its capstone lifts, light pours out of the seam and its core flares. */
 .stacks { display: grid; gap: 2.6rem; }
-.library .shelf { min-height: 20rem; padding-top: 1.6rem; -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent); mask-image: linear-gradient(90deg, #000 92%, transparent); padding-right: 3rem; }
-.bookend { position: relative; flex: none; display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; gap: .7rem; width: 2.7rem; height: 12.5rem; margin: 0 .35rem 0 1.1rem; padding: 1.4rem .2rem .7rem; border: 1px solid rgba(227,38,47,.35); border-bottom: 0; background: linear-gradient(180deg, #2c2326, #110b0d); clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 100%); text-decoration: none; transition: filter .3s ease, background .3s ease; }
-.bookend:first-child { margin-left: 0; }
-.bookend em { color: var(--red-light); font: 700 1.05rem/1 var(--display); font-style: normal; text-shadow: 0 0 .6rem rgba(227,38,47,.6); }
-.bookend span { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 400 .66rem var(--mono); letter-spacing: .2em; text-transform: uppercase; }
-a.bookend:hover { filter: brightness(1.4); background: linear-gradient(180deg, #4a1218, #15090c); }
-a.bookend:hover span { color: #fff; }
+.shelf { position: relative; display: flex; align-items: flex-end; gap: 1.1rem; min-height: 19rem; padding: 2.4rem 1.4rem 1.2rem; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: rgba(227,38,47,.4) transparent;
+  background: radial-gradient(ellipse 60% 70% at 50% 100%, rgba(227,38,47,.14), transparent 70%), linear-gradient(180deg, transparent 55%, rgba(227,38,47,.05));
+  border-bottom: .9rem solid #1a1013; box-shadow: 0 .9rem 0 -.2rem #0b0607, 0 1.4rem 2.4rem rgba(0,0,0,.65), inset 0 -2px 0 rgba(255,90,95,.55), inset 0 -1.6rem 2.2rem -1.6rem rgba(227,38,47,.45); }
+.library .shelf { min-height: 20rem; padding-right: 3rem; -webkit-mask-image: linear-gradient(90deg, #000 93%, transparent); mask-image: linear-gradient(90deg, #000 93%, transparent); }
+.holocron { --scale: 1; --bob: 5s; --seam: #ff3b44; --seam-soft: rgba(255,59,68,.55); --face-l: #2a0a0e; --face-r: #47121b; --rune: rgba(255,120,120,.55);
+  position: relative; flex: none; display: grid; justify-items: center; gap: .35rem; width: 7.6rem; padding-bottom: .2rem; text-decoration: none; text-align: center; animation: holocron-in .9s var(--d, 0ms) var(--ease) both; }
+.tone-1 .holocron-art .beam { fill: url(#holoBeam1); }
+.tone-2 .holocron-art .beam { fill: url(#holoBeam2); }
+.tone-3 .holocron-art .beam { fill: url(#holoBeam3); }
+.svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.tone-1 { --seam: #ff7a2e; --seam-soft: rgba(255,122,46,.5); --face-l: #2a1208; --face-r: #47200c; --rune: rgba(255,170,110,.55); }
+.tone-2 { --seam: #b48cff; --seam-soft: rgba(180,140,255,.5); --face-l: #170d24; --face-r: #2b1844; --rune: rgba(200,175,255,.55); }
+.tone-3 { --seam: #f0b45a; --seam-soft: rgba(240,180,90,.5); --face-l: #17110d; --face-r: #2c2118; --rune: rgba(255,215,150,.5); }
+.holocron-float { display: block; width: calc(6.6rem * var(--scale)); animation: holocron-bob var(--bob) ease-in-out infinite; animation-delay: calc(var(--d, 0ms) * -3); transition: transform .5s var(--ease); }
+.holocron-art { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 .9rem .8rem rgba(0,0,0,.6)) drop-shadow(0 0 .7rem var(--seam-soft)); transition: filter .4s ease; }
+.holocron-art .face { stroke: none; }
+.holocron-art .face-left { fill: var(--face-l); }
+.holocron-art .face-right { fill: var(--face-r); }
+.holocron-art .sheen { fill: url(#holoSheen); opacity: .55; }
+.holocron-art .edge { fill: none; stroke: rgba(255,230,225,.28); stroke-width: .9; stroke-linejoin: round; }
+.holocron-art .seam { fill: none; stroke: var(--seam); stroke-width: 1.6; stroke-linecap: round; filter: drop-shadow(0 0 2px var(--seam)); }
+.holocron-art .seam.cut { stroke-width: 1.9; animation: seam-pulse 3.2s ease-in-out infinite; }
+.holocron-art .runes { fill: none; stroke: var(--rune); stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; transition: stroke .4s ease, filter .4s ease; }
+.holocron-art .apex { fill: var(--seam); filter: drop-shadow(0 0 3px var(--seam)); }
+.holocron-art .core { fill: var(--seam); opacity: 0; filter: blur(14px); transition: opacity .4s ease; }
+.holocron-art .cap { transform-box: view-box; transform-origin: 0 0; transition: transform .55s cubic-bezier(.3,1.5,.5,1); }
+.holocron-art .beam { fill: url(#holoBeam0); opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(.2); transition: opacity .35s ease, transform .55s var(--ease); }
+.holocron-pool { width: 5.4rem; height: .9rem; margin-top: -.5rem; border-radius: 50%; background: radial-gradient(ellipse, var(--seam-soft), transparent 70%); opacity: .6; animation: pool-pulse var(--bob) ease-in-out infinite; animation-delay: calc(var(--d, 0ms) * -3); transition: opacity .4s ease, transform .4s ease; }
+.holocron-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; margin-top: .25rem; color: var(--ink-2); font: 700 1.02rem/1.15 var(--display); transition: color .3s ease, text-shadow .3s ease; }
+.holocron-ref { color: var(--faint); font: 400 .62rem var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.holocron:hover .holocron-float, .holocron:focus-visible .holocron-float { transform: translateY(-1.1rem); }
+.holocron:hover .holocron-art, .holocron:focus-visible .holocron-art { filter: drop-shadow(0 1.4rem 1rem rgba(0,0,0,.6)) drop-shadow(0 0 1.4rem var(--seam)); }
+.holocron:hover .cap, .holocron:focus-visible .cap { transform: translateY(-11px) rotate(-3deg); }
+.holocron:hover .beam, .holocron:focus-visible .beam { opacity: .9; transform: none; }
+.holocron:hover .core, .holocron:focus-visible .core { opacity: .55; }
+.holocron:hover .runes, .holocron:focus-visible .runes { stroke: var(--seam); filter: drop-shadow(0 0 2px var(--seam)); }
+.holocron:hover .holocron-pool, .holocron:focus-visible .holocron-pool { opacity: 1; transform: scale(1.25); }
+.holocron:hover .holocron-name, .holocron:focus-visible .holocron-name { color: #fff; text-shadow: 0 0 1rem var(--seam-soft); }
+.holocron:focus-visible { outline: none; }
+.holocron:focus-visible .holocron-name { outline: 1px solid var(--seam); outline-offset: 3px; }
+/* A section's obelisk: a tapering stone marker engraved with its numeral and name. */
+.obelisk { position: relative; flex: none; align-self: flex-end; display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; gap: .8rem; width: 3rem; height: 15rem; margin: 0 .2rem 0 1.4rem; padding: 2.1rem .2rem .9rem; background: linear-gradient(90deg, #1b1315 0%, #2e2326 48%, #120c0e 52%, #1a1214 100%); clip-path: polygon(50% 0, 100% 11%, 88% 100%, 12% 100%, 0 11%); text-decoration: none; transition: filter .3s ease; }
+.obelisk:first-child { margin-left: 0; }
+.obelisk::after { content: ""; position: absolute; left: 50%; top: 11%; bottom: 0; width: 1px; background: linear-gradient(180deg, rgba(255,90,95,.7), transparent 80%); }
+.obelisk em { position: relative; z-index: 1; color: var(--red-light); font: 700 1.05rem/1 var(--display); font-style: normal; text-shadow: 0 0 .6rem rgba(227,38,47,.8); }
+.obelisk span { position: relative; z-index: 1; writing-mode: vertical-rl; transform: rotate(180deg); max-height: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 400 .64rem var(--mono); letter-spacing: .22em; text-transform: uppercase; background: #1d1517; padding: .3rem 0; }
+a.obelisk:hover { filter: brightness(1.5) drop-shadow(0 0 .8rem rgba(227,38,47,.5)); }
+a.obelisk:hover span { color: #fff; }
 .shelf-wrap { min-width: 0; display: grid; gap: .9rem; }
-.shelf { position: relative; display: flex; align-items: flex-end; gap: .3rem; min-height: 19rem; padding: 1.2rem .9rem 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: rgba(227,38,47,.4) transparent; background: linear-gradient(180deg, transparent 60%, rgba(227,38,47,.06)); border-bottom: .7rem solid #2a1215; box-shadow: 0 .7rem 0 -.1rem #12070a, 0 1.2rem 2rem rgba(0,0,0,.6), inset 0 -1.5rem 2rem -1.5rem rgba(227,38,47,.35); }
-.spine { --h: 15rem; --w: 3.8rem; position: relative; flex: none; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; justify-items: center; gap: .6rem; width: var(--w); height: var(--h); padding: .75rem .3rem .6rem; border-radius: 3px 3px 1px 1px; text-decoration: none; color: var(--ink-2); background: var(--binding); box-shadow: inset 2px 0 0 rgba(255,255,255,.08), inset -3px 0 6px rgba(0,0,0,.55), 0 -.1rem 0 rgba(0,0,0,.4); transform-origin: bottom center; transition: transform .35s var(--ease), box-shadow .35s ease, filter .35s ease; animation: shelve .7s var(--d, 0ms) var(--ease) both; }
-.spine::before, .spine::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: rgba(216,176,106,.55); box-shadow: 0 4px 0 rgba(216,176,106,.3); }
-.spine::before { top: 2.4rem; }
-.spine::after { bottom: 2.1rem; box-shadow: 0 -4px 0 rgba(216,176,106,.3); }
-.tone-0 { --binding: linear-gradient(90deg, #3d0c12, #5a1219 45%, #34090f); }
-.tone-1 { --binding: linear-gradient(90deg, #1d1416, #2e2124 45%, #181012); }
-.tone-2 { --binding: linear-gradient(90deg, #4a1b10, #6a2814 45%, #3a140c); }
-.tone-3 { --binding: linear-gradient(90deg, #26132a, #3a1d3e 45%, #1f0f22); }
-.spine-cap { color: var(--gold); }
-.spine-cap .kind-icon { width: 1.05rem; height: 1.05rem; }
-.spine-title { writing-mode: vertical-rl; max-height: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 1.08rem/1 var(--display); letter-spacing: .06em; color: var(--ink); text-shadow: 0 1px 0 rgba(0,0,0,.6); }
-.spine-foot { color: var(--gold); font: 400 .62rem var(--mono); letter-spacing: .08em; }
-.spine:hover, .spine:focus-visible { transform: translateY(-1.1rem) rotate(-1.5deg); filter: brightness(1.25); box-shadow: inset 2px 0 0 rgba(255,255,255,.12), inset -3px 0 6px rgba(0,0,0,.5), 0 1rem 1.6rem rgba(0,0,0,.5), 0 0 1.8rem rgba(227,38,47,.45); }
-.spine:hover .spine-title { color: #fff; }
 .plaque { position: relative; display: grid; grid-template-columns: 3.2rem minmax(0, 1fr) auto; align-items: center; gap: .9rem; padding: .55rem .9rem .55rem .55rem; border: 1px solid rgba(216,176,106,.3); border-radius: 3px; background: linear-gradient(90deg, rgba(48,30,20,.7), rgba(16,9,8,.6)); text-decoration: none; transition: border-color .3s ease; }
 .plaque:hover { border-color: rgba(216,176,106,.6); }
 .plaque.flip { animation: plaque-flip .45s var(--ease); }
@@ -627,7 +655,10 @@ body.quake { animation: quake .5s linear 3; }
 @keyframes hover-bob { 50% { transform: translateY(-4px); } }
 @keyframes tether { to { stroke-dashoffset: -20; } }
 @keyframes surge { 0% { stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 6px var(--storm)); } 100% { stroke: rgba(227,38,47,.32); stroke-width: 1; } }
-@keyframes shelve { from { opacity: 0; transform: translateY(-1.6rem) rotate(-4deg); } }
+@keyframes holocron-in { from { opacity: 0; transform: translateY(1.2rem) scale(.7); filter: blur(6px) brightness(2); } }
+@keyframes holocron-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.45rem); } }
+@keyframes pool-pulse { 0%, 100% { transform: scale(1); opacity: .6; } 50% { transform: scale(.82); opacity: .4; } }
+@keyframes seam-pulse { 50% { opacity: .55; } }
 @keyframes plaque-flip { from { opacity: .3; transform: translateY(.3rem); } }
 @keyframes caret { 50% { opacity: 0; } }
 @keyframes title-in { from { opacity: 0; transform: translateY(.35em); filter: blur(12px); letter-spacing: .08em; } }
@@ -674,8 +705,6 @@ body.quake { animation: quake .5s linear 3; }
   .gate-heading span:nth-child(2) { padding-left: 0; }
   .query kbd { display: none; }
   .node-orb { width: 3rem; }
-  .shelf { min-height: 17rem; }
-  .spine { --h: 14rem !important; }
   .slip { grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .8rem; }
   .slip-kind { grid-column: 1 / -1; }
   .slip-ref { grid-column: 1; grid-row: 3; }
