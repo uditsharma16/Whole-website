@@ -1345,12 +1345,14 @@ function renderSearch(query) {
   const matches = items.filter((item) => !value || `${item.title} ${item.where} ${item.ref} ${item.text}`.toLowerCase().includes(value)).sort((a, b) => (value ? rank(a) - rank(b) : 0)).slice(0, 40);
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
+  // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
+  if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: true, tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
   byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${items.length} ${items.length === 1 ? "entry" : "entries"} on file`;
   const header = `<p class="term-sys">› ${value ? `scanning ${items.length} entries for “${esc(query.trim())}”` : "awaiting query · listing every entry on file"}</p>`;
-  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}${item.recite ? " term-code" : ""}" href="${item.href}" ${item.recite ? "data-recite" : "data-link"} data-index="${index}">
+  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}${item.recite || item.summon ? " term-code" : ""}" href="${item.href}" ${item.recite ? "data-recite" : item.summon ? "data-summon" : "data-link"} data-index="${index}">
       <span class="term-tag">[${esc(item.tag)}]</span>
-      <span class="term-main"><strong>${highlight(item.title, value)}</strong><small>${esc(item.where)}</small>${item.text && value && !item.recite ? `<p>${highlight(snippet(item.text, value), value)}</p>` : ""}</span>
+      <span class="term-main"><strong>${highlight(item.title, value)}</strong><small>${esc(item.where)}</small>${item.text && value && !item.recite && !item.summon ? `<p>${highlight(snippet(item.text, value), value)}</p>` : ""}</span>
       <span class="term-ref">${esc(item.ref)}</span></a>`).join("") : `<p class="term-sys term-empty">› no entry matches “${esc(query)}”${indexing ? " · still indexing records" : ""}</p>`);
 }
 function moveSearch(step) {
@@ -1400,6 +1402,7 @@ document.addEventListener("click", (event) => {
     event.preventDefault(); navigate(anchor.getAttribute("href"), anchor); return;
   }
   if (event.target.closest("[data-recite]")) { event.preventDefault(); reciteCode(); return; }
+  if (event.target.closest("[data-summon]")) { event.preventDefault(); summonEmperor(); return; }
   const scroller = event.target.closest("a[data-scroll]");
   if (scroller) {
     event.preventDefault();
@@ -1583,10 +1586,11 @@ function forceStorm() {
 }
 let typed = "";
 document.addEventListener("keydown", (event) => {
-  if (recital.running || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (recital.running || rite.running || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
   typed = (typed + event.key.toLowerCase()).slice(-16);
   if (typed.endsWith("power")) { typed = ""; forceStorm(); }
   else if (typed.endsWith(CODE_WORDS)) { typed = ""; reciteCode(); }
+  else if (typed.endsWith(EMPEROR_WORD)) { typed = ""; summonEmperor(); }
 });
 
 /* ───────── The Code ─────────
@@ -1600,7 +1604,7 @@ const AWAKENED = "tso-awakened";
 const recital = { running: false, timers: [] };
 const lettersOf = (text) => text.toLowerCase().replace(/[^a-z]/g, "");
 function reciteCode() {
-  if (recital.running) return;
+  if (recital.running || rite.running) return;
   recital.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("sithCode");
@@ -1638,6 +1642,153 @@ function awaken(announce) {
   setTimeout(() => droidReact("The archive answers to you now. For now."), 900);
 }
 try { if (sessionStorage.getItem(AWAKENED)) awaken(false); } catch {}
+
+/* ───────── The Emperor ─────────
+ * Typing "emperor" anywhere outside a text field, or summoning him from the terminal, brings
+ * Darth Azazel up out of the dark. He powers up: the dark side boils off him as a crimson
+ * aura, lightning crawls over his armour, the ground cracks into shockwaves, his eyes blaze
+ * and his name slams in. The aura is drawn on a canvas: flames rise from the edge of his
+ * silhouette (read from the picture's own transparency) and from a flickering envelope
+ * around him. */
+const EMPEROR_WORD = "emperor";
+const rite = { running: false, timers: [], frame: 0, edges: null, image: null, particles: [], intensity: 0, target: 0, sprites: null };
+function riteSprites() {
+  if (rite.sprites) return rite.sprites;
+  const sprite = (stops) => {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d"), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    stops.forEach(([at, color]) => grad.addColorStop(at, color));
+    g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+    return c;
+  };
+  rite.sprites = {
+    hot: sprite([[0, "rgba(255,255,255,1)"], [.25, "rgba(255,214,206,.9)"], [.55, "rgba(255,60,60,.45)"], [1, "rgba(160,0,16,0)"]]),
+    red: sprite([[0, "rgba(255,120,110,.9)"], [.4, "rgba(227,38,47,.55)"], [1, "rgba(110,0,10,0)"]])
+  };
+  return rite.sprites;
+}
+async function emperorImage() {
+  if (rite.image) return rite.image;
+  const img = byId("riteEmperor");
+  if (!img.getAttribute("src")) img.src = "/emperor.webp";
+  await img.decode().catch(() => {});
+  // Edge of the silhouette: opaque pixels next to transparent ones, with the way out.
+  const c = document.createElement("canvas"); c.width = img.naturalWidth || 339; c.height = img.naturalHeight || 429;
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+  const { data, width, height } = g.getImageData(0, 0, c.width, c.height);
+  const alpha = (x, y) => (x < 0 || y < 0 || x >= width || y >= height ? 0 : data[(y * width + x) * 4 + 3]);
+  const edges = [];
+  for (let y = 0; y < height; y += 3) for (let x = 0; x < width; x += 3) {
+    if (alpha(x, y) < 150) continue;
+    const nx = alpha(x - 4, y) - alpha(x + 4, y), ny = alpha(x, y - 4) - alpha(x, y + 4);
+    if (Math.abs(nx) + Math.abs(ny) < 120) continue;
+    const length = Math.hypot(nx, ny) || 1;
+    edges.push({ x: x / width, y: y / height, nx: nx / length, ny: ny / length });
+  }
+  rite.edges = edges; rite.image = img;
+  return img;
+}
+async function summonEmperor() {
+  if (rite.running || recital.running) return;
+  rite.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  const overlay = byId("emperorRite");
+  const still = reducedMotion.matches;
+  await emperorImage();
+  overlay.className = `emperor-rite${still ? " still" : ""}`;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => rite.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    rite.timers.forEach(clearTimeout); rite.timers = [];
+    cancelAnimationFrame(rite.frame); rite.frame = 0; rite.particles = [];
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "emperor-rite";
+    document.body.style.overflow = "";
+    rite.running = false;
+    toast("The Emperor has spoken. Kneel.");
+    setTimeout(() => droidReact("His power level… it's over nine thousand!"), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (rite.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  if (still) { overlay.classList.add("charging", "ascended"); later(4200, finish); return; }
+  rite.intensity = 0;
+  startAura();
+  void overlay.offsetWidth;
+  overlay.classList.add("rising");
+  later(900, () => { overlay.classList.add("charging"); rite.target = .45; });
+  later(2700, () => {
+    overlay.classList.add("ascended"); rite.target = 1; rite.intensity = 1.4;
+    document.body.classList.remove("quake"); void document.body.offsetWidth; document.body.classList.add("quake");
+    setTimeout(() => document.body.classList.remove("quake"), 1600);
+    skyFlash(1);
+    const box = byId("riteEmperor").getBoundingClientRect();
+    const cx = box.left + box.width / 2, cy = box.top + box.height * .4;
+    for (let i = 0; i < (perf.lite ? 5 : 12); i += 1) setTimeout(() => { const a = Math.random() * Math.PI * 2, r = Math.max(innerWidth, innerHeight) * (.4 + Math.random() * .4); strike(cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r, { width: 2.4, decay: .05 }); }, i * 60);
+  });
+  later(7800, () => { overlay.classList.add("leaving"); rite.target = 0; });
+  later(8500, finish);
+}
+function startAura() {
+  const canvas = byId("riteAura"), g = canvas.getContext("2d");
+  const ratio = Math.min(devicePixelRatio || 1, perf.lite ? 1 : 1.5);
+  canvas.width = innerWidth * ratio; canvas.height = innerHeight * ratio;
+  g.setTransform(ratio, 0, 0, ratio, 0, 0);
+  const { hot, red } = riteSprites();
+  rite.target = .12;
+  let sparkAt = 0;
+  const tick = (now) => {
+    rite.frame = requestAnimationFrame(tick);
+    rite.intensity += (rite.target - rite.intensity) * .06;
+    const box = byId("riteEmperor").getBoundingClientRect();
+    const scale = box.height / 429;
+    g.globalCompositeOperation = "source-over";
+    g.clearRect(0, 0, innerWidth, innerHeight);
+    // New flames: off the edge of his silhouette, and up the envelope around him.
+    const spawn = Math.round(rite.intensity * (perf.lite ? 7 : 18));
+    for (let i = 0; i < spawn && rite.edges.length; i += 1) {
+      if (Math.random() < .62) {
+        const e = rite.edges[Math.floor(Math.random() * rite.edges.length)];
+        rite.particles.push({ x: box.left + e.x * box.width, y: box.top + e.y * box.height, vx: e.nx * (.4 + Math.random()) * scale, vy: (-1.6 - Math.random() * 3.2 + e.ny * .6) * scale, life: 0, max: 26 + Math.random() * 30, size: (9 + Math.random() * 18) * scale, stretch: 1.6 + Math.random() });
+      } else {
+        // The envelope: an egg of flame all the way round him, licking up into spikes over his head.
+        const a = Math.random() * Math.PI * 2, rx = box.width * .7, ry = box.height * .6;
+        const above = Math.sin(a) < 0;
+        rite.particles.push({ x: box.left + box.width / 2 + Math.cos(a) * rx * (above ? .8 : 1), y: box.top + box.height * .5 + Math.sin(a) * ry, vx: Math.cos(a) * .3 * scale, vy: (above ? -6 - Math.random() * 6 : -4 - Math.random() * 5) * scale, life: 0, max: above ? 14 + Math.random() * 16 : 22 + Math.random() * 26, size: (14 + Math.random() * 24) * scale, stretch: above ? 3 + Math.random() * 2 : 2.4 + Math.random() * 1.6 });
+      }
+    }
+    g.globalCompositeOperation = "lighter";
+    // A halo of light behind him that breathes with the aura.
+    if (rite.intensity > .05) {
+      const cx = box.left + box.width / 2, cy = box.top + box.height * .48, r = box.height * .75;
+      const halo = g.createRadialGradient(cx, cy, r * .1, cx, cy, r);
+      halo.addColorStop(0, `rgba(255,120,110,${(.32 * Math.min(1, rite.intensity) * (.85 + Math.sin(now / 160) * .15)).toFixed(3)})`);
+      halo.addColorStop(.5, `rgba(227,38,47,${(.16 * Math.min(1, rite.intensity)).toFixed(3)})`);
+      halo.addColorStop(1, "rgba(120,0,10,0)");
+      g.fillStyle = halo; g.beginPath(); g.ellipse(cx, cy, r * .8, r, 0, 0, Math.PI * 2); g.fill();
+    }
+    rite.particles = rite.particles.filter((p) => {
+      p.life += 1; if (p.life > p.max) return false;
+      p.x += p.vx + Math.sin((p.life + p.y) * .15) * .5; p.y += p.vy; p.vy *= .985;
+      const t = p.life / p.max, fade = Math.sin(Math.PI * Math.min(1, t * 1.15)) * Math.min(1, rite.intensity + .15);
+      const w = p.size * (1 - t * .55), h = w * p.stretch;
+      g.globalAlpha = fade * .55;
+      g.drawImage(red, p.x - w, p.y - h, w * 2, h * 2);
+      if (t < .45) { g.globalAlpha = fade * (.45 - t) * 1.6; g.drawImage(hot, p.x - w * .6, p.y - h * .6, w * 1.2, h * 1.2); }
+      return true;
+    });
+    g.globalAlpha = 1;
+    // Lightning crawling over the armour once he is charged.
+    if (rite.intensity > .3 && now > sparkAt && rite.edges.length) {
+      sparkAt = now + (rite.intensity > .9 ? 110 : 380) + Math.random() * 200;
+      const e1 = rite.edges[Math.floor(Math.random() * rite.edges.length)];
+      const x1 = box.left + e1.x * box.width, y1 = box.top + e1.y * box.height;
+      const a = Math.random() * Math.PI * 2, r = (30 + Math.random() * 70) * scale;
+      strike(x1, y1, x1 + Math.cos(a) * r, y1 + Math.sin(a) * r, { width: 1.3 });
+    }
+  };
+  rite.frame = requestAnimationFrame(tick);
+}
 function skyFlash(strength = .6) {
   if (reducedMotion.matches || perf.lite) return;
   const flash = byId("sceneFlash");
@@ -1665,6 +1816,7 @@ const DROID_QUIPS = [
   "Type “power”. I dare you.",
   "Touch the core. Watch the vaults answer.",
   "Type “peaceisalie”. The archive is listening.",
+  "Say “emperor”. If you dare.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
@@ -1920,7 +2072,7 @@ byId("globalSearch").addEventListener("input", (event) => renderSearch(event.tar
 byId("globalSearch").addEventListener("keydown", (event) => {
   if (event.key === "ArrowDown") { event.preventDefault(); moveSearch(1); }
   if (event.key === "ArrowUp") { event.preventDefault(); moveSearch(-1); }
-  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) reciteCode(); else navigate(item.href); } }
+  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) reciteCode(); else if (item.summon) summonEmperor(); else navigate(item.href); } }
 });
 document.addEventListener("keydown", (event) => {
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "");

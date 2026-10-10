@@ -589,7 +589,9 @@ figure { margin: 0; }
 .ripple-host { position: relative; overflow: hidden; }
 .click-ripple { position: absolute; z-index: 4; width: .5rem; height: .5rem; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(255,230,226,.6), rgba(227,38,47,.35) 45%, transparent 72%); transform: translate(-50%,-50%) scale(0); animation: ripple-out .65s ease-out forwards; }
 .lightning { position: fixed; inset: 0; z-index: 85; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
-body.quake { animation: quake .5s linear 3; }
+/* The quake shakes what is on screen, never <body> itself: a transformed body would pin
+ * the full-screen overlays (the Code, the Emperor) to the page instead of the window. */
+body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: quake .5s linear 3; }
 
 /* ───────── The Valley ─────────
  * See renderValley() in app.js. The canyon is pinned behind the walk while its walls slide
@@ -727,6 +729,59 @@ body.quake { animation: quake .5s linear 3; }
 @keyframes code-shatter { from { opacity: 1; filter: none; transform: none; } to { opacity: 0; filter: blur(4px); transform: translate(calc((var(--w) - 2.5) * 1.6rem), 3.5rem) rotate(calc((var(--w) - 2.5) * 14deg)); } }
 @keyframes code-final { 0% { transform: none; } 25% { transform: scale(1.1); opacity: 1; filter: none; } 100% { transform: scale(1.25); opacity: 0; filter: blur(6px); } }
 @keyframes code-break { 0%, 55% { background-color: #050203; } 62% { background-color: #3a0710; } 100% { opacity: 0; } }
+
+/* ───────── The Emperor ─────────
+ * See summonEmperor() in app.js: he rises out of the dark (.rising), powers up (.charging),
+ * and ascends (.ascended) in a white flash with shockwaves, blazing eyes and his name;
+ * .leaving lets it all fall away. The flames themselves are drawn on .rite-aura. */
+.emperor-rite { position: fixed; inset: 0; z-index: 84; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; align-items: end; padding: 2rem 1rem calc(1.4rem + env(safe-area-inset-bottom, 0px)); overflow: hidden; cursor: pointer;
+  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(122,13,22,.5), rgba(4,1,2,.97) 72%), #040102; animation: veil-in .5s ease both; }
+.emperor-rite[hidden] { display: none; }
+.rite-aura { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.rite-burst { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 48%, #fff 0%, rgba(255,215,208,.9) 12%, rgba(227,38,47,.6) 35%, transparent 70%); }
+.rite-stage { position: relative; display: grid; place-items: end center; height: 100%; min-height: 0; width: 100%; }
+.rite-figure { position: relative; z-index: 1; height: min(58vh, 34rem, 100vw); aspect-ratio: 339 / 429; margin: 0; transform: translateY(40%) scale(.9); opacity: 0; filter: brightness(.12) saturate(.4); transition: transform 1.1s cubic-bezier(.2,.8,.2,1), opacity .9s ease, filter 1.6s ease; }
+.rite-figure img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 .4rem rgba(255,90,90,.0)); transition: filter 1.2s ease; }
+/* His hair ignites, Super Saiyan gold burning down to Sith red: a glow cut to the shape of
+ * the picture itself, and faded out below the hairline. */
+.rite-hair { position: absolute; inset: 0; background: linear-gradient(180deg, #fff6d0 0%, #ffd36a 12%, #ff8a3c 22%, #ff3030 30%); mix-blend-mode: screen; opacity: 0; transition: opacity .5s ease; pointer-events: none;
+  -webkit-mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 22%, transparent 29%); mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 22%, transparent 29%);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-composite: source-in; mask-composite: intersect; }
+.emperor-rite.charging .rite-hair { opacity: .4; }
+.emperor-rite.ascended .rite-hair { opacity: .9; animation: hair-flicker .18s steps(2) infinite; }
+@keyframes hair-flicker { 50% { opacity: .7; } }
+.rite-eye { position: absolute; width: 4%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, #fff 0 25%, #ff2a2a 50%, transparent 72%); opacity: 0; transition: opacity .3s ease, transform .3s ease; }
+.rite-eye::after { content: ""; position: absolute; left: 50%; top: 50%; width: 900%; height: 18%; translate: -50% -50%; background: linear-gradient(90deg, transparent, rgba(255,80,80,.85), #fff 50%, rgba(255,80,80,.85), transparent); border-radius: 50%; filter: blur(1px); opacity: 0; transform: scaleX(.2); transition: opacity .25s ease, transform .5s var(--ease); }
+.rite-rings { position: absolute; left: 50%; bottom: 2%; width: 0; height: 0; z-index: 0; }
+.rite-rings i { position: absolute; left: 0; top: 0; width: 24rem; height: 6rem; translate: -50% -50%; border: 3px solid rgba(255,220,214,.9); border-radius: 50%; box-shadow: 0 0 1.4rem #ff3b44, inset 0 0 1.4rem #ff3b44; opacity: 0; transform: scale(.1); }
+.rite-title { position: relative; z-index: 2; display: grid; justify-items: center; gap: .2rem; margin-top: 1rem; text-align: center; opacity: 0; }
+.rite-title p { margin: 0; color: var(--red-light); font: 400 .74rem var(--mono); letter-spacing: .5em; text-transform: uppercase; text-shadow: 0 0 .8rem rgba(227,38,47,.8); }
+.rite-title h2 { margin: 0; color: #fff; font: 700 clamp(2.6rem, 8vw, 6rem)/1 var(--display); letter-spacing: .02em; text-shadow: var(--blade), 0 0 4rem rgba(227,38,47,.8); }
+.rite-title .rite-sub { color: #f3b9b3; font: italic 500 clamp(1rem, 2.2vw, 1.5rem) var(--serif); letter-spacing: .12em; text-transform: none; }
+.emperor-rite .code-skip { position: relative; z-index: 2; margin-top: .9rem; }
+.emperor-rite.rising .rite-figure { transform: none; opacity: 1; }
+.emperor-rite.charging .rite-figure { filter: brightness(.75) saturate(1); animation: rite-rumble .09s linear infinite; }
+.emperor-rite.charging .rite-figure img { filter: drop-shadow(0 0 .3rem #fff) drop-shadow(0 0 1.2rem rgba(255,59,68,.9)); }
+.emperor-rite.charging .rite-eye { opacity: .8; }
+.emperor-rite.ascended .rite-figure { filter: brightness(1.15) saturate(1.2) contrast(1.05); animation: rite-rumble .14s linear infinite, rite-pulse 1.4s ease-in-out infinite; }
+.emperor-rite.ascended .rite-figure img { filter: drop-shadow(0 0 .25rem #fff) drop-shadow(0 0 .9rem #ff8f8f) drop-shadow(0 0 2.4rem #e3262f) drop-shadow(0 0 5rem rgba(227,38,47,.7)); }
+.emperor-rite.ascended .rite-eye { opacity: 1; transform: scale(1.6); }
+.emperor-rite.ascended .rite-eye::after { opacity: 1; transform: none; }
+.emperor-rite.ascended .rite-burst { animation: rite-burst 1.6s ease-out forwards; }
+.emperor-rite.ascended .rite-rings i { animation: rite-ring 1.3s cubic-bezier(.1,.7,.3,1) forwards; }
+.emperor-rite.ascended .rite-rings i:nth-child(2) { animation-delay: .18s; }
+.emperor-rite.ascended .rite-rings i:nth-child(3) { animation-delay: .36s; }
+.emperor-rite.ascended .rite-title { animation: rite-slam .7s .15s cubic-bezier(.2,1.4,.4,1) forwards; }
+.emperor-rite.ascended { background: radial-gradient(ellipse 60% 55% at 50% 60%, rgba(180,18,30,.55), rgba(4,1,2,.96) 74%), #040102; }
+.emperor-rite.leaving { animation: rite-leave .7s ease forwards; }
+.emperor-rite.still .rite-figure { transform: none; opacity: 1; animation: none; }
+.emperor-rite.still .rite-title { opacity: 1; animation: none; }
+@keyframes rite-rumble { 0% { translate: 0 0; } 25% { translate: 1.5px -1px; } 50% { translate: -1px 1.5px; } 75% { translate: 1px 1px; } 100% { translate: 0 0; } }
+@keyframes rite-pulse { 0%, 100% { scale: 1; } 50% { scale: 1.015; } }
+@keyframes rite-burst { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rite-ring { 0% { opacity: 1; transform: scale(.1); } 100% { opacity: 0; transform: scale(4.5); } }
+@keyframes rite-slam { 0% { opacity: 0; transform: scale(1.8); filter: blur(10px); } 60% { opacity: 1; filter: none; } 100% { opacity: 1; transform: none; } }
+@keyframes rite-leave { to { opacity: 0; } }
 
 /* Awakened: the Code has been spoken. Every holocron stands half open with its beam lit,
  * the obelisks burn, and a slow red pulse runs through the vault. */
