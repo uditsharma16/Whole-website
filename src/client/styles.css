@@ -745,7 +745,7 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 /* His hair ignites Super Saiyan style, in Sith crimson: a glow cut to the shape of the
  * picture itself, white-hot at the tips and faded out below the hairline. */
 .rite-hair { position: absolute; inset: 0; background: linear-gradient(180deg, #ffe1dc 0%, #ff5a5a 7%, #ff2a2a 15%, #c8101c 23%, #7a0010 30%); mix-blend-mode: screen; opacity: 0; transition: opacity .5s ease; pointer-events: none;
-  -webkit-mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 22%, transparent 29%); mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 22%, transparent 29%);
+  -webkit-mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 19%, transparent 24%); mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 19%, transparent 24%);
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-composite: source-in; mask-composite: intersect; }
 .emperor-rite.charging .rite-hair { opacity: .4; }
 .emperor-rite.ascended .rite-hair { opacity: .9; animation: hair-flicker .18s steps(2) infinite; }
