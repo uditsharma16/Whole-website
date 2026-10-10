@@ -1836,7 +1836,7 @@ const riteBusy = () => recital.running || rite.running || regent.running || voic
 /* ───────── The Emperor's Hand ─────────
  * Typing "hand" (or summoning him from the terminal) brings the Emperor's Hand out of the
  * shadows: black mist pours in and wraps a dark shape like a cloak, then billows away from him
- * as he takes form. The Emperor commands: his gauntlet rises and its six crystals wake. The
+ * as he takes form. The Emperor commands: six crystals gather round his fist. The
  * Hand enforces: he snaps, and half the enemies standing in the mist crumble into dust. The
  * mist and the dust are drawn on two canvases, one behind him and one in front. */
 const HAND_WORD = "hand";
@@ -1910,7 +1910,7 @@ async function summonHand() {
   later(300, () => overlay.classList.add("shadowed")); // a dark shape inside the mist
   later(1900, () => { hand.phase = "disperse"; overlay.classList.add("formed"); }); // the cloak of mist billows away
   later(2600, () => { hand.phase = "linger"; overlay.classList.add("commands"); });
-  later(3200, () => overlay.classList.add("raised")); // the gauntlet rises and its crystals wake
+  later(3200, () => overlay.classList.add("raised")); // the crystals circle his fist and close in
   later(4700, () => {
     overlay.classList.add("snapped"); // snap
     skyFlash(.9);
