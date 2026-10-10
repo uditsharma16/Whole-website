@@ -56,7 +56,14 @@ Pushes to `main` deploy automatically through `.github/workflows/deploy.yml`, wh
 
 ## Effects
 
+Records are kept as holocrons; opening one lifts its capstone and floods the screen with its
+light. A page that is a roll of the fallen (a portrait, a name and a few lines, again and again,
+like the Valley of the Dark Lords) becomes a walk down a canyon past their statues, each
+waking from stone as you draw level with it.
+
 Hold the pointer down on any empty part of the page to channel Force lightning, touch the
-archive core on the home page, or type `power`. Everyone starts on full effects; devices that
+archive core on the home page, or type `power`. Type the first line of the Sith Code
+(`peace is a lie`), or enter it in the terminal, to hear the rest of it; the archive stays
+awakened for the visit. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch
 (or `?fx=lite` / `?fx=full`) chooses either one by hand.

@@ -336,7 +336,7 @@ function route(options = {}) {
     transition.ready.catch(() => {}); transition.finished.catch(() => {});
   } else render();
 }
-function navigate(href) {
+function navigate(href, source = null) {
   const target = new URL(href, location.origin);
   const path = target.pathname + target.search;
   closeSearch(); closeMenus();
@@ -349,8 +349,10 @@ function navigate(href) {
     history.pushState({}, "", path + target.hash);
     route({ instant: true, hash: target.hash });
   };
-  if (isFilePath(path) && !reducedMotion.matches && !doorsBusy) blastDoors(perform);
-  else perform();
+  if (!isFilePath(path) || reducedMotion.matches || doorsBusy) return perform();
+  const holocron = openingHolocron(source);
+  if (holocron) holocronOpen(holocron, perform);
+  else blastDoors(perform);
 }
 
 /* ───────── Blast doors ─────────
@@ -382,6 +384,64 @@ async function blastDoors(swap) {
   doors.classList.remove("active", "seam");
   app.classList.remove("doors-arrive");
   doorsBusy = false;
+}
+
+/* ───────── Opening a holocron ─────────
+ * A record picked from the vault opens itself instead of going through the doors: the
+ * holocron rises to the middle of the screen, its capstone lifts away, and the light inside
+ * floods out to fill the screen. The record is swapped in under the light as it fades. */
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function openingHolocron(source) {
+  let holocron = source?.closest?.(".holocron");
+  const plaque = source?.closest?.(".plaque");
+  if (!holocron && plaque) holocron = plaque.closest(".shelf-wrap")?.querySelector(`.holocron[data-holocron="${CSS.escape(plaque.dataset.plaque || "")}"]`);
+  const box = holocron?.querySelector(".holocron-art")?.getBoundingClientRect();
+  return box && box.width && box.bottom > 0 && box.top < innerHeight ? holocron : null;
+}
+async function holocronOpen(holocron, swap) {
+  doorsBusy = true;
+  const stage = byId("holoOpen");
+  let swapped = false;
+  try {
+    const art = holocron.querySelector(".holocron-art");
+    const box = art.getBoundingClientRect();
+    const look = getComputedStyle(holocron);
+    for (const name of ["--seam", "--seam-soft", "--face-l", "--face-r", "--rune"]) stage.style.setProperty(name, look.getPropertyValue(name));
+    const flyer = document.createElement("div");
+    flyer.className = `holo-flyer ${[...holocron.classList].filter((name) => name.startsWith("tone-")).join(" ")}`;
+    flyer.style.cssText = `left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px`;
+    flyer.append(art.cloneNode(true));
+    const flare = document.createElement("div");
+    flare.className = "holo-flare";
+    const diagonal = Math.hypot(innerWidth, innerHeight);
+    flare.style.cssText = `width:${diagonal * 1.25}px;height:${diagonal * 1.25}px`;
+    stage.replaceChildren(flyer, flare);
+    stage.className = "holo-open active";
+    holocron.classList.add("lifted");
+    const size = Math.min(innerWidth * .46, innerHeight * .42, 340);
+    const scale = size / box.width;
+    const dx = innerWidth / 2 - (box.left + box.width / 2), dy = innerHeight * .46 - (box.top + box.height / 2);
+    const rise = flyer.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px) scale(${scale})` }], { duration: perf.lite ? 380 : 560, easing: "cubic-bezier(.2,.75,.25,1)", fill: "forwards" });
+    await wait(perf.lite ? 260 : 400);
+    stage.classList.add("unsealed"); // the capstone lifts, the beam and core ignite
+    await rise.finished.catch(() => {});
+    if (!perf.lite) {
+      const cx = innerWidth / 2, cy = innerHeight * .46;
+      for (let i = 0; i < 5; i += 1) setTimeout(() => { const a = Math.random() * Math.PI * 2, r = size * (.9 + Math.random() * .7); strike(cx, cy - size * .1, cx + Math.cos(a) * r, cy + Math.sin(a) * r, { width: 1.6 }); }, i * 70);
+    }
+    await wait(perf.lite ? 120 : 260);
+    stage.classList.add("flood"); // the light pours out over the screen
+    await wait(perf.lite ? 340 : 480);
+    swap(); swapped = true;
+    app.classList.remove("holo-arrive"); void app.offsetWidth; app.classList.add("holo-arrive");
+    stage.classList.add("fade");
+    await wait(perf.lite ? 420 : 700);
+  } finally {
+    if (!swapped) swap();
+    stage.className = "holo-open"; stage.replaceChildren();
+    app.classList.remove("holo-arrive");
+    doorsBusy = false;
+  }
 }
 
 function afterRender(options = {}) {
@@ -801,6 +861,8 @@ function renderSection(node, options) {
 /* ───────── A vault chamber (a page of the Google Site) ───────── */
 function renderChamber(page, options) {
   document.title = `${page.title} — TSO Central Archives`;
+  const valley = valleyPlan(page.blocks);
+  if (valley) return renderValley(page, valley, options);
   const list = vaults();
   const index = list.indexOf(page);
   const shown = new Set(page.blocks.filter((block) => block.type === "file").map((block) => block.key));
@@ -825,6 +887,107 @@ function renderChamber(page, options) {
   afterRender(options);
   setupScrubber(page.headings);
 }
+
+/* ───────── The Valley ─────────
+ * A page that is a roll of the fallen (a portrait, then a name, then a few lines, over and
+ * over, like the Valley of the Dark Lords) is laid out as a walk down a canyon: each lord
+ * stands as a stone statue in an alcove along the path, and wakes as you draw level with
+ * them. The greatest (the page's larger headings, the Emperors) stand at the head of the
+ * valley, alone and on the path itself. */
+const lordStart = (blocks, i) => blocks[i]?.type === "img" && blocks[i + 1]?.type === "h";
+function valleyPlan(blocks) {
+  const first = blocks.findIndex((block, i) => lordStart(blocks, i));
+  if (first < 0) return null;
+  const lords = [];
+  let i = first;
+  while (lordStart(blocks, i)) {
+    const lord = { image: blocks[i], heading: blocks[i + 1], body: [] };
+    i += 2;
+    while (i < blocks.length && !lordStart(blocks, i) && ["p", "button", "quote"].includes(blocks[i].type)) lord.body.push(blocks[i++]);
+    lords.push(lord);
+  }
+  if (lords.length < 4) return null;
+  const top = Math.min(...lords.map((lord) => lord.heading.level));
+  const mixed = lords.some((lord) => lord.heading.level > top);
+  for (const lord of lords) lord.emperor = mixed && lord.heading.level === top;
+  return { intro: blocks.slice(0, first), lords, after: blocks.slice(i) };
+}
+function lordName(heading) {
+  const [first, ...rest] = heading.html.split(/<br\s*\/?>/i).map((part) => part.trim()).filter(Boolean);
+  if (rest.length) return { epithet: first.replace(/,(\s|<\/[^>]+>)*$/, "$1"), name: rest.join(" ") };
+  // No line break: "Ancient Spirit of Conquest, Darth Valios" still parts at its first comma.
+  const comma = heading.text.indexOf(",");
+  if (comma > 0 && comma < heading.text.length - 2) return { epithet: esc(heading.text.slice(0, comma).trim()), name: esc(heading.text.slice(comma + 1).trim()) };
+  return { epithet: "", name: first || esc(heading.text) };
+}
+function tombHtml(lord, index, side) {
+  const { epithet, name } = lordName(lord.heading);
+  const body = lord.body.map((block) => (block.type === "button" ? block.html : `<p>${block.html}</p>`)).join("");
+  return `<li class="tomb ${lord.emperor ? "emperor" : `side-${side}`}" style="--n:${index}">
+    <figure class="statue">
+      <button data-zoom="${esc(lord.image.src)}" data-caption="${esc(lord.heading.text)}" aria-label="Enlarge the portrait of ${esc(lord.heading.text)}"><img src="${esc(lord.image.src)}" alt="${esc(lord.image.alt || lord.heading.text)}" loading="lazy" /></button>
+      <span class="statue-light" aria-hidden="true"></span>
+    </figure>
+    <div class="tomb-plaque">
+      ${epithet ? `<small>${epithet}</small>` : ""}
+      <h2 id="${esc(lord.heading.id)}">${name}</h2>
+      ${body ? `<div class="tomb-text">${body}</div>` : ""}
+    </div>
+  </li>`;
+}
+function renderValley(page, plan, options) {
+  const list = vaults();
+  const index = list.indexOf(page);
+  const numeral = vaultNumeral(page) || "◆";
+  let side = 0;
+  app.innerHTML = `<article class="page valley">
+    <header class="valley-head">
+      ${crumbs([{ href: "/", label: "The Gate" }, ...(page.node ? ancestors(page).map((item) => ({ href: nodeHref(item), label: nodeTitle(item) })) : []), { label: page.title }])}
+      <p class="eyebrow">${index >= 0 ? `Vault ${numeral} · ` : ""}${plural(plan.lords.length, "spirit")} at rest</p>
+      <h1 data-decrypt>${esc(page.title)}</h1>
+      ${plan.intro.length ? `<div class="valley-intro">${blocksHtml(plan.intro)}</div>` : ""}
+      <a class="valley-cue" href="#${esc(plan.lords[0].heading.id)}" data-scroll>Walk the valley <span aria-hidden="true">↓</span></a>
+    </header>
+    <div class="valley-walk">
+      <div class="canyon" aria-hidden="true">
+        <div class="canyon-sky"></div>
+        <div class="canyon-wall far left"></div><div class="canyon-wall far right"></div>
+        <div class="canyon-wall near left"></div><div class="canyon-wall near right"></div>
+        <div class="canyon-dust">${Array.from({ length: 14 }, (_, i) => `<i style="--y:${(seededRandom(`dust${i}`) * 100).toFixed(1)}%;--t:${(9 + seededRandom(`dust${i}t`) * 10).toFixed(1)}s;--d:${(-seededRandom(`dust${i}d`) * 18).toFixed(1)}s;--s:${(.5 + seededRandom(`dust${i}s`) * 1.2).toFixed(2)}"></i>`).join("")}</div>
+      </div>
+      <div class="valley-path" aria-hidden="true"></div>
+      <ol class="tombs">${plan.lords.map((lord, i) => tombHtml(lord, i, lord.emperor ? "" : (side++ % 2 ? "right" : "left"))).join("")}</ol>
+      <p class="valley-end">The valley falls silent.</p>
+    </div>
+    ${plan.after.length ? `<div class="prose chamber-prose">${blocksHtml(plan.after)}</div>` : ""}
+    ${passage(index > 0 ? list[index - 1] : null, index >= 0 && index < list.length - 1 ? list[index + 1] : null, "vault", pageHref, (item) => item.title)}
+  </article>`;
+  afterRender(options);
+  setupScrubber(page.headings);
+  startValleyWalk();
+}
+/* As you walk, each statue's --near (0 far, 1 level with you) wakes it from stone, and the
+ * canyon walls slide past at two depths. */
+const valleyWalk = { walk: null, tombs: [], frame: 0 };
+function startValleyWalk() {
+  valleyWalk.walk = app.querySelector(".valley-walk");
+  valleyWalk.tombs = [...app.querySelectorAll(".tomb")];
+  updateValleyWalk();
+}
+function updateValleyWalk() {
+  valleyWalk.frame = 0;
+  const { walk, tombs } = valleyWalk;
+  if (!walk?.isConnected) { valleyWalk.walk = null; return; }
+  const box = walk.getBoundingClientRect();
+  walk.style.setProperty("--walk", Math.min(1, Math.max(0, -box.top / Math.max(1, box.height - innerHeight))).toFixed(4));
+  for (const tomb of tombs) {
+    const r = tomb.getBoundingClientRect();
+    const offset = Math.abs(r.top + r.height / 2 - innerHeight * .5) / (innerHeight * .65);
+    tomb.style.setProperty("--near", Math.max(0, 1 - offset).toFixed(3));
+  }
+}
+window.addEventListener("scroll", () => { if (valleyWalk.walk && !valleyWalk.frame) valleyWalk.frame = requestAnimationFrame(updateValleyWalk); }, { passive: true });
+window.addEventListener("resize", () => { if (valleyWalk.walk) updateValleyWalk(); });
 
 /* ───────── The catalogue: every linked file, A to Z ───────── */
 let catalogueFilter = { kind: "all", text: "" };
@@ -1180,12 +1343,14 @@ function renderSearch(query) {
   const items = searchItems();
   const rank = (item) => (item.title.toLowerCase().startsWith(value) ? 0 : item.title.toLowerCase().includes(value) ? 1 : item.where.toLowerCase().includes(value) ? 2 : 3);
   const matches = items.filter((item) => !value || `${item.title} ${item.where} ${item.ref} ${item.text}`.toLowerCase().includes(value)).sort((a, b) => (value ? rank(a) - rank(b) : 0)).slice(0, 40);
+  const letters = lettersOf(value);
+  if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   state.searchMatches = matches; state.searchIndex = 0;
   byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${items.length} ${items.length === 1 ? "entry" : "entries"} on file`;
   const header = `<p class="term-sys">› ${value ? `scanning ${items.length} entries for “${esc(query.trim())}”` : "awaiting query · listing every entry on file"}</p>`;
-  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}" href="${item.href}" data-link data-index="${index}">
+  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}${item.recite ? " term-code" : ""}" href="${item.href}" ${item.recite ? "data-recite" : "data-link"} data-index="${index}">
       <span class="term-tag">[${esc(item.tag)}]</span>
-      <span class="term-main"><strong>${highlight(item.title, value)}</strong><small>${esc(item.where)}</small>${item.text && value ? `<p>${highlight(snippet(item.text, value), value)}</p>` : ""}</span>
+      <span class="term-main"><strong>${highlight(item.title, value)}</strong><small>${esc(item.where)}</small>${item.text && value && !item.recite ? `<p>${highlight(snippet(item.text, value), value)}</p>` : ""}</span>
       <span class="term-ref">${esc(item.ref)}</span></a>`).join("") : `<p class="term-sys term-empty">› no entry matches “${esc(query)}”${indexing ? " · still indexing records" : ""}</p>`);
 }
 function moveSearch(step) {
@@ -1221,8 +1386,9 @@ document.addEventListener("click", (event) => {
   const anchor = event.target.closest("a[data-link]");
   if (anchor) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-    event.preventDefault(); navigate(anchor.getAttribute("href")); return;
+    event.preventDefault(); navigate(anchor.getAttribute("href"), anchor); return;
   }
+  if (event.target.closest("[data-recite]")) { event.preventDefault(); reciteCode(); return; }
   const scroller = event.target.closest("a[data-scroll]");
   if (scroller) {
     event.preventDefault();
@@ -1406,10 +1572,61 @@ function forceStorm() {
 }
 let typed = "";
 document.addEventListener("keydown", (event) => {
-  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || event.key.length !== 1) return;
-  typed = (typed + event.key.toLowerCase()).slice(-5);
-  if (typed === "power") { typed = ""; forceStorm(); }
+  if (recital.running || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
+  typed = (typed + event.key.toLowerCase()).slice(-16);
+  if (typed.endsWith("power")) { typed = ""; forceStorm(); }
+  else if (typed.endsWith(CODE_WORDS)) { typed = ""; reciteCode(); }
 });
+
+/* ───────── The Code ─────────
+ * Typing the first line of the Sith Code ("Peace is a lie…") anywhere outside a text field,
+ * or picking it from the terminal, has the archive recite the whole Code. The last line breaks
+ * the chains: lightning, and the archive stays awakened for the rest of the visit, with
+ * every holocron lit and the vault burning brighter. */
+const SITH_CODE = ["Peace is a lie, there is only passion.", "Through passion, I gain strength.", "Through strength, I gain power.", "Through power, I gain victory.", "Through victory, my chains are broken.", "The Force shall free me."];
+const CODE_WORDS = "peaceisalie";
+const AWAKENED = "tso-awakened";
+const recital = { running: false, timers: [] };
+const lettersOf = (text) => text.toLowerCase().replace(/[^a-z]/g, "");
+function reciteCode() {
+  if (recital.running) return;
+  recital.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  const overlay = byId("sithCode");
+  const still = reducedMotion.matches;
+  const beat = perf.lite ? 950 : 1150;
+  byId("codeLines").innerHTML = SITH_CODE.map((line, index) => `<li style="--i:${index}">${line.split(" ").map((word, w) => `<span style="--w:${w}">${esc(word)}</span>`).join(" ")}</li>`).join("");
+  overlay.className = `sith-code${still ? " still" : ""}`;
+  overlay.style.setProperty("--beat", `${beat}ms`);
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const lines = [...overlay.querySelectorAll("li")];
+  const later = (ms, fn) => recital.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    recital.timers.forEach(clearTimeout); recital.timers = [];
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "sith-code";
+    document.body.style.overflow = "";
+    recital.running = false;
+    awaken(true);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  if (still) lines.forEach((line) => line.classList.add("spoken"));
+  else lines.forEach((line, index) => later(500 + index * beat, () => line.classList.add("spoken")));
+  // The last line is held a moment before the chains break.
+  const end = still ? 2600 : 500 + (lines.length - 1) * beat + 1500;
+  if (!still) later(end, () => { overlay.classList.add("broken"); forceStorm(); });
+  later(end + (still ? 0 : 1700), finish);
+  setTimeout(() => { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); }, 400);
+}
+function awaken(announce) {
+  document.documentElement.classList.add("awakened");
+  try { sessionStorage.setItem(AWAKENED, "1"); } catch {}
+  if (!announce) return;
+  toast("The Code is spoken. The archive has awakened.");
+  setTimeout(() => droidReact("The archive answers to you now. For now."), 900);
+}
+try { if (sessionStorage.getItem(AWAKENED)) awaken(false); } catch {}
 function skyFlash(strength = .6) {
   if (reducedMotion.matches || perf.lite) return;
   const flash = byId("sceneFlash");
@@ -1436,6 +1653,7 @@ const DROID_QUIPS = [
   "Hold still on an empty spot. Feel the power.",
   "Type “power”. I dare you.",
   "Touch the core. Watch the vaults answer.",
+  "Recite the Code. The archive is listening.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
@@ -1691,7 +1909,7 @@ byId("globalSearch").addEventListener("input", (event) => renderSearch(event.tar
 byId("globalSearch").addEventListener("keydown", (event) => {
   if (event.key === "ArrowDown") { event.preventDefault(); moveSearch(1); }
   if (event.key === "ArrowUp") { event.preventDefault(); moveSearch(-1); }
-  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); navigate(item.href); } }
+  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) reciteCode(); else navigate(item.href); } }
 });
 document.addEventListener("keydown", (event) => {
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "");

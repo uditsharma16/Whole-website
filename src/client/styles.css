@@ -562,6 +562,7 @@ figure { margin: 0; }
 .term-empty { padding-block: 1.6rem; }
 .term-line { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) auto; gap: .9rem; align-items: start; padding: .55rem 1.1rem; text-decoration: none; border-left: 2px solid transparent; }
 .term-line.active, .term-line:hover { background: rgba(227,38,47,.16); border-left-color: var(--red); }
+.term-code .term-tag, .term-code strong { color: var(--red-light); text-shadow: 0 0 .6rem rgba(227,38,47,.7); }
 .term-tag { color: var(--red-light); font-size: .74rem; letter-spacing: .06em; padding-top: .2rem; }
 .term-main { display: grid; gap: .1rem; min-width: 0; }
 .term-main strong { color: var(--ink); font: 700 1.15rem/1.25 var(--display); }
@@ -590,6 +591,70 @@ figure { margin: 0; }
 .lightning { position: fixed; inset: 0; z-index: 85; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
 body.quake { animation: quake .5s linear 3; }
 
+/* ───────── The Valley ─────────
+ * See renderValley() in app.js. The canyon is pinned behind the walk while its walls slide
+ * past at two depths (--walk, 0 to 1 down the valley); each statue wakes from stone as you
+ * draw level with it (--near, 0 to 1). */
+.page.valley { width: min(86rem, 100%); }
+.valley-head { position: relative; display: grid; justify-items: center; align-content: center; gap: 1.1rem; min-height: min(80vh, 48rem); text-align: center; }
+.valley-head .breadcrumb { justify-self: start; }
+.valley-head .eyebrow { justify-content: center; }
+.valley-head h1 { max-width: 16ch; margin: 0; font: 700 clamp(2.8rem, 7.6vw, 6.4rem)/.95 var(--display); background: linear-gradient(180deg, #fff3ee 0%, #f2c4bd 45%, var(--red) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 .4rem 2rem rgba(227,38,47,.4)); animation: title-in 1.2s var(--ease) both; }
+.valley-intro { display: grid; gap: 1rem; max-width: 44rem; }
+.valley-intro p { margin: 0; color: var(--muted); font: 400 1.08rem/1.65 var(--serif); }
+.valley-intro p:first-child { color: #f3a9a3; font: italic 500 clamp(1.05rem, 1.8vw, 1.35rem)/1.6 var(--serif); letter-spacing: .05em; text-shadow: 0 0 1.4rem rgba(227,38,47,.35); }
+.valley-cue { display: inline-flex; flex-direction: column; align-items: center; gap: .4rem; margin-top: 1.2rem; color: var(--red-light); font: 400 .72rem var(--mono); letter-spacing: .3em; text-transform: uppercase; text-decoration: none; }
+.valley-cue span { font-size: 1.1rem; animation: cue-fall 2.2s ease-in-out infinite; }
+.valley-walk { --walk: 0; position: relative; isolation: isolate; padding: 4rem 0 8rem; }
+.canyon { position: sticky; top: 0; z-index: -1; height: 100vh; height: 100lvh; margin: 0 calc(var(--gutter) * -1) -100vh; margin-bottom: -100lvh; overflow: hidden; pointer-events: none; -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); }
+.canyon-sky { position: absolute; inset: 0; background: radial-gradient(ellipse 40% 55% at 50% -10%, rgba(255,90,80,.3), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 110%, rgba(122,13,22,.4), transparent 70%); }
+.canyon-wall { position: absolute; top: 0; height: 300%; will-change: transform; }
+.canyon-wall.far { width: 24%; background: linear-gradient(90deg, #120a0c, #1f1215 70%, #3a1418); opacity: .75; transform: translateY(calc(var(--walk) * -28%)); }
+.canyon-wall.near { width: 13%; background: linear-gradient(90deg, #050304, #0d0708 75%, #2b0b10); transform: translateY(calc(var(--walk) * -60%)); }
+.canyon-wall.left { left: 0; }
+.canyon-wall.right { right: 0; }
+.canyon-wall.far.right { background: linear-gradient(270deg, #120a0c, #1f1215 70%, #3a1418); }
+.canyon-wall.near.right { background: linear-gradient(270deg, #050304, #0d0708 75%, #2b0b10); }
+.canyon-wall.far.left { clip-path: polygon(0 0, 63% 0.0%, 53% 2.8%, 81% 5.6%, 49% 8.3%, 74% 11.1%, 65% 13.9%, 48% 16.7%, 73% 19.4%, 47% 22.2%, 69% 25.0%, 49% 27.8%, 50% 30.6%, 68% 33.3%, 90% 36.1%, 52% 38.9%, 57% 41.7%, 80% 44.4%, 97% 47.2%, 77% 50.0%, 67% 52.8%, 99% 55.6%, 48% 58.3%, 92% 61.1%, 61% 63.9%, 53% 66.7%, 51% 69.4%, 62% 72.2%, 90% 75.0%, 55% 77.8%, 77% 80.6%, 80% 83.3%, 65% 86.1%, 75% 88.9%, 48% 91.7%, 48% 94.4%, 56% 97.2%, 82% 100.0%, 0 100%); }
+.canyon-wall.far.right { clip-path: polygon(100% 0, 37% 0.0%, 47% 2.8%, 19% 5.6%, 51% 8.3%, 26% 11.1%, 35% 13.9%, 52% 16.7%, 27% 19.4%, 53% 22.2%, 31% 25.0%, 51% 27.8%, 50% 30.6%, 32% 33.3%, 10% 36.1%, 48% 38.9%, 43% 41.7%, 20% 44.4%, 3% 47.2%, 23% 50.0%, 33% 52.8%, 1% 55.6%, 52% 58.3%, 8% 61.1%, 39% 63.9%, 47% 66.7%, 49% 69.4%, 38% 72.2%, 10% 75.0%, 45% 77.8%, 23% 80.6%, 20% 83.3%, 35% 86.1%, 25% 88.9%, 52% 91.7%, 52% 94.4%, 44% 97.2%, 18% 100.0%, 100% 100%); }
+.canyon-wall.near.left { clip-path: polygon(0 0, 60% 0.0%, 52% 3.6%, 71% 7.1%, 62% 10.7%, 51% 14.3%, 86% 17.9%, 79% 21.4%, 47% 25.0%, 70% 28.6%, 67% 32.1%, 91% 35.7%, 81% 39.3%, 50% 42.9%, 99% 46.4%, 38% 50.0%, 59% 53.6%, 83% 57.1%, 41% 60.7%, 64% 64.3%, 33% 67.9%, 77% 71.4%, 84% 75.0%, 70% 78.6%, 91% 82.1%, 52% 85.7%, 79% 89.3%, 72% 92.9%, 71% 96.4%, 62% 100.0%, 0 100%); }
+.canyon-wall.near.right { clip-path: polygon(100% 0, 40% 0.0%, 48% 3.6%, 29% 7.1%, 38% 10.7%, 49% 14.3%, 14% 17.9%, 21% 21.4%, 53% 25.0%, 30% 28.6%, 33% 32.1%, 9% 35.7%, 19% 39.3%, 50% 42.9%, 1% 46.4%, 62% 50.0%, 41% 53.6%, 17% 57.1%, 59% 60.7%, 36% 64.3%, 67% 67.9%, 23% 71.4%, 16% 75.0%, 30% 78.6%, 9% 82.1%, 48% 85.7%, 21% 89.3%, 28% 92.9%, 29% 96.4%, 38% 100.0%, 100% 100%); }
+.canyon-dust i { position: absolute; left: 0; top: var(--y); width: calc(16rem * var(--s)); height: calc(2px * var(--s)); border-radius: 50%; background: linear-gradient(90deg, transparent, rgba(255,205,190,.16), transparent); filter: blur(1px); animation: dust-drift var(--t) var(--d) linear infinite; }
+.valley-path { position: absolute; left: 50%; top: 0; bottom: 0; z-index: -1; width: 2px; translate: -50% 0; background: linear-gradient(180deg, transparent, rgba(227,38,47,.35) 5%, rgba(227,38,47,.35) 95%, transparent); }
+.valley-path::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent, #ffd9d6 5%, var(--red) 100%); box-shadow: 0 0 10px var(--red), 0 0 24px rgba(227,38,47,.5); transform: scaleY(var(--walk)); transform-origin: top; }
+.tombs { display: grid; gap: clamp(5rem, 16vh, 10rem); margin: 0; padding: 0; list-style: none; }
+.tomb { --near: 0; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: clamp(3rem, 8vw, 7rem); }
+.tomb::before { content: ""; position: absolute; left: 50%; top: 50%; width: .8rem; height: .8rem; translate: -50% -50%; rotate: 45deg; background: #0b0607; border: 1px solid var(--red); box-shadow: 0 0 calc(var(--near) * 16px) var(--red); }
+.tomb.side-left .statue { grid-column: 1; justify-self: end; }
+.tomb.side-left .tomb-plaque { grid-column: 2; }
+.tomb.side-right .statue { grid-column: 2; grid-row: 1; justify-self: start; }
+.tomb.side-right .tomb-plaque { grid-column: 1; grid-row: 1; justify-self: end; text-align: right; }
+.statue { position: relative; width: min(19rem, 100%); margin: 0; transform: translateY(calc((1 - var(--near)) * 2.2rem)) scale(calc(.93 + var(--near) * .07)); }
+.statue::before { content: ""; position: absolute; inset: -1rem -1rem -.2rem; z-index: -1; border-radius: 50% 50% 0 0 / 24% 24% 0 0; background: linear-gradient(90deg, #0d0809, #251a1d 50%, #0d0809); box-shadow: inset 0 0 2.4rem #000, 0 1.6rem 3rem rgba(0,0,0,.7); }
+.statue::after { content: ""; display: block; height: 1.7rem; margin: 0 -1.6rem; background: linear-gradient(180deg, #2c2124, #140d0f); clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%); box-shadow: inset 0 2px 0 rgba(255,90,95,calc(.25 + var(--near) * .65)); }
+.statue button { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.statue img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; object-position: 50% 20%; border-radius: 50% 50% 0 0 / 22% 22% 0 0; filter: grayscale(calc(1 - var(--near) * .8)) sepia(calc(.45 - var(--near) * .35)) brightness(calc(.4 + var(--near) * .65)) contrast(1.1); transition: filter .2s linear; }
+.statue-light { position: absolute; left: 8%; right: 8%; bottom: 1.2rem; height: 45%; border-radius: 50%; background: radial-gradient(ellipse at 50% 100%, rgba(255,70,70,.6), transparent 70%); opacity: calc(var(--near) * .9); mix-blend-mode: screen; pointer-events: none; }
+.tomb-plaque { position: relative; display: grid; gap: .5rem; max-width: 27rem; opacity: calc(.3 + var(--near) * .7); transform: translateY(calc((1 - var(--near)) * 1rem)); }
+.tomb-plaque::before { content: ""; position: absolute; inset: -2.5rem -3rem; z-index: -1; background: radial-gradient(closest-side, rgba(6,3,4,.82), rgba(6,3,4,.5) 60%, transparent); pointer-events: none; }
+.tomb-plaque small { color: var(--red-light); font: 400 .7rem/1.5 var(--mono); letter-spacing: .22em; text-transform: uppercase; }
+.tomb-plaque h2 { margin: 0; color: var(--ink); font: 700 clamp(1.7rem, 2.9vw, 2.6rem)/1.05 var(--display); overflow-wrap: anywhere; text-shadow: 0 0 calc(var(--near) * 2rem) rgba(227,38,47,.55); scroll-margin-top: 30vh; }
+.tomb-text p { margin: .2rem 0 0; color: var(--muted); font: 400 1.05rem/1.6 var(--serif); }
+.tomb-text a { display: inline-flex; margin-top: .7rem; padding: .35rem .8rem; border: 1px solid var(--line); border-radius: 2px; color: var(--red-light); font: 400 .68rem var(--mono); letter-spacing: .16em; text-transform: uppercase; text-decoration: none; transition: background .2s ease, color .2s ease; }
+.tomb-text a:hover { background: rgba(227,38,47,.18); color: #fff; }
+.tomb.emperor { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 2.4rem; text-align: center; }
+.tomb.emperor::before { top: -2.6rem; }
+.tomb.emperor .statue { width: min(25rem, 100%); }
+.tomb.emperor .statue img { aspect-ratio: 2 / 3; }
+.tomb.emperor .statue::before { inset: -1.4rem -1.4rem -.2rem; background: radial-gradient(ellipse at 50% 30%, rgba(216,176,106,calc(var(--near) * .25)), transparent 60%), linear-gradient(90deg, #0d0809, #2c1f22 50%, #0d0809); box-shadow: inset 0 0 2.4rem #000, 0 1.6rem 3rem rgba(0,0,0,.7), 0 0 calc(var(--near) * 5rem) rgba(227,38,47,.35); }
+.tomb.emperor .tomb-plaque { justify-items: center; max-width: 38rem; }
+.tomb.emperor .tomb-plaque small { color: var(--gold-light); }
+.tomb.emperor .tomb-plaque h2 { font-size: clamp(2rem, 4vw, 3.4rem); }
+.valley-end { margin: clamp(5rem, 14vh, 9rem) 0 0; color: var(--faint); font: italic 400 1.1rem var(--serif); text-align: center; letter-spacing: .06em; }
+.fx-lite .canyon-dust { display: none; }
+@keyframes dust-drift { from { transform: translateX(-20vw); opacity: 0; } 15%, 85% { opacity: 1; } to { transform: translateX(110vw) translateY(-2rem); opacity: 0; } }
+@keyframes cue-fall { 0%, 100% { transform: none; opacity: .5; } 50% { transform: translateY(.4rem); opacity: 1; } }
+
 /* ───────── Blast doors ─────────
  * See blastDoors() in app.js: the doors close (.shut), a blade-bright seam ignites along
  * the join (.seam) while the record is swapped in behind them, then they draw apart. */
@@ -611,6 +676,73 @@ body.quake { animation: quake .5s linear 3; }
 .blast-doors.seam .door-seam { animation: seam-ignite .5s var(--ease) forwards; }
 #app.doors-arrive { animation: doors-arrive .6s cubic-bezier(.16,.84,.44,1) both; }
 .fx-lite .door { transition-duration: .4s; }
+
+/* ───────── Opening a holocron ─────────
+ * See holocronOpen() in app.js: a copy of the chosen holocron rises to the middle of the
+ * screen (.active), its capstone lifts away (.unsealed), its light floods the screen (.flood)
+ * and fades off the newly opened record (.fade). */
+.holo-open { position: fixed; inset: 0; z-index: 84; pointer-events: none; visibility: hidden; }
+.holo-open.active { visibility: visible; pointer-events: auto; background: rgba(4,2,3,0); animation: holo-dim .45s ease forwards; }
+.holo-open.fade { animation: none; background: transparent; }
+.holocron.lifted .holocron-float, .holocron.lifted .holocron-pool { visibility: hidden; }
+.holo-flyer { position: fixed; transform-origin: 50% 50%; will-change: transform; }
+.holo-flyer .holocron-art { filter: drop-shadow(0 0 1.2rem var(--seam)); }
+.holo-open .holocron-art .cap { transition: transform .75s cubic-bezier(.3,1.3,.5,1), opacity .6s ease .25s; }
+.holo-open.unsealed .holocron-art .cap { transform: translateY(-30px) rotate(-8deg); }
+.holo-open.flood .holocron-art .cap { opacity: 0; }
+.holo-open.unsealed .holocron-art .beam { opacity: 1; transform: scaleY(1.5); }
+.holo-open.unsealed .holocron-art .core { opacity: .9; }
+.holo-open.unsealed .holocron-art .runes { stroke: var(--seam); filter: drop-shadow(0 0 2px var(--seam)); }
+.holo-open.unsealed .holocron-art .seam.cut { animation: none; stroke: #fff; filter: drop-shadow(0 0 4px var(--seam)) drop-shadow(0 0 10px var(--seam)); }
+.holo-flare { position: fixed; left: 50%; top: 46%; border-radius: 50%; translate: -50% -50%; transform: scale(0); opacity: 0;
+  background: radial-gradient(circle, #fff 0%, #ffe3df 5%, var(--seam) 20%, color-mix(in srgb, var(--seam) 40%, #0b0406) 42%, #0b0406 66%); }
+.holo-open.flood .holo-flare { opacity: 1; transform: scale(1); transition: transform .5s cubic-bezier(.55,.05,.7,.4), opacity .15s ease; }
+.holo-open.fade .holo-flare, .holo-open.fade .holo-flyer { opacity: 0; transition: opacity .65s ease; }
+.fx-lite .holo-open.flood .holo-flare { transition-duration: .32s; }
+#app.holo-arrive { animation: holo-arrive .8s cubic-bezier(.16,.84,.44,1) both; }
+@keyframes holo-dim { to { background: rgba(4,2,3,.72); } }
+@keyframes holo-arrive { from { opacity: 0; transform: scale(1.03); filter: brightness(2.2) saturate(.6) blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* ───────── The Code ─────────
+ * See reciteCode() in app.js: each line of the Code is spoken in turn (.spoken), word by word;
+ * on the last one the lines shatter (.broken) and the archive is .awakened for the visit. */
+.sith-code { position: fixed; inset: 0; z-index: 83; display: grid; place-content: center; justify-items: center; gap: 1.4rem; padding: 2rem 1.2rem; text-align: center; cursor: pointer;
+  background: radial-gradient(ellipse 70% 60% at 50% 55%, rgba(122,13,22,.55), rgba(5,2,3,.96) 70%), #050203; animation: veil-in .6s ease both; }
+.sith-code[hidden] { display: none; }
+.code-title { margin: 0; color: var(--red-light); font: 400 .74rem var(--mono); letter-spacing: .5em; text-transform: uppercase; text-shadow: 0 0 .8rem rgba(227,38,47,.8); animation: veil-in 1s .1s ease both; }
+.code-lines { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.code-lines li { color: var(--ink); font: 600 clamp(1.4rem, 3.4vw, 2.6rem)/1.2 var(--display); letter-spacing: .02em; }
+.code-lines li:last-child { margin-top: .9rem; color: #fff; font-size: clamp(1.9rem, 5vw, 3.8rem); text-shadow: var(--blade); }
+.code-lines span { display: inline-block; opacity: 0; filter: blur(8px); transform: translateY(.4em); }
+.code-lines li.spoken span { animation: code-word .7s calc(var(--w) * 90ms) var(--ease) forwards; }
+.code-lines li.spoken:not(:last-child) span { text-shadow: 0 0 1.2rem rgba(227,38,47,.65); }
+.code-skip { margin: 1.2rem 0 0; color: var(--faint); font: 400 .66rem var(--mono); letter-spacing: .3em; text-transform: uppercase; animation: veil-in 1s 2s ease both; }
+.sith-code.still .code-lines span { opacity: 1; filter: none; transform: none; animation: none; }
+.sith-code.broken { animation: code-break 1.7s ease forwards; }
+.sith-code.broken .code-lines li:not(:last-child) span { animation: code-shatter 1.1s calc(var(--w) * 25ms) cubic-bezier(.5,0,.9,.5) forwards; }
+.sith-code.broken .code-lines li:last-child { animation: code-final 1.6s ease forwards; }
+@keyframes code-word { to { opacity: 1; filter: none; transform: none; } }
+@keyframes code-shatter { from { opacity: 1; filter: none; transform: none; } to { opacity: 0; filter: blur(4px); transform: translate(calc((var(--w) - 2.5) * 1.6rem), 3.5rem) rotate(calc((var(--w) - 2.5) * 14deg)); } }
+@keyframes code-final { 0% { transform: none; } 25% { transform: scale(1.1); opacity: 1; filter: none; } 100% { transform: scale(1.25); opacity: 0; filter: blur(6px); } }
+@keyframes code-break { 0%, 55% { background-color: #050203; } 62% { background-color: #3a0710; } 100% { opacity: 0; } }
+
+/* Awakened: the Code has been spoken. Every holocron stands half open with its beam lit,
+ * the obelisks burn, and a slow red pulse runs through the vault. */
+.awakened .holocron .cap { transform: translateY(-8px) rotate(-2deg); }
+.awakened .holocron .beam { opacity: .75; transform: none; }
+.awakened .holocron .core { opacity: .4; }
+.awakened .holocron .runes { stroke: var(--seam); }
+.awakened .holocron .holocron-pool { opacity: .95; }
+.awakened .holocron:is(:hover, :focus-visible) .cap { transform: translateY(-11px) rotate(-3deg); }
+.awakened .holocron:is(:hover, :focus-visible) .beam { opacity: .9; transform: none; }
+.awakened .holocron:is(:hover, :focus-visible) .core { opacity: .55; }
+.awakened .obelisk em { color: #fff; text-shadow: var(--blade); }
+.awakened .obelisk::after { background: linear-gradient(180deg, #fff, var(--red) 30%, transparent 90%); box-shadow: 0 0 6px var(--red); }
+.awakened .shelf { box-shadow: 0 .9rem 0 -.2rem #0b0607, 0 1.4rem 2.4rem rgba(0,0,0,.65), inset 0 -2px 0 #ff8a8e, inset 0 -2.4rem 3rem -1.6rem rgba(227,38,47,.75); }
+.awakened .scene-glow-blood { opacity: .44; }
+.awakened .scene::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 90% 60% at 50% 120%, rgba(227,38,47,.16), transparent 70%); animation: awakened-pulse 6s ease-in-out infinite; }
+.awakened .brand-crystal { fill: var(--red-light); filter: drop-shadow(0 0 4px var(--red)); }
+@keyframes awakened-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 
 /* ───────── Interrogator droid ───────── */
 .droid { --droid-x: calc(100vw - 6.6rem); --droid-y: calc(100dvh - 8rem); --droid-travel: 0s; --droid-scale: 1; --droid-eye: #ff2d3a; position: fixed; left: 0; top: 0; z-index: 40; width: 4.4rem; aspect-ratio: 120 / 140; border: 0; background: none; padding: 0; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; opacity: .92; transform: translate3d(var(--droid-x), var(--droid-y), 0); transition: transform var(--droid-travel) cubic-bezier(.42,.08,.3,1), opacity .25s ease; will-change: transform; }
@@ -700,6 +832,14 @@ body.quake { animation: quake .5s linear 3; }
   .gate-head { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
+  .tomb, .tomb.side-left, .tomb.side-right { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 1.6rem; text-align: center; }
+  .tomb.side-left .statue, .tomb.side-right .statue, .tomb.side-left .tomb-plaque, .tomb.side-right .tomb-plaque { grid-column: 1; grid-row: auto; justify-self: center; text-align: center; }
+  .tomb::before { display: none; }
+  .statue { width: min(16rem, 78vw); }
+  .tomb.emperor .statue { width: min(19rem, 84vw); }
+  .canyon-wall.far { width: 16%; }
+  .canyon-wall.near { width: 8%; }
+  .valley-head .breadcrumb { justify-self: center; }
   body { font-size: 1.06rem; }
   .brand small { display: none; }
   .gate-heading span:nth-child(2) { padding-left: 0; }
@@ -727,4 +867,5 @@ body.quake { animation: quake .5s linear 3; }
   .scene-embers, .scene-aura, .scene-scan, .scene-flash, .lightning { display: none; }
   .hero-core .hex { stroke-dashoffset: 0; }
   .reveal-ready [data-reveal] { opacity: 1; transform: none; }
+  .statue, .tomb-plaque, .canyon-wall.far, .canyon-wall.near { transform: none; }
 }
