@@ -1590,7 +1590,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 /* ───────── The Code ─────────
- * Typing the first line of the Sith Code ("Peace is a lie…") anywhere outside a text field,
+ * Typing "peaceisalie" (the Code's first words, as one word) anywhere outside a text field,
  * or picking it from the terminal, has the archive recite the whole Code. The last line breaks
  * the chains: lightning, and the archive stays awakened for the rest of the visit, with
  * every holocron lit and the vault burning brighter. */
@@ -1664,7 +1664,7 @@ const DROID_QUIPS = [
   "Hold still on an empty spot. Feel the power.",
   "Type “power”. I dare you.",
   "Touch the core. Watch the vaults answer.",
-  "Recite the Code. The archive is listening.",
+  "Type “peaceisalie”. The archive is listening.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
