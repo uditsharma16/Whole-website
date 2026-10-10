@@ -783,6 +783,69 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 @keyframes rite-slam { 0% { opacity: 0; transform: scale(1.8); filter: blur(10px); } 60% { opacity: 1; filter: none; } 100% { opacity: 1; transform: none; } }
 @keyframes rite-leave { to { opacity: 0; } }
 
+/* ───────── The Dark Regent ─────────
+ * See summonRegent() in app.js. He appears (.standing) before the enemies of the Sith; three
+ * cuts flash across the screen (.cut); his sword flies in (.flying) and is sheathed on his
+ * back (.sheathed); the enemies fall apart along the cuts (.fallen); the vow and his name
+ * follow (.vow). The sword and scabbard hang from one point on his back, just inside his
+ * right shoulder, sized from the figure's height (--h). */
+.regent-rite { position: fixed; inset: 0; z-index: 84; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; padding: max(1.6rem, 6vh) 1rem calc(1.4rem + env(safe-area-inset-bottom, 0px)); overflow: hidden; cursor: pointer; background: #2a0308; animation: veil-in .5s ease both; }
+.regent-rite[hidden] { display: none; }
+.regent-field { position: absolute; inset: 0; pointer-events: none; }
+.regent-strip { position: absolute; inset: 0; background: radial-gradient(ellipse 40% 30% at 50% 58%, rgba(227,38,47,.22), transparent 70%), linear-gradient(180deg, #0d0407 0%, #1f070c 55%, #2b0a10 66.4%, #0a0405 66.6%, #050203 100%); transition: transform 1.3s cubic-bezier(.2,.7,.2,1), filter 1.3s ease, opacity 1.3s ease; }
+.regent-strip svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.regent-strip .enemy { fill: #070304; stroke: rgba(227,38,47,.35); stroke-width: 1; }
+.enemy-blade { stroke: #bfe6ff; stroke-width: 3.2; stroke-linecap: round; filter: drop-shadow(0 0 4px #4fb3ff) drop-shadow(0 0 10px #1e7bff); animation: blade-hum 1.6s calc(var(--i) * -.37s) ease-in-out infinite; transition: opacity .25s calc(var(--i) * 60ms) ease; }
+.regent-slashes { position: absolute; inset: 0; pointer-events: none; }
+.regent-slashes i { position: absolute; top: -20px; height: 3px; border-radius: 50%; background: linear-gradient(90deg, transparent, #fff 8%, #fff 92%, transparent); box-shadow: 0 0 6px #ff3b44, 0 0 18px #e3262f; transform-origin: 0 50%; transform: scaleX(0); opacity: 0; }
+.regent-vow { position: relative; z-index: 2; display: grid; justify-items: center; gap: .2rem; margin: 0; text-align: center; }
+.regent-vow span { display: block; color: #fff; font: 700 clamp(1.5rem, 4.4vw, 3.4rem)/1.1 var(--display); letter-spacing: .02em; text-shadow: 0 0 1.4rem rgba(227,38,47,.8), 0 0 .2rem #fff; clip-path: inset(-20% 100% -20% 0); }
+.regent-vow span:last-child { color: var(--red-light); }
+.regent-stage { position: relative; z-index: 1; display: grid; place-items: end center; width: 100%; min-height: 0; }
+.regent-rig { --h: 30rem; position: relative; height: min(56vh, 34rem, 118vw); aspect-ratio: 356 / 564; opacity: 0; transform: translateY(5%); transition: opacity .9s ease, transform 1.1s cubic-bezier(.2,.8,.2,1); }
+.regent-rig::before { content: ""; position: absolute; inset: -12% -30% 8%; z-index: -1; background: radial-gradient(ellipse at 50% 45%, rgba(255,90,95,.32), rgba(227,38,47,.12) 45%, transparent 70%); }
+.regent-rig::after { content: ""; position: absolute; left: 10%; right: 10%; bottom: -2%; height: 6%; z-index: -1; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.85), transparent 70%); }
+.regent-rig img { position: relative; z-index: 1; display: block; width: 100%; height: 100%; filter: brightness(1.45) contrast(1.05) drop-shadow(0 0 1px rgba(255,235,232,.8)) drop-shadow(0 0 .8rem rgba(227,38,47,.55)); }
+.regent-scabbard, .regent-sword, .regent-click { position: absolute; left: 21%; top: 28%; width: 0; height: 0; }
+.regent-scabbard { z-index: 0; transform: rotate(-35deg); }
+.regent-scabbard i { position: absolute; left: calc(var(--h) * -.034); top: calc(var(--h) * -.008); width: calc(var(--h) * .068); height: calc(var(--h) * .5); border: 1px solid #4a383d; border-radius: 3px 3px 40% 40%; background: linear-gradient(90deg, #120c0e, #3a2a2e 50%, #120c0e); box-shadow: inset 0 3px 0 rgba(255,59,68,.85); }
+.regent-sword { z-index: 0; transform: rotate(-35deg); opacity: 0; }
+.regent-sword svg { position: absolute; left: calc(var(--h) * -.031); top: calc(var(--h) * -.124); width: calc(var(--h) * .062); height: calc(var(--h) * .62); overflow: visible; filter: drop-shadow(0 0 2px rgba(255,59,68,.8)); }
+.regent-rite.flying .regent-sword, .regent-rite.sheathed .regent-sword { opacity: 1; }
+.regent-rite.flying .regent-sword svg { filter: drop-shadow(0 0 5px #ff3b44) drop-shadow(0 0 16px rgba(255,59,68,.7)); }
+.regent-click { z-index: 2; }
+.regent-click::before, .regent-click::after { content: ""; position: absolute; left: 0; top: 0; translate: -50% -50%; opacity: 0; pointer-events: none; }
+.regent-click::before { width: calc(var(--h) * .28); height: calc(var(--h) * .28); border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 1rem #ff3b44, inset 0 0 1rem #ff3b44; }
+.regent-click::after { width: calc(var(--h) * .7); height: 3px; border-radius: 50%; background: linear-gradient(90deg, transparent, #fff, transparent); box-shadow: 0 0 10px #ff3b44; }
+.regent-title { position: relative; z-index: 2; display: grid; justify-items: center; gap: .3rem; margin-top: .8rem; text-align: center; opacity: 0; }
+.regent-title h2 { margin: 0; color: #fff; font: 700 clamp(2.4rem, 7vw, 5.4rem)/1 var(--display); text-shadow: var(--blade), 0 0 3rem rgba(227,38,47,.7); }
+.regent-title p { margin: 0; color: #f3b9b3; font: 400 clamp(.62rem, 1.4vw, .8rem) var(--mono); letter-spacing: .32em; text-transform: uppercase; }
+.regent-rite .code-skip { position: relative; z-index: 2; margin-top: .8rem; }
+.regent-rite.standing .regent-rig { opacity: 1; transform: none; }
+.regent-rite.cut .regent-slashes i { animation: slash-draw .3s calc(var(--i) * 110ms) cubic-bezier(.7,0,.3,1) forwards; }
+.regent-rite.cut .regent-field { animation: field-flash .9s ease-out; }
+.regent-rite.sheathed .regent-click::before { animation: click-ring .55s ease-out forwards; }
+.regent-rite.sheathed .regent-click::after { animation: click-flare .45s ease-out forwards; }
+.regent-rite.sheathed .regent-rig { animation: regent-jolt .22s ease-out; }
+.regent-rite.fallen .regent-strip { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); filter: brightness(.45) saturate(.5); }
+.regent-rite.fallen .enemy-blade { animation: none; opacity: 0; }
+.regent-rite.fallen .regent-slashes i { animation: slash-burn 1.4s ease-out forwards; }
+.regent-rite.vow .regent-vow span { animation: vow-cut .7s cubic-bezier(.7,0,.3,1) forwards; }
+.regent-rite.vow .regent-vow span:last-child { animation-delay: .45s; }
+.regent-rite.vow .regent-title { animation: rite-slam .7s 1.1s cubic-bezier(.2,1.4,.4,1) forwards; }
+.regent-rite.leaving { animation: rite-leave .7s ease forwards; }
+.regent-rite.still .regent-rig, .regent-rite.still .regent-sword, .regent-rite.still .regent-title { opacity: 1; transform: none; animation: none; }
+.regent-rite.still .regent-sword { transform: rotate(-35deg); }
+.regent-rite.still .regent-vow span { clip-path: none; animation: none; }
+@keyframes blade-hum { 0%, 100% { opacity: 1; } 50% { opacity: .75; } }
+@keyframes slash-draw { 0% { opacity: 1; transform: scaleX(0); } 100% { opacity: 1; transform: none; } }
+@keyframes slash-burn { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: none; } }
+@keyframes field-flash { 0%, 100% { filter: none; } 12% { filter: brightness(2.4) saturate(.4); } }
+@keyframes click-ring { 0% { opacity: 1; transform: scale(.2); } 100% { opacity: 0; transform: scale(1.8); } }
+@keyframes click-flare { 0% { opacity: 1; transform: scaleX(.1); } 40% { opacity: 1; } 100% { opacity: 0; transform: scaleX(1.4); } }
+@keyframes regent-jolt { 0% { translate: 0 0; } 30% { translate: -3px 2px; } 60% { translate: 2px -1px; } 100% { translate: 0 0; } }
+@keyframes vow-cut { from { clip-path: inset(-20% 100% -20% 0); } to { clip-path: inset(-20% -5% -20% 0); } }
+
 /* Awakened: the Code has been spoken. Every holocron stands half open with its beam lit,
  * the obelisks burn, and a slow red pulse runs through the vault. */
 .awakened .holocron .cap { transform: translateY(-8px) rotate(-2deg); }

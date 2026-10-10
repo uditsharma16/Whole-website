@@ -1346,11 +1346,12 @@ function renderSearch(query) {
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
-  if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: true, tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
+  if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Discovery, Dark Regent of the Sith", ref: "◆", href: "#regent" });
+  if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
   byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${items.length} ${items.length === 1 ? "entry" : "entries"} on file`;
   const header = `<p class="term-sys">› ${value ? `scanning ${items.length} entries for “${esc(query.trim())}”` : "awaiting query · listing every entry on file"}</p>`;
-  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}${item.recite || item.summon ? " term-code" : ""}" href="${item.href}" ${item.recite ? "data-recite" : item.summon ? "data-summon" : "data-link"} data-index="${index}">
+  byId("searchResults").innerHTML = header + (matches.length ? matches.map((item, index) => `<a class="term-line${index === 0 ? " active" : ""}${item.recite || item.summon ? " term-code" : ""}" href="${item.href}" ${item.recite ? "data-recite" : item.summon ? `data-summon="${item.summon}"` : "data-link"} data-index="${index}">
       <span class="term-tag">[${esc(item.tag)}]</span>
       <span class="term-main"><strong>${highlight(item.title, value)}</strong><small>${esc(item.where)}</small>${item.text && value && !item.recite && !item.summon ? `<p>${highlight(snippet(item.text, value), value)}</p>` : ""}</span>
       <span class="term-ref">${esc(item.ref)}</span></a>`).join("") : `<p class="term-sys term-empty">› no entry matches “${esc(query)}”${indexing ? " · still indexing records" : ""}</p>`);
@@ -1402,7 +1403,8 @@ document.addEventListener("click", (event) => {
     event.preventDefault(); navigate(anchor.getAttribute("href"), anchor); return;
   }
   if (event.target.closest("[data-recite]")) { event.preventDefault(); reciteCode(); return; }
-  if (event.target.closest("[data-summon]")) { event.preventDefault(); summonEmperor(); return; }
+  const summoned = event.target.closest("[data-summon]");
+  if (summoned) { event.preventDefault(); summon(summoned.dataset.summon); return; }
   const scroller = event.target.closest("a[data-scroll]");
   if (scroller) {
     event.preventDefault();
@@ -1586,11 +1588,12 @@ function forceStorm() {
 }
 let typed = "";
 document.addEventListener("keydown", (event) => {
-  if (recital.running || rite.running || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (recital.running || rite.running || regent.running || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
   typed = (typed + event.key.toLowerCase()).slice(-16);
   if (typed.endsWith("power")) { typed = ""; forceStorm(); }
   else if (typed.endsWith(CODE_WORDS)) { typed = ""; reciteCode(); }
   else if (typed.endsWith(EMPEROR_WORD)) { typed = ""; summonEmperor(); }
+  else if (typed.endsWith(REGENT_WORD)) { typed = ""; summonRegent(); }
 });
 
 /* ───────── The Code ─────────
@@ -1604,7 +1607,7 @@ const AWAKENED = "tso-awakened";
 const recital = { running: false, timers: [] };
 const lettersOf = (text) => text.toLowerCase().replace(/[^a-z]/g, "");
 function reciteCode() {
-  if (recital.running || rite.running) return;
+  if (recital.running || rite.running || regent.running) return;
   recital.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("sithCode");
@@ -1689,7 +1692,7 @@ async function emperorImage() {
   return img;
 }
 async function summonEmperor() {
-  if (rite.running || recital.running) return;
+  if (rite.running || recital.running || regent.running) return;
   rite.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("emperorRite");
@@ -1726,6 +1729,103 @@ async function summonEmperor() {
   later(7800, () => { overlay.classList.add("leaving"); rite.target = 0; });
   later(8500, finish);
 }
+/* ───────── The Dark Regent ─────────
+ * Typing "regent" (or summoning him from the terminal) brings Discovery, Dark Regent of the
+ * Sith and its second in command, before the enemies of the Sith. He has already struck:
+ * three cuts of blade-light cross the screen while he stands still, his sword spins down out
+ * of the air and slides home into the scabbard on his back, and on the click of the hilt the
+ * enemies fall apart along the cuts. Then the vow, and his name. */
+const REGENT_WORD = "regent";
+const regent = { running: false, timers: [], built: false };
+const REGENT_CUTS = [[14, 36], [44, 62], [71, 93]]; // each cut: where it crosses the top and the bottom, in % of the width
+function regentEnemies() {
+  // Distant figures on the horizon, hooded and robed, each with a blue blade raised.
+  const figure = (x, scale, angle, i) => `<g class="enemy" transform="translate(${x} 600) scale(${scale})">
+      <line class="enemy-blade" x1="12" y1="-46" x2="${12 + Math.sin(angle) * 64}" y2="${-46 - Math.cos(angle) * 64}" style="--i:${i}"/>
+      <path d="M-15 -78Q0 -86 15 -78L24 0H-24Z"/><circle cx="0" cy="-88" r="10"/></g>`;
+  const spots = [[150, 1.6, .5], [340, 2, -.3], [520, 1.4, .9], [660, 1.7, .2], [940, 1.7, -.2], [1090, 1.4, -.8], [1270, 2, .35], [1450, 1.6, -.5]];
+  return `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">${spots.map(([x, scale, angle], i) => figure(x, scale, angle, i)).join("")}</svg>`;
+}
+function buildRegent() {
+  if (regent.built) return;
+  regent.built = true;
+  const edges = [[-20, -20], ...REGENT_CUTS, [120, 120]];
+  const drift = [[-3.5, 7, -2.5], [2.5, -6, 2], [-2.5, 8, -1.5], [3.5, -5, 2.8]];
+  byId("regentField").innerHTML = edges.slice(0, -1).map((edge, i) => {
+    const next = edges[i + 1];
+    return `<div class="regent-strip" style="clip-path:polygon(${edge[0]}% 0,${next[0]}% 0,${next[1]}% 100%,${edge[1]}% 100%);--dx:${drift[i][0]}vw;--dy:${drift[i][1]}vh;--rot:${drift[i][2]}deg">${regentEnemies()}</div>`;
+  }).join("");
+}
+// The cuts of light are drawn for the screen at hand, from top edge to bottom edge.
+function layRegentSlashes() {
+  byId("regentSlashes").innerHTML = REGENT_CUTS.map(([top, bottom], i) => {
+    const x1 = top / 100 * innerWidth, x2 = bottom / 100 * innerWidth, h = innerHeight + 40;
+    return `<i style="left:${x1}px;width:${Math.hypot(x2 - x1, h)}px;rotate:${Math.atan2(h, x2 - x1)}rad;--i:${i}"></i>`;
+  }).join("");
+}
+async function summonRegent() {
+  if (regent.running || rite.running || recital.running) return;
+  regent.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  buildRegent(); layRegentSlashes();
+  const overlay = byId("regentRite"), img = byId("regentImage"), rig = byId("regentRig"), sword = byId("regentSword");
+  if (!img.getAttribute("src")) img.src = "/regent.webp";
+  await img.decode().catch(() => {});
+  const still = reducedMotion.matches;
+  overlay.className = `regent-rite${still ? " still" : ""}`;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => regent.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    regent.timers.forEach(clearTimeout); regent.timers = [];
+    sword.getAnimations().forEach((animation) => animation.cancel());
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "regent-rite";
+    document.body.style.overflow = "";
+    regent.running = false;
+    toast("The Dark Regent has passed judgement.");
+    setTimeout(() => droidReact("I saw nothing. I was never here."), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (regent.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  const H = rig.getBoundingClientRect().height;
+  rig.style.setProperty("--h", `${H}px`);
+  if (still) { overlay.classList.add("standing", "cut", "sheathed", "vow"); later(4500, finish); return; }
+  void overlay.offsetWidth;
+  overlay.classList.add("standing");
+  later(700, () => overlay.classList.add("cut")); // the three cuts flash across
+  later(1300, () => {
+    // The sword comes down out of the air, turning, and lines up over his shoulder...
+    const anchor = sword.getBoundingClientRect();
+    const dx = innerWidth - anchor.left + H * .3, dy = -anchor.top - H * .4;
+    const sin = Math.sin(35 * Math.PI / 180), cos = Math.cos(35 * Math.PI / 180), lift = H * .46;
+    const above = `translate(${-sin * lift}px, ${-cos * lift}px) rotate(-35deg)`;
+    overlay.classList.add("flying");
+    const flight = sword.animate([
+      { transform: `translate(${dx}px, ${dy}px) rotate(865deg)`, opacity: 0 },
+      { opacity: 1, offset: .1 },
+      { transform: `translate(${H * .42}px, ${-H * .78}px) rotate(325deg)`, offset: .62 },
+      { transform: above }
+    ], { duration: perf.lite ? 900 : 1150, easing: "cubic-bezier(.3,.6,.35,1)", fill: "forwards" });
+    flight.finished.then(() => {
+      if (!regent.running) return;
+      // ...and slides home.
+      sword.animate([{ transform: above }, { transform: "rotate(-35deg)" }], { duration: 170, easing: "cubic-bezier(.6,0,1,.6)", fill: "forwards" })
+        .finished.then(() => {
+          if (!regent.running) return;
+          overlay.classList.remove("flying"); overlay.classList.add("sheathed");
+          skyFlash(.8);
+          later(380, () => overlay.classList.add("fallen")); // the enemies come apart along the cuts
+          later(900, () => overlay.classList.add("vow"));
+        }).catch(() => {});
+    }).catch(() => {});
+  });
+  later(9200, () => overlay.classList.add("leaving"));
+  later(9900, finish);
+}
+
+const summon = (who) => (who === "regent" ? summonRegent() : summonEmperor());
+
 function startAura() {
   const canvas = byId("riteAura"), g = canvas.getContext("2d");
   const ratio = Math.min(devicePixelRatio || 1, perf.lite ? 1 : 1.5);
@@ -1805,6 +1905,7 @@ const DROID_QUIPS = [
   "Touch the core. Watch the vaults answer.",
   "Type “peaceisalie”. The archive is listening.",
   "Say “emperor”. If you dare.",
+  "Type “regent”. Watch his blade.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
@@ -2060,7 +2161,7 @@ byId("globalSearch").addEventListener("input", (event) => renderSearch(event.tar
 byId("globalSearch").addEventListener("keydown", (event) => {
   if (event.key === "ArrowDown") { event.preventDefault(); moveSearch(1); }
   if (event.key === "ArrowUp") { event.preventDefault(); moveSearch(-1); }
-  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) reciteCode(); else if (item.summon) summonEmperor(); else navigate(item.href); } }
+  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) reciteCode(); else if (item.summon) summon(item.summon); else navigate(item.href); } }
 });
 document.addEventListener("keydown", (event) => {
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "");
