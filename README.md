@@ -66,6 +66,7 @@ archive core on the home page, or type `power`. Type `peaceisalie` (the start of
 Code, as one word) or enter it in the terminal to hear the rest of it; the archive stays
 awakened for the visit. Type `emperor` (or pick "Summon the Emperor" in the terminal) and
 Darth Azazel, the Sith Emperor, rises and powers up. Type `regent` and Discovery, Dark Regent
-of the Sith, sheathes his sword as the enemies of the Sith fall. Everyone starts on full effects; devices that
+of the Sith, sheathes his sword as the enemies of the Sith fall. Type `voice` and
+UnvincibleShadow, the Emperor's Voice, works an ancient spell from a book of Sith sorcery. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch
 (or `?fx=lite` / `?fx=full`) chooses either one by hand.

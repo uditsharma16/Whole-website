@@ -1346,6 +1346,7 @@ function renderSearch(query) {
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
+  if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "UnvincibleShadow, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Discovery, Dark Regent of the Sith", ref: "◆", href: "#regent" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
@@ -1588,12 +1589,13 @@ function forceStorm() {
 }
 let typed = "";
 document.addEventListener("keydown", (event) => {
-  if (recital.running || rite.running || regent.running || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (riteBusy() || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
   typed = (typed + event.key.toLowerCase()).slice(-16);
   if (typed.endsWith("power")) { typed = ""; forceStorm(); }
   else if (typed.endsWith(CODE_WORDS)) { typed = ""; reciteCode(); }
   else if (typed.endsWith(EMPEROR_WORD)) { typed = ""; summonEmperor(); }
   else if (typed.endsWith(REGENT_WORD)) { typed = ""; summonRegent(); }
+  else if (typed.endsWith(VOICE_WORD)) { typed = ""; summonVoice(); }
 });
 
 /* ───────── The Code ─────────
@@ -1607,7 +1609,7 @@ const AWAKENED = "tso-awakened";
 const recital = { running: false, timers: [] };
 const lettersOf = (text) => text.toLowerCase().replace(/[^a-z]/g, "");
 function reciteCode() {
-  if (recital.running || rite.running || regent.running) return;
+  if (riteBusy()) return;
   recital.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("sithCode");
@@ -1692,7 +1694,7 @@ async function emperorImage() {
   return img;
 }
 async function summonEmperor() {
-  if (rite.running || recital.running || regent.running) return;
+  if (riteBusy()) return;
   rite.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("emperorRite");
@@ -1764,7 +1766,7 @@ function layRegentSlashes() {
   }).join("");
 }
 async function summonRegent() {
-  if (regent.running || rite.running || recital.running) return;
+  if (riteBusy()) return;
   regent.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   buildRegent(); layRegentSlashes();
@@ -1824,7 +1826,150 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => (who === "regent" ? summonRegent() : summonEmperor());
+const summon = (who) => (who === "regent" ? summonRegent() : who === "voice" ? summonVoice() : summonEmperor());
+const riteBusy = () => recital.running || rite.running || regent.running || voice.running;
+
+/* ───────── The Emperor's Voice ─────────
+ * Typing "voice" (or summoning him from the terminal) brings UnvincibleShadow, the Emperor's
+ * Voice, into a circle of Sith runes that inscribes itself behind him and on the ground. He
+ * rises into the air; an ancient spellbook opens before him and its pages turn; runes lift off
+ * the pages and spiral up around him while four holocrons circle him; then the runes gather
+ * into a sigil above his head, the holocrons open, and the spell is made manifest. */
+const VOICE_WORD = "voice";
+const voice = { running: false, timers: [], frame: 0, built: false, glyphs: [], runes: null, holocrons: [] };
+// A rune: two or three angular strokes on a stem, in a 10 by 10 cell.
+function runePath(seed) {
+  let h = hash(`rune:${seed}`);
+  const rand = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const at = (lo, hi) => (lo + rand() * (hi - lo)).toFixed(1);
+  const stem = `M5 1V9`;
+  const kinds = [
+    () => `M5 ${at(1, 4)}L${at(7, 9)} ${at(3, 6)}M5 ${at(5, 8)}L${at(1, 3)} ${at(6, 9)}`,
+    () => `M5 ${at(1, 3)}L${at(1, 3)} ${at(3, 5)}M5 ${at(1, 3)}L${at(7, 9)} ${at(3, 5)}`,
+    () => `M${at(1, 3)} ${at(2, 4)}L5 ${at(4, 6)}L${at(7, 9)} ${at(6, 8)}`,
+    () => `M5 ${at(2, 4)}L${at(7, 9)} 5L5 ${at(6, 8)}`,
+    () => `M${at(1, 3)} 3H${at(7, 9)}M${at(2, 4)} 7L${at(6, 8)} ${at(5, 8)}`
+  ];
+  return stem + kinds[Math.floor(rand() * kinds.length)]() + (rand() < .4 ? kinds[Math.floor(rand() * kinds.length)]() : "");
+}
+function runeCircle(prefix, outer, count) {
+  const band = Array.from({ length: count }, (_, i) => {
+    const a = (i / count) * 360, r = outer - 9;
+    return `<path class="rune" style="--i:${i}" d="${runePath(`${prefix}${i}`)}" transform="rotate(${a}) translate(-4 ${-r - 4}) scale(.8)"/>`;
+  }).join("");
+  const inner = Array.from({ length: 12 }, (_, i) => `<path class="rune" style="--i:${i + count}" d="${runePath(`${prefix}in${i}`)}" transform="rotate(${i * 30 + 15}) translate(-3 -45) scale(.6)"/>`).join("");
+  return `<circle class="line" pathLength="1" r="${outer}"/><circle class="line" pathLength="1" r="${outer - 18}"/>${band}
+    <polygon class="line" pathLength="1" points="0,-72 62.4,36 -62.4,36"/><polygon class="line" pathLength="1" points="0,72 62.4,-36 -62.4,-36"/>
+    <circle class="line" pathLength="1" r="52"/><circle class="line" pathLength="1" r="36"/>${inner}`;
+}
+function buildVoice() {
+  if (voice.built) return;
+  voice.built = true;
+  // The circles turn about their own centre (SVG's rotate, which CSS origins get wrong on a centred viewBox).
+  const turning = (seconds, to) => `<animateTransform attributeName="transform" type="rotate" from="0" to="${to}" dur="${seconds}s" repeatCount="indefinite"/>`;
+  byId("voiceRing").innerHTML = `<g>${turning(48, 360)}${runeCircle("ring", 96, 30)}</g>`;
+  byId("voiceFloor").innerHTML = `<g>${turning(64, -360)}${runeCircle("floor", 96, 36)}</g>`;
+  voice.runes = Array.from({ length: 18 }, (_, i) => new Path2D(runePath(`spell${i}`)));
+  byId("voiceHolocrons").innerHTML = Array.from({ length: 4 }, (_, i) => `<span class="voice-holocron tone-${i % 2 ? 3 : 2}">${holocronSvg(`voice${i}`)}</span>`).join("");
+  voice.holocrons = [...byId("voiceHolocrons").children];
+}
+async function summonVoice() {
+  if (riteBusy()) return;
+  voice.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  buildVoice();
+  const overlay = byId("voiceRite"), img = byId("voiceImage");
+  if (!img.getAttribute("src")) img.src = "/voice.webp";
+  await img.decode().catch(() => {});
+  const rig = byId("voiceRig");
+  const still = reducedMotion.matches;
+  overlay.className = `voice-rite${still ? " still" : ""}`;
+  overlay.hidden = false;
+  rig.style.setProperty("--rig-w", `${rig.getBoundingClientRect().width}px`);
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => voice.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    voice.timers.forEach(clearTimeout); voice.timers = [];
+    cancelAnimationFrame(voice.frame); voice.frame = 0; voice.glyphs = [];
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "voice-rite";
+    document.body.style.overflow = "";
+    voice.running = false;
+    toast("The Emperor's Voice has spoken.");
+    setTimeout(() => droidReact("I understood none of that. Which is how I know it was powerful."), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (voice.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  if (still) { overlay.classList.add("inscribed", "risen", "open", "manifest", "vow"); placeHolocrons(0); later(4500, finish); return; }
+  void overlay.offsetWidth;
+  overlay.classList.add("inscribed"); // the circles draw themselves
+  later(500, () => overlay.classList.add("risen"));
+  later(1400, () => overlay.classList.add("open")); // the book opens and its pages turn
+  later(2000, () => { voice.casting = true; });
+  voice.casting = false; voice.manifest = false;
+  startSpell();
+  later(4600, () => {
+    voice.manifest = true; overlay.classList.add("manifest");
+    skyFlash(.7);
+  });
+  later(5200, () => overlay.classList.add("vow"));
+  later(9800, () => { overlay.classList.add("leaving"); voice.casting = false; });
+  later(10500, finish);
+}
+// The holocrons ride an ellipse round his middle, larger and in front of him on the near side.
+function placeHolocrons(t) {
+  const rig = byId("voiceRig").getBoundingClientRect();
+  voice.holocrons.forEach((el, i) => {
+    const a = t * .0009 + i * Math.PI / 2, near = Math.sin(a);
+    const x = Math.cos(a) * rig.width * .95, y = near * rig.height * .09 - rig.height * .06;
+    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${(.82 + near * .22).toFixed(3)})`;
+    el.style.zIndex = near > 0 ? 4 : 1;
+    el.style.opacity = byId("voiceRite").classList.contains("open") ? (.75 + near * .25).toFixed(2) : "0";
+  });
+}
+function startSpell() {
+  const back = byId("voiceBack"), front = byId("voiceFront");
+  const ratio = Math.min(devicePixelRatio || 1, perf.lite ? 1 : 1.5);
+  const size = () => { const r = back.getBoundingClientRect(); for (const c of [back, front]) { c.width = r.width * ratio; c.height = r.height * ratio; c.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0); } return r; };
+  let box = size();
+  const gb = back.getContext("2d"), gf = front.getContext("2d");
+  const t0 = performance.now();
+  const tick = (now) => {
+    voice.frame = requestAnimationFrame(tick);
+    placeHolocrons(now - t0);
+    const img = byId("voiceImage").getBoundingClientRect();
+    box = back.getBoundingClientRect();
+    const cx = img.left + img.width / 2 - box.left, top = img.top - box.top;
+    const sigil = { x: cx, y: top - img.height * .17 };
+    const book = byId("voiceRig").querySelector(".book-tilt").getBoundingClientRect();
+    for (const g of [gb, gf]) g.clearRect(0, 0, box.width, box.height);
+    if (voice.casting && voice.glyphs.length < (perf.lite ? 40 : 90)) {
+      for (let i = 0; i < (perf.lite ? 1 : 2); i += 1) voice.glyphs.push({
+        x0: book.left - box.left + book.width * (.15 + Math.random() * .7), y0: book.top - box.top + book.height * (.2 + Math.random() * .5),
+        phase: Math.random() * Math.PI * 2, spin: (Math.random() < .5 ? -1 : 1) * (2.2 + Math.random() * 1.6) * Math.PI,
+        reach: img.width * (.75 + Math.random() * .5), life: 0, max: 130 + Math.random() * 80, rune: voice.runes[Math.floor(Math.random() * voice.runes.length)], size: 15 + Math.random() * 12
+      });
+    }
+    voice.glyphs = voice.glyphs.filter((p) => {
+      p.life += voice.manifest ? 2.2 : 1;
+      const u = Math.min(1, p.life / p.max);
+      if (u >= 1) return false;
+      // Up from the page in a widening, then tightening spiral, ending in the sigil.
+      const ease = u * u * (3 - 2 * u), radius = p.reach * Math.sin(Math.PI * Math.min(1, u * 1.1)) * (1 - u * .4);
+      const a = p.phase + p.spin * u;
+      const x = p.x0 + (sigil.x - p.x0) * ease + Math.cos(a) * radius, y = p.y0 + (sigil.y - p.y0) * ease;
+      const g = Math.sin(a) > 0 ? gf : gb;
+      const alpha = Math.min(1, u * 6) * (1 - Math.max(0, u - .85) / .15);
+      g.save(); g.translate(x, y); g.rotate(Math.sin(a) * .3); g.scale(p.size / 10, p.size / 10); g.translate(-5, -5);
+      g.lineCap = "round"; g.lineJoin = "round";
+      g.globalAlpha = alpha * .45; g.strokeStyle = "#b48cff"; g.lineWidth = 3.2; g.stroke(p.rune);
+      g.globalAlpha = alpha; g.strokeStyle = "#ffe3a3"; g.lineWidth = 1.1; g.stroke(p.rune);
+      g.restore();
+      return true;
+    });
+  };
+  voice.frame = requestAnimationFrame(tick);
+}
 
 function startAura() {
   const canvas = byId("riteAura"), g = canvas.getContext("2d");
@@ -1906,6 +2051,7 @@ const DROID_QUIPS = [
   "Type “peaceisalie”. The archive is listening.",
   "Say “emperor”. If you dare.",
   "Type “regent”. Watch his blade.",
+  "Type “voice”. The old spells still answer.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };

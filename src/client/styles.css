@@ -783,6 +783,72 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 @keyframes rite-slam { 0% { opacity: 0; transform: scale(1.8); filter: blur(10px); } 60% { opacity: 1; filter: none; } 100% { opacity: 1; transform: none; } }
 @keyframes rite-leave { to { opacity: 0; } }
 
+/* ───────── The Emperor's Voice ─────────
+ * See summonVoice() in app.js: the circles of runes draw themselves (.inscribed), he rises
+ * into the air (.risen), the spellbook opens and its pages turn (.open) while holocrons circle
+ * him, and the runes he raises off the pages gather into the sigil above him (.manifest). */
+.voice-rite { position: fixed; inset: 0; z-index: 84; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; padding: max(1.6rem, 6vh) 1rem calc(1.4rem + env(safe-area-inset-bottom, 0px)); overflow: hidden; cursor: pointer;
+  background: radial-gradient(ellipse 55% 50% at 50% 56%, rgba(110,50,190,.38), rgba(6,3,12,.97) 72%), #06030c; animation: veil-in .5s ease both; }
+.voice-rite[hidden] { display: none; }
+.voice-vow { position: relative; z-index: 2; display: grid; justify-items: center; gap: .2rem; margin: 0; text-align: center; }
+.voice-vow span { display: block; color: #fff4d6; font: 700 clamp(1.4rem, 4vw, 3rem)/1.12 var(--display); text-shadow: 0 0 1.2rem rgba(180,140,255,.8), 0 0 .2rem #fff; opacity: 0; filter: blur(8px); transform: translateY(.3em); }
+.voice-vow span:last-child { color: #e2c46e; }
+.voice-stage { position: relative; z-index: 1; display: grid; place-items: end center; width: 100%; min-height: 0; padding-bottom: 6vh; }
+.voice-rig { --rig-w: 14rem; position: relative; height: min(42vh, 26rem, 104vw); aspect-ratio: 298 / 406; }
+.voice-rig img { position: relative; z-index: 2; display: block; width: 100%; height: 100%; opacity: 0; transform: translateY(8%); filter: drop-shadow(0 0 1px rgba(255,240,210,.8)) drop-shadow(0 0 .9rem rgba(180,140,255,.55)); transition: opacity 1s ease, transform 1.4s cubic-bezier(.2,.8,.2,1), filter 1s ease; }
+.voice-ring, .voice-floor { position: absolute; left: 50%; aspect-ratio: 1; overflow: visible; pointer-events: none; filter: drop-shadow(0 0 3px rgba(240,196,106,.7)) drop-shadow(0 0 10px rgba(180,140,255,.5)); }
+.voice-ring { z-index: 0; top: 46%; width: 165%; translate: -50% -50%; opacity: .75; }
+.voice-floor { z-index: 0; top: 104%; width: 240%; translate: -50% -50%; scale: 1 .26; }
+.voice-ring .line, .voice-floor .line { fill: none; stroke: #f0c46a; stroke-width: .7; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.voice-ring .rune, .voice-floor .rune { fill: none; stroke: #ffe3a3; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.voice-glyphs { position: absolute; top: -45%; bottom: -12%; left: -120%; right: -120%; width: 340%; height: 157%; pointer-events: none; }
+.voice-glyphs.back { z-index: 1; }
+.voice-glyphs.front { z-index: 5; }
+.voice-holocrons { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.voice-holocron { position: absolute; left: 0; top: 0; width: calc(var(--rig-w) * .3); opacity: 0; transition: opacity .9s ease; will-change: transform; }
+.voice-holocron .holocron-art { filter: drop-shadow(0 .4rem .5rem rgba(0,0,0,.6)) drop-shadow(0 0 .6rem var(--seam-soft)); }
+.voice-book { position: absolute; z-index: 3; left: 50%; top: 64%; width: 66%; translate: -50% 0; perspective: 700px; opacity: 0; transform: translateY(1.5rem); transition: opacity .8s ease, transform 1s cubic-bezier(.2,.8,.2,1); }
+.book-tilt { position: relative; width: 100%; aspect-ratio: 2 / 1.25; transform: rotateX(46deg); transform-style: preserve-3d; animation: book-hover 3.4s ease-in-out infinite; }
+.book-half, .book-leaf .face { position: absolute; inset: 0; border-radius: 2px; background: repeating-linear-gradient(180deg, transparent 0 12%, rgba(120,70,30,.35) 12% 13.5%), linear-gradient(90deg, #cdb07a, #ecdcb0 60%, #d9c08e); box-shadow: inset 0 0 1rem rgba(90,50,20,.45); }
+.book-half { right: 50%; }
+.book-leaf { position: absolute; top: 0; left: 50%; width: 50%; height: 100%; transform-origin: left center; transform-style: preserve-3d; transform: rotateY(-179deg) translateZ(calc(var(--n, 3) * -.6px)); transition: transform .85s cubic-bezier(.45,.05,.3,1); }
+.book-leaf .face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.book-leaf .back { transform: rotateY(180deg); }
+.book-leaf.cover { --n: -1; }
+.book-leaf.cover .back { background: radial-gradient(circle at 50% 50%, rgba(240,196,106,.5) 0 8%, transparent 9%), linear-gradient(135deg, #3a1020, #1c0810); border: 2px solid #b8913f; box-shadow: inset 0 0 0 4px #1c0810, inset 0 0 0 5px rgba(240,196,106,.6); }
+.voice-rite.inscribed .line { animation: rune-draw 1.3s cubic-bezier(.6,0,.3,1) forwards; }
+.voice-rite.inscribed .rune { animation: rune-light .5s calc(.6s + var(--i) * 22ms) ease forwards; }
+.voice-rite.risen .voice-rig img { opacity: 1; transform: translateY(-5%); animation: voice-float 3.2s 1.4s ease-in-out infinite; }
+.voice-rite.risen .voice-book { opacity: 1; transform: none; }
+.voice-rite.open .book-leaf { transform: rotateY(0deg) translateZ(calc(var(--n, 3) * .6px)); transition-delay: calc(.1s + (var(--n) + 1) * .32s); }
+.voice-rite.open .book-half, .voice-rite.open .book-leaf .face.front { box-shadow: inset 0 0 1rem rgba(90,50,20,.45), 0 0 1.6rem rgba(255,214,140,.55); }
+.voice-rite.manifest .voice-sigil { opacity: 1; transform: none; animation: sigil-turn 14s linear infinite; }
+.voice-rite.manifest .voice-ring { opacity: 1; filter: drop-shadow(0 0 4px #ffe3a3) drop-shadow(0 0 16px #b48cff); }
+.voice-rite.manifest .voice-ring .line { stroke-width: 1.1; }
+.voice-rite.manifest .voice-rig img { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1.2rem rgba(180,140,255,.9)) drop-shadow(0 0 3rem rgba(240,196,106,.45)); }
+.voice-rite.manifest .voice-holocron .cap { transform: translateY(-11px) rotate(-3deg); }
+.voice-rite.manifest .voice-holocron .beam { opacity: .9; transform: none; }
+.voice-rite.manifest .voice-holocron .core { opacity: .6; }
+.voice-rite.manifest .voice-holocron .runes { stroke: var(--seam); }
+.voice-sigil { position: absolute; z-index: 6; left: 50%; top: -18%; width: 46%; translate: -50% -50%; overflow: visible; opacity: 0; transform: scale(.3); transition: opacity .6s ease, transform .8s cubic-bezier(.2,1.4,.4,1); fill: none; stroke: #ffe3a3; stroke-width: 1.6; stroke-linejoin: round; filter: drop-shadow(0 0 4px #f0c46a) drop-shadow(0 0 14px #b48cff); }
+.voice-sigil .crystal { fill: #b48cff; stroke: #fff; }
+.voice-title { position: relative; z-index: 2; display: grid; justify-items: center; gap: .3rem; margin-top: .6rem; text-align: center; opacity: 0; }
+.voice-title h2 { margin: 0; color: #fff; font: 700 clamp(2rem, 6.4vw, 4.8rem)/1 var(--display); overflow-wrap: anywhere; text-shadow: 0 0 .3rem #fff, 0 0 1.4rem #b48cff, 0 0 3rem rgba(240,196,106,.5); }
+.voice-title p { margin: 0; color: #e2c46e; font: 400 clamp(.64rem, 1.4vw, .82rem) var(--mono); letter-spacing: .34em; text-transform: uppercase; }
+.voice-rite .code-skip { position: relative; z-index: 2; margin-top: .8rem; }
+.voice-rite.vow .voice-vow span { animation: code-word .8s var(--ease) forwards; }
+.voice-rite.vow .voice-vow span:last-child { animation-delay: .4s; }
+.voice-rite.vow .voice-title { animation: rite-slam .7s 1s cubic-bezier(.2,1.4,.4,1) forwards; }
+.voice-rite.leaving { animation: rite-leave .7s ease forwards; }
+.voice-rite.still .line { stroke-dashoffset: 0; animation: none; }
+.voice-rite.still .rune, .voice-rite.still .voice-rig img, .voice-rite.still .voice-book, .voice-rite.still .voice-title, .voice-rite.still .voice-sigil, .voice-rite.still .voice-vow span { opacity: 1; transform: none; filter: none; animation: none; }
+.voice-rite.still .voice-holocron { opacity: 1; }
+@keyframes rune-draw { to { stroke-dashoffset: 0; } }
+@keyframes rune-light { to { opacity: 1; } }
+@keyframes sigil-turn { to { rotate: 360deg; } }
+@keyframes voice-float { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(-8%); } }
+@keyframes book-hover { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6%; } }
+
 /* ───────── The Dark Regent ─────────
  * See summonRegent() in app.js. He appears (.standing) before the enemies of the Sith; three
  * cuts flash across the screen (.cut); his sword flies in (.flying) and is sheathed on his
