@@ -1366,12 +1366,23 @@ function bindImageFallbacks(root) {
   root.querySelectorAll("img").forEach((image) => {
     if (image.dataset.fallbackBound) return;
     image.dataset.fallbackBound = "1";
-    image.addEventListener("error", () => {
+    const fail = () => {
+      // Google refuses an image now and then; one more try through the proxy usually lands.
+      const src = image.getAttribute("src") || "";
+      if (src.startsWith("/api/img?") && !image.dataset.retried) {
+        image.dataset.retried = "1";
+        setTimeout(() => { image.src = `${src}&retry=1`; }, 1200);
+        return;
+      }
+      image.removeEventListener("error", fail);
+      const statue = image.closest(".statue");
+      if (statue) { statue.classList.add("faceless"); statue.querySelector("[data-zoom]")?.removeAttribute("data-zoom"); image.remove(); return; }
       const thumb = image.closest(".plaque-thumb, .dossier-thumb");
       if (thumb) { thumb.classList.add("is-glyph"); image.replaceWith(document.createRange().createContextualFragment(glyph(thumb.dataset.seed || image.alt || "record"))); return; }
       if (image.classList.contains("chamber-banner")) { image.closest(".chamber-head")?.classList.remove("has-banner"); image.remove(); return; }
       (image.closest("figure") || image).remove();
-    }, { once: true });
+    };
+    image.addEventListener("error", fail);
   });
 }
 function toast(message) {

@@ -634,6 +634,8 @@ body.quake { animation: quake .5s linear 3; }
 .statue::after { content: ""; display: block; height: 1.7rem; margin: 0 -1.6rem; background: linear-gradient(180deg, #2c2124, #140d0f); clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%); box-shadow: inset 0 2px 0 rgba(255,90,95,calc(.25 + var(--near) * .65)); }
 .statue button { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
 .statue img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; object-position: 50% 20%; border-radius: 50% 50% 0 0 / 22% 22% 0 0; filter: grayscale(calc(1 - var(--near) * .8)) sepia(calc(.45 - var(--near) * .35)) brightness(calc(.4 + var(--near) * .65)) contrast(1.1); transition: filter .2s linear; }
+.statue.faceless button { aspect-ratio: 3 / 4; border-radius: 50% 50% 0 0 / 22% 22% 0 0; background: radial-gradient(ellipse 30% 22% at 50% 34%, rgba(227,38,47,calc(.12 + var(--near) * .3)), transparent 70%), radial-gradient(ellipse 46% 60% at 50% 90%, #1d1416, transparent 70%), #0a0607; cursor: default; }
+.tomb.emperor .statue.faceless button { aspect-ratio: 2 / 3; }
 .statue-light { position: absolute; left: 8%; right: 8%; bottom: 1.2rem; height: 45%; border-radius: 50%; background: radial-gradient(ellipse at 50% 100%, rgba(255,70,70,.6), transparent 70%); opacity: calc(var(--near) * .9); mix-blend-mode: screen; pointer-events: none; }
 .tomb-plaque { position: relative; display: grid; gap: .5rem; max-width: 27rem; opacity: calc(.3 + var(--near) * .7); transform: translateY(calc((1 - var(--near)) * 1rem)); }
 .tomb-plaque::before { content: ""; position: absolute; inset: -2.5rem -3rem; z-index: -1; background: radial-gradient(closest-side, rgba(6,3,4,.82), rgba(6,3,4,.5) 60%, transparent); pointer-events: none; }

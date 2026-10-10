@@ -102,6 +102,8 @@
   function imageSrc(raw = "") {
     // Docs exports carry their images inline; raster data URIs are inert inside <img>.
     if (/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(raw)) return raw;
+    // The Worker's stand-in for a Google Sites upload: the page it is on and its place there.
+    if (/^\/api\/img\?site=[\w%.~-]*&n=\d{1,3}$/.test(raw)) return raw;
     try {
       const url = new URL(raw, "https://sites.google.com");
       if (url.protocol === "data:") return "";

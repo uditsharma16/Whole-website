@@ -91,6 +91,58 @@ async function google(env, target, ttl = 60) {
   }
   return response;
 }
+/* An uploaded Google Sites image by page and position. If the address looked up has already
+ * gone stale, the page is read again for a newer one. */
+async function siteImage(env, slugPath, position) {
+  const n = Number(position);
+  if (!/^[A-Za-z0-9_~-]+(\/[A-Za-z0-9_~-]+)*$|^$/.test(slugPath) || slugPath.length > 200 || !Number.isInteger(n) || n < 0 || n > 500) return new Response("Bad image reference", { status: 400 });
+  let media = null;
+  for (const fresh of [false, true]) {
+    const address = await siteImageAddress(env, slugPath, n, fresh);
+    if (!address) break;
+    media = await siteMedia(env, address);
+    if (media.ok) break;
+    media.body?.cancel();
+  }
+  return imageFrom(media, 3600);
+}
+async function siteMedia(env, target) {
+  if (!siteCookie) await refreshSiteCookie(env, "");
+  let media;
+  // An old cookie (or none yet) can be refused; get a fresh one and try again.
+  for (let attempt = 0; ; attempt += 1) {
+    const cookie = siteCookie;
+    media = await google(env, target, 3600);
+    if (media.status !== 403 || attempt === 1) return media;
+    media.body?.cancel();
+    await refreshSiteCookie(env, cookie);
+  }
+}
+function imageFrom(media, maxAge) {
+  const type = media?.headers.get("content-type") || "";
+  if (!media?.ok || !type.toLowerCase().startsWith("image/")) return new Response("Image unavailable", { status: 404 });
+  return new Response(media.body, {
+    headers: {
+      "Content-Type": type,
+      "Cache-Control": `public, max-age=${maxAge}, s-maxage=${maxAge * 2}`,
+      "X-Content-Type-Options": "nosniff"
+    }
+  });
+}
+/* Fetches a fresh cookie from the site's home page. Images that load together and are all
+ * refused share one refresh, rather than each clearing the cookie the last one just fetched. */
+let cookieRefresh = null;
+function refreshSiteCookie(env, stale) {
+  if (siteCookie && siteCookie !== stale) return Promise.resolve();
+  if (!cookieRefresh) {
+    siteCookie = "";
+    cookieRefresh = google(env, `${SITE_ORIGIN}${SITE_HOME}`, 0)
+      .then((response) => response.body?.cancel())
+      .catch(() => {})
+      .finally(() => { cookieRefresh = null; });
+  }
+  return cookieRefresh;
+}
 /* A file that is not shared publicly answers with Google's sign-in page rather than an error. */
 function isSignIn(response) {
   return /accounts\.google\.com|ServiceLogin/.test(response.url || "");
@@ -130,7 +182,7 @@ async function remember(key, ttl, produce, fresh = false) {
 
 /* ───────── Site ───────── */
 async function siteResponse(env, ctx, fresh) {
-  const cacheKey = new Request("https://archives.cache/api/site/v2");
+  const cacheKey = new Request("https://archives.cache/api/site/v3");
   if (!fresh) {
     const cached = await caches.default.match(cacheKey).catch(() => null);
     if (cached) return cached;
@@ -185,7 +237,7 @@ async function crawlSite(env) {
       path: slugPath,
       source: `${SITE_ORIGIN}${page.path}`,
       title: cleanLabel(page.label) || titleOf(page.raw).split(/\s[-|–]\s/).pop() || "Untitled page",
-      html: main,
+      html: stableImages(main, slugPath),
       files: refs.map(refKey)
     };
   });
@@ -203,6 +255,33 @@ async function crawlSite(env) {
     pages: list,
     files: [...docs.values()].map((doc) => ({ key: refKey(doc), kind: doc.kind, id: doc.id, pub: Boolean(doc.pub), gid: doc.gid || "", label: cleanLabel(doc.label), title: cleanLabel(doc.title || ""), pages: doc.pages.map((path) => (path === SITE_HOME ? "" : path.slice(SITE_PREFIX.length + 1))) }))
   };
+}
+
+/* Google Sites signs the address of each uploaded image afresh on every page load, and an
+ * address stops working after a while. So the archive refers to them by page and position
+ * (/api/img?site=<page>&n=<k>), which stays the same from one crawl to the next, and looks up
+ * the current address only when the image is asked for (see siteImage). */
+const SITE_IMAGE = /https:\/\/sites\.google\.com\/sitesv-images[\w-]*\/[^"'\s<>)]+/g;
+function stableImages(html, slugPath) {
+  let n = 0;
+  return html.replace(SITE_IMAGE, () => `/api/img?site=${encodeURIComponent(slugPath)}&amp;n=${n++}`);
+}
+// The addresses last only a minute or so, so a page's are looked up at most 30 seconds before
+// use, and the images of one page asked for together share a single read of it.
+const imageLookups = new Map();
+async function siteImageAddress(env, slugPath, n, fresh) {
+  let lookup = imageLookups.get(slugPath);
+  if (fresh || !lookup || lookup.at < Date.now() - 30_000) {
+    lookup = {
+      at: Date.now(),
+      images: readText(env, `${SITE_ORIGIN}${slugPath ? `${SITE_PREFIX}/${slugPath}` : SITE_HOME}`, 0)
+        .then((result) => (result.status === "ok" ? (mainHtml(result.text).match(SITE_IMAGE) || []).map(decodeEntities) : []))
+        .catch(() => [])
+    };
+    imageLookups.set(slugPath, lookup);
+    if (imageLookups.size > 100) imageLookups.delete(imageLookups.keys().next().value);
+  }
+  return (await lookup.images)[n] || "";
 }
 
 function metaContent(html, property) {
@@ -481,6 +560,8 @@ const IMAGE_HOSTS = /(^|\.)(googleusercontent\.com|ggpht\.com)$/;
 async function imageResponse(env, url) {
   let target;
   const thumb = url.searchParams.get("thumb");
+  const site = url.searchParams.get("site");
+  if (site !== null) return siteImage(env, site, url.searchParams.get("n"));
   if (thumb) {
     if (!ID.test(thumb)) return new Response("Bad image reference", { status: 400 });
     target = `https://drive.google.com/thumbnail?id=${thumb}&sz=w800`;
@@ -492,21 +573,6 @@ async function imageResponse(env, url) {
     if (target.protocol !== "https:" || !(IMAGE_HOSTS.test(target.hostname) || drawing || siteImage)) return new Response("Image host not allowed", { status: 403 });
     target = target.href;
   }
-  if (new URL(target).hostname === "sites.google.com" && !siteCookie) await readPage(env, SITE_HOME).catch(() => {});
-  let media = await google(env, target, 86400);
-  // An old cookie (or none yet) is refused; load a page for a fresh one and try once more.
-  if (media.status === 403 && new URL(target).hostname === "sites.google.com") {
-    siteCookie = "";
-    await google(env, `${SITE_ORIGIN}${SITE_HOME}`, 0).catch(() => {});
-    media = await google(env, target, 86400);
-  }
-  const type = media.headers.get("content-type") || "";
-  if (!media.ok || !type.toLowerCase().startsWith("image/")) return new Response("Image unavailable", { status: 404 });
-  return new Response(media.body, {
-    headers: {
-      "Content-Type": type,
-      "Cache-Control": "public, max-age=86400, s-maxage=604800",
-      "X-Content-Type-Options": "nosniff"
-    }
-  });
+  const media = new URL(target).hostname === "sites.google.com" ? await siteMedia(env, target) : await google(env, target, 86400);
+  return imageFrom(media, 86400);
 }
