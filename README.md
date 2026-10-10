@@ -69,6 +69,6 @@ Darth Azazel, the Sith Emperor, rises and powers up. Type `regent` and Discovery
 of the Sith, sheathes his sword as the enemies of the Sith fall. Type `voice` and
 UnvincibleShadow, the Emperor's Voice, works an ancient spell from a book of Sith sorcery.
 Type `wrath` and the Emperor's Wrath plants the banners of conquest across a war map of the
-galaxy. Everyone starts on full effects; devices that
+galaxy. Type `hand` and the Emperor's Hand steps out of the shadows and snaps. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch
 (or `?fx=lite` / `?fx=full`) chooses either one by hand.

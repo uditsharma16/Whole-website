@@ -1346,6 +1346,7 @@ function renderSearch(query) {
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
+  if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "The Emperor commands. The Hand enforces.", ref: "◆", href: "#hand" });
   if (letters.length >= 5 && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "The Emperor points. The Wrath conquers.", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "UnvincibleShadow, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Discovery, Dark Regent of the Sith", ref: "◆", href: "#regent" });
@@ -1598,6 +1599,7 @@ document.addEventListener("keydown", (event) => {
   else if (typed.endsWith(REGENT_WORD)) { typed = ""; summonRegent(); }
   else if (typed.endsWith(VOICE_WORD)) { typed = ""; summonVoice(); }
   else if (typed.endsWith(WRATH_WORD)) { typed = ""; summonWrath(); }
+  else if (typed.endsWith(HAND_WORD)) { typed = ""; summonHand(); }
 });
 
 /* ───────── The Code ─────────
@@ -1828,8 +1830,156 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath }[who] || summonEmperor)();
-const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running;
+const summon = (who) => ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand }[who] || summonEmperor)();
+const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running || hand.running;
+
+/* ───────── The Emperor's Hand ─────────
+ * Typing "hand" (or summoning him from the terminal) brings the Emperor's Hand out of the
+ * shadows: black mist pours in and wraps a dark shape like a cloak, then billows away from him
+ * as he takes form. The Emperor commands: his gauntlet rises and its six crystals wake. The
+ * Hand enforces: he snaps, and half the enemies standing in the mist crumble into dust. The
+ * mist and the dust are drawn on two canvases, one behind him and one in front. */
+const HAND_WORD = "hand";
+const hand = { running: false, timers: [], frame: 0, smoke: [], dust: [], enemies: null, phase: "", sprite: null };
+function handSprite() {
+  if (hand.sprite) return hand.sprite;
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(4,2,3,.9)"); grad.addColorStop(.5, "rgba(8,5,6,.55)"); grad.addColorStop(1, "rgba(10,6,8,0)");
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  return (hand.sprite = c);
+}
+// The enemies in the mist, drawn once for this screen: the survivors on one layer, the doomed
+// (every other one) as particles ready to be blown away.
+function handEnemies(width, height) {
+  const layer = (doomed) => {
+    const c = document.createElement("canvas"); c.width = width; c.height = height;
+    const g = c.getContext("2d");
+    const spots = [[.08, 1, .5], [.19, .8, -.3], [.3, 1.1, .8], [.41, .75, .2], [.59, .75, -.2], [.7, 1.1, -.7], [.81, .8, .35], [.92, 1, -.5]];
+    spots.forEach(([x, scale, angle], i) => {
+      if ((i % 2 === 1) !== doomed) return;
+      const k = height / 900 * 1.6 * scale, cx = x * width, cy = height * .74;
+      g.save(); g.translate(cx, cy); g.scale(k, k);
+      g.strokeStyle = "#9fd8ff"; g.lineWidth = 3.2; g.lineCap = "round"; g.shadowColor = "#1e7bff"; g.shadowBlur = 10;
+      g.beginPath(); g.moveTo(12, -46); g.lineTo(12 + Math.sin(angle) * 64, -46 - Math.cos(angle) * 64); g.stroke();
+      g.shadowBlur = 0; g.fillStyle = "#0b0708"; g.strokeStyle = "rgba(227,38,47,.4)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(-15, -78); g.quadraticCurveTo(0, -86, 15, -78); g.lineTo(24, 0); g.lineTo(-24, 0); g.closePath(); g.fill(); g.stroke();
+      g.beginPath(); g.arc(0, -88, 10, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.restore();
+    });
+    return c;
+  };
+  const survivors = layer(false), doomed = layer(true);
+  const data = doomed.getContext("2d").getImageData(0, 0, width, height).data;
+  const grains = [], step = perf.lite ? 4 : 3;
+  for (let y = 0; y < height; y += step) for (let x = 0; x < width; x += step) {
+    const o = (y * width + x) * 4;
+    if (data[o + 3] < 60) continue;
+    grains.push({ x, y, x0: x, y0: y, c: `rgb(${data[o]},${data[o + 1]},${data[o + 2]})`, delay: x / width * 70 + Math.random() * 30, vx: 0, vy: 0, life: 0 });
+  }
+  return { survivors, doomed, grains, width, height };
+}
+async function summonHand() {
+  if (riteBusy()) return;
+  hand.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  const overlay = byId("handRite"), img = byId("handImage");
+  if (!img.getAttribute("src")) img.src = "/hand.webp";
+  await img.decode().catch(() => {});
+  const still = reducedMotion.matches;
+  overlay.className = `hand-rite${still ? " still" : ""}`;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => hand.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    hand.timers.forEach(clearTimeout); hand.timers = [];
+    cancelAnimationFrame(hand.frame); hand.frame = 0; hand.smoke = []; hand.enemies = null;
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "hand-rite";
+    document.body.style.overflow = "";
+    hand.running = false;
+    toast("The Hand has enforced the Emperor's will.");
+    setTimeout(() => droidReact("Perfectly balanced. As all things should be."), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (hand.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  if (still) { overlay.classList.add("shadowed", "formed", "commands", "raised", "snapped", "enforces"); later(4500, finish); return; }
+  hand.phase = "gather";
+  startShadow();
+  void overlay.offsetWidth;
+  later(300, () => overlay.classList.add("shadowed")); // a dark shape inside the mist
+  later(1900, () => { hand.phase = "disperse"; overlay.classList.add("formed"); }); // the cloak of mist billows away
+  later(2600, () => { hand.phase = "linger"; overlay.classList.add("commands"); });
+  later(3200, () => overlay.classList.add("raised")); // the gauntlet rises and its crystals wake
+  later(4700, () => {
+    overlay.classList.add("snapped"); // snap
+    skyFlash(.9);
+    overlay.classList.remove("jolt"); void overlay.offsetWidth; overlay.classList.add("jolt");
+    later(350, () => { hand.phase = "dust"; hand.dustAt = performance.now(); });
+  });
+  later(5600, () => overlay.classList.add("enforces"));
+  later(10600, () => overlay.classList.add("leaving"));
+  later(11300, finish);
+}
+function startShadow() {
+  const back = byId("handBack"), front = byId("handFront");
+  const ratio = Math.min(devicePixelRatio || 1, perf.lite ? 1 : 1.5);
+  const W = innerWidth, H = innerHeight;
+  for (const c of [back, front]) { c.width = W * ratio; c.height = H * ratio; c.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0); }
+  const gb = back.getContext("2d"), gf = front.getContext("2d");
+  hand.enemies = handEnemies(W, H);
+  const sprite = handSprite();
+  const tick = (now) => {
+    hand.frame = requestAnimationFrame(tick);
+    const box = byId("handImage").getBoundingClientRect();
+    const cx = box.left + box.width / 2, cy = box.top + box.height * .55;
+    gb.clearRect(0, 0, W, H); gf.clearRect(0, 0, W, H);
+    // The enemies: survivors stay; the doomed are their grains, still until the snap reaches them.
+    const { survivors, grains } = hand.enemies;
+    gb.globalAlpha = .9; gb.drawImage(survivors, 0, 0, W, H); gb.globalAlpha = 1;
+    const dusting = hand.phase === "dust", t = dusting ? (now - hand.dustAt) / 16.7 : 0;
+    for (const p of grains) {
+      if (dusting && t > p.delay) {
+        p.life += 1;
+        p.vx += .09 + Math.random() * .09; p.vy -= .03 + Math.random() * .05;
+        p.x += p.vx + Math.sin((p.life + p.y0) * .2) * .4; p.y += p.vy;
+        const a = 1 - p.life / 90;
+        if (a <= 0) continue;
+        gb.globalAlpha = a; gb.fillStyle = p.life < 8 ? "#ff6b5e" : p.c;
+      } else { gb.globalAlpha = 1; gb.fillStyle = p.c; }
+      gb.fillRect(p.x, p.y, 2.4, 2.4);
+    }
+    gb.globalAlpha = 1;
+    // The shadow mist: pulled in round him, then thrown off him, then idling at his feet.
+    const rate = hand.phase === "gather" ? (perf.lite ? 4 : 9) : hand.phase === "linger" || hand.phase === "dust" ? 1 : 0;
+    for (let i = 0; i < rate; i += 1) {
+      const a = Math.random() * Math.PI * 2, r = box.height * (.7 + Math.random() * .5);
+      const linger = hand.phase !== "gather";
+      const x = linger ? cx + (Math.random() - .5) * box.width * 1.6 : cx + Math.cos(a) * r;
+      const y = linger ? box.bottom - Math.random() * box.height * .15 : cy + Math.sin(a) * r * .8;
+      hand.smoke.push({ x, y, vx: linger ? (Math.random() - .5) * .6 : (cx - x) * .018, vy: linger ? -.3 - Math.random() * .4 : (cy - y) * .018 - .4, life: 0, max: linger ? 110 : 60 + Math.random() * 30, size: box.width * (linger ? .35 : .5 + Math.random() * .4), front: Math.random() < .45 });
+    }
+    if (hand.phase === "disperse" && !hand.burst) {
+      hand.burst = true;
+      for (let i = 0; i < (perf.lite ? 30 : 70); i += 1) {
+        const a = Math.random() * Math.PI * 2, s = 2 + Math.random() * 5;
+        hand.smoke.push({ x: cx + (Math.random() - .5) * box.width * .6, y: cy + (Math.random() - .5) * box.height * .7, vx: Math.cos(a) * s, vy: Math.sin(a) * s * .7 - .6, life: 0, max: 70 + Math.random() * 40, size: box.width * (.45 + Math.random() * .5), front: Math.random() < .5 });
+      }
+    }
+    if (hand.phase === "gather") hand.burst = false;
+    hand.smoke = hand.smoke.filter((p) => {
+      p.life += 1; if (p.life > p.max) return false;
+      p.x += p.vx; p.y += p.vy; p.vx *= .985; p.vy *= .985;
+      const u = p.life / p.max, size = p.size * (.6 + u * .9);
+      const g = p.front && hand.phase !== "linger" && hand.phase !== "dust" ? gf : gb;
+      g.globalAlpha = Math.sin(Math.PI * u) * .85;
+      g.drawImage(sprite, p.x - size / 2, p.y - size / 2, size, size);
+      return true;
+    });
+    gb.globalAlpha = 1; gf.globalAlpha = 1;
+  };
+  hand.frame = requestAnimationFrame(tick);
+}
 
 /* ───────── The Emperor's Wrath ─────────
  * Typing "wrath" (or summoning him from the terminal) brings the Emperor's Wrath before a war
@@ -2148,6 +2298,7 @@ const DROID_QUIPS = [
   "Type “regent”. Watch his blade.",
   "Type “voice”. The old spells still answer.",
   "Type “wrath”. Plant a banner.",
+  "Type “hand”. Then hear the snap.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };

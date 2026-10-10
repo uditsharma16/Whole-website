@@ -783,6 +783,60 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 @keyframes rite-slam { 0% { opacity: 0; transform: scale(1.8); filter: blur(10px); } 60% { opacity: 1; filter: none; } 100% { opacity: 1; transform: none; } }
 @keyframes rite-leave { to { opacity: 0; } }
 
+/* ───────── The Emperor's Hand ─────────
+ * See summonHand() in app.js: a dark shape within the mist (.shadowed) takes form as the mist
+ * is thrown off (.formed), the gauntlet rises and its crystals wake (.raised), and the snap
+ * (.snapped) swaps the finger pose, flashes and sends a shockwave from the fingertips. */
+.hand-rite { --gh: min(60vh, 36rem); position: fixed; inset: 0; z-index: 84; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; padding: max(1.4rem, 5vh) 1rem calc(1.2rem + env(safe-area-inset-bottom, 0px)); overflow: hidden; cursor: pointer;
+  background: radial-gradient(ellipse 70% 55% at 50% 62%, #30262a, #0c090a 72%), #0c090a; animation: veil-in .5s ease both; }
+.hand-rite[hidden] { display: none; }
+.hand-rite::after { content: ""; position: absolute; inset: 0; z-index: 5; background: #fff; opacity: 0; pointer-events: none; }
+.hand-rite.jolt { animation: regent-jolt .3s ease-out; }
+.hand-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.hand-fx.back { z-index: 0; }
+.hand-fx.front { z-index: 2; }
+.hand-words { position: relative; z-index: 3; display: grid; justify-items: center; gap: .1rem; margin: 0; text-align: center; }
+.hand-words span { display: block; color: #fff; font: 700 clamp(1.5rem, 4.6vw, 3.4rem)/1.08 var(--display); text-shadow: 0 0 1.2rem rgba(227,38,47,.8), 0 0 .2rem #fff; opacity: 0; }
+.hand-words span:last-child { color: var(--red-light); }
+.hand-stage { position: relative; z-index: 1; width: 100%; min-height: 0; display: grid; place-items: end center; }
+.hand-rig { height: min(52vh, 32rem, 118vw); aspect-ratio: 474 / 574; }
+.hand-rig img { display: block; width: 100%; height: 100%; opacity: 0; filter: brightness(0) blur(6px); transform: scale(.94); transition: opacity 1s ease, filter 1.5s ease, transform 1.6s cubic-bezier(.2,.8,.2,1); }
+.hand-gauntlet { position: absolute; z-index: 3; right: 5vw; bottom: 2vh; height: var(--gh); aspect-ratio: 220 / 300; overflow: visible; transform: translateY(130%) rotate(10deg); transform-origin: 50% 90%; transition: transform .75s cubic-bezier(.2,.9,.3,1); filter: drop-shadow(0 1.2rem 1.6rem rgba(0,0,0,.7)) drop-shadow(0 0 .8rem rgba(227,38,47,.35)); }
+.hand-gauntlet .cuff, .hand-gauntlet .palm, .hand-gauntlet .plate { fill: url(#handIron); stroke: #6a555a; stroke-width: 1.4; stroke-linejoin: round; }
+.hand-gauntlet .curled .plate { filter: brightness(.75); }
+.hand-gauntlet .joint, .hand-gauntlet .palm-plate { fill: none; stroke: #0a0607; stroke-width: 1.6; }
+.hand-gauntlet .knuckle, .hand-gauntlet .spike { fill: #2a2023; stroke: #6a555a; stroke-width: 1.2; }
+.hand-gauntlet .cuff-trim { stroke: #e3262f; stroke-width: 2; filter: drop-shadow(0 0 3px #e3262f); }
+.hand-gauntlet .gems circle { fill: var(--c); opacity: .25; transition: opacity .4s ease calc(.45s + var(--i) * .18s), filter .4s ease calc(.45s + var(--i) * .18s); }
+.hand-gauntlet .post { display: none; }
+.hand-gauntlet .snap-spark { fill: #fff; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.hand-shock { position: absolute; z-index: 4; right: calc(5vw + var(--gh) * .2867); bottom: calc(2vh + var(--gh) * .4467); width: 0; height: 0; pointer-events: none; }
+.hand-shock::before { content: ""; position: absolute; left: 0; top: 0; width: 40vmax; height: 40vmax; translate: -50% -50%; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 2rem #ff3b44, inset 0 0 2rem #ff3b44; opacity: 0; transform: scale(.02); }
+.hand-title { position: relative; z-index: 3; display: grid; justify-items: center; gap: .3rem; margin-top: .4rem; text-align: center; opacity: 0; }
+.hand-title h2 { margin: 0; color: #fff; font: 700 clamp(2rem, 6vw, 4.4rem)/1 var(--display); text-shadow: var(--blade), 0 0 3rem rgba(227,38,47,.7); }
+.hand-rite .code-skip { position: relative; z-index: 3; margin-top: .6rem; }
+.hand-rite.shadowed .hand-rig img { opacity: 1; filter: brightness(0) blur(3px) drop-shadow(0 0 .6rem rgba(227,38,47,.6)); }
+.hand-rite.formed .hand-rig img { filter: brightness(1.2) blur(0) drop-shadow(0 0 1px rgba(255,236,232,.8)) drop-shadow(0 0 1rem rgba(227,38,47,.55)); transform: none; }
+.hand-rite.commands .hand-words span:first-child { animation: rite-slam .6s cubic-bezier(.2,1.4,.4,1) forwards; }
+.hand-rite.raised .hand-gauntlet { transform: none; }
+.hand-rite.raised .hand-gauntlet .gems circle { opacity: 1; filter: drop-shadow(0 0 3px var(--c)) drop-shadow(0 0 8px var(--c)); }
+.hand-rite.snapped .hand-gauntlet { animation: snap-recoil .35s ease-out; }
+.hand-rite.snapped .hand-gauntlet .pre { display: none; }
+.hand-rite.snapped .hand-gauntlet .post { display: inline; }
+.hand-rite.snapped .hand-gauntlet .snap-spark { animation: snap-spark .5s ease-out forwards; }
+.hand-rite.snapped .hand-gauntlet .gems circle { filter: drop-shadow(0 0 5px #fff) drop-shadow(0 0 14px var(--c)); }
+.hand-rite.snapped .hand-shock::before { animation: snap-ring 1.1s cubic-bezier(.1,.7,.3,1) forwards; }
+.hand-rite.snapped::after { animation: snap-flash .6s ease-out forwards; }
+.hand-rite.enforces .hand-words span:last-child { animation: rite-slam .6s cubic-bezier(.2,1.4,.4,1) forwards; }
+.hand-rite.enforces .hand-title { animation: rite-slam .7s 1s cubic-bezier(.2,1.4,.4,1) forwards; }
+.hand-rite.leaving { animation: rite-leave .7s ease forwards; }
+.hand-rite.still .hand-rig img, .hand-rite.still .hand-words span, .hand-rite.still .hand-title { opacity: 1; filter: none; transform: none; animation: none; }
+.hand-rite.still .hand-gauntlet { transform: none; }
+@keyframes snap-recoil { 0% { transform: none; } 30% { transform: rotate(-5deg) translateY(-2%); } 100% { transform: none; } }
+@keyframes snap-spark { 0% { opacity: 1; transform: scale(.4); } 40% { opacity: 1; transform: scale(3.2); } 100% { opacity: 0; transform: scale(4.5); } }
+@keyframes snap-ring { 0% { opacity: 1; transform: scale(.02); } 100% { opacity: 0; transform: scale(3.4); } }
+@keyframes snap-flash { 0% { opacity: .75; } 100% { opacity: 0; } }
+
 /* ───────── The Emperor's Wrath ─────────
  * See summonWrath() in app.js: the war map and the Wrath appear (.shown), the Emperor's line
  * locks on a world (.point), crimson spreads world by world along the lanes (.conquest, each
@@ -1091,6 +1145,9 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
   .gate-head { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
+  .hand-rite { --gh: min(30vh, 15rem); }
+  .hand-gauntlet { right: 1vw; bottom: 12vh; }
+  .hand-shock { right: calc(1vw + var(--gh) * .2867); bottom: calc(12vh + var(--gh) * .4467); }
   .wrath-banner { height: 66%; }
   .wrath-banner.far { height: 46%; }
   .tomb, .tomb.side-left, .tomb.side-right { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 1.6rem; text-align: center; }
