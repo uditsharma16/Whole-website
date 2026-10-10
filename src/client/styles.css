@@ -742,9 +742,9 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .rite-stage { position: relative; display: grid; place-items: end center; height: 100%; min-height: 0; width: 100%; }
 .rite-figure { position: relative; z-index: 1; height: min(58vh, 34rem, 100vw); aspect-ratio: 339 / 429; margin: 0; transform: translateY(40%) scale(.9); opacity: 0; filter: brightness(.12) saturate(.4); transition: transform 1.1s cubic-bezier(.2,.8,.2,1), opacity .9s ease, filter 1.6s ease; }
 .rite-figure img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 .4rem rgba(255,90,90,.0)); transition: filter 1.2s ease; }
-/* His hair ignites, Super Saiyan gold burning down to Sith red: a glow cut to the shape of
- * the picture itself, and faded out below the hairline. */
-.rite-hair { position: absolute; inset: 0; background: linear-gradient(180deg, #fff6d0 0%, #ffd36a 12%, #ff8a3c 22%, #ff3030 30%); mix-blend-mode: screen; opacity: 0; transition: opacity .5s ease; pointer-events: none;
+/* His hair ignites Super Saiyan style, in Sith crimson: a glow cut to the shape of the
+ * picture itself, white-hot at the tips and faded out below the hairline. */
+.rite-hair { position: absolute; inset: 0; background: linear-gradient(180deg, #ffe1dc 0%, #ff5a5a 7%, #ff2a2a 15%, #c8101c 23%, #7a0010 30%); mix-blend-mode: screen; opacity: 0; transition: opacity .5s ease; pointer-events: none;
   -webkit-mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 22%, transparent 29%); mask-image: url("/emperor.webp"), linear-gradient(180deg, #000 0%, #000 22%, transparent 29%);
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-composite: source-in; mask-composite: intersect; }
 .emperor-rite.charging .rite-hair { opacity: .4; }

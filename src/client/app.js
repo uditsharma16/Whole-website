@@ -1646,8 +1646,8 @@ try { if (sessionStorage.getItem(AWAKENED)) awaken(false); } catch {}
 /* ───────── The Emperor ─────────
  * Typing "emperor" anywhere outside a text field, or summoning him from the terminal, brings
  * Darth Azazel up out of the dark. He powers up: the dark side boils off him as a crimson
- * aura, lightning crawls over his armour, the ground cracks into shockwaves, his eyes blaze
- * and his name slams in. The aura is drawn on a canvas: flames rise from the edge of his
+ * aura, his hair ignites, the ground cracks into shockwaves, his eyes blaze and his name
+ * slams in. The aura is drawn on a canvas: flames rise from the edge of his
  * silhouette (read from the picture's own transparency) and from a flickering envelope
  * around him. */
 const EMPEROR_WORD = "emperor";
@@ -1722,9 +1722,6 @@ async function summonEmperor() {
     document.body.classList.remove("quake"); void document.body.offsetWidth; document.body.classList.add("quake");
     setTimeout(() => document.body.classList.remove("quake"), 1600);
     skyFlash(1);
-    const box = byId("riteEmperor").getBoundingClientRect();
-    const cx = box.left + box.width / 2, cy = box.top + box.height * .4;
-    for (let i = 0; i < (perf.lite ? 5 : 12); i += 1) setTimeout(() => { const a = Math.random() * Math.PI * 2, r = Math.max(innerWidth, innerHeight) * (.4 + Math.random() * .4); strike(cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r, { width: 2.4, decay: .05 }); }, i * 60);
   });
   later(7800, () => { overlay.classList.add("leaving"); rite.target = 0; });
   later(8500, finish);
@@ -1736,7 +1733,6 @@ function startAura() {
   g.setTransform(ratio, 0, 0, ratio, 0, 0);
   const { hot, red } = riteSprites();
   rite.target = .12;
-  let sparkAt = 0;
   const tick = (now) => {
     rite.frame = requestAnimationFrame(tick);
     rite.intensity += (rite.target - rite.intensity) * .06;
@@ -1778,14 +1774,6 @@ function startAura() {
       return true;
     });
     g.globalAlpha = 1;
-    // Lightning crawling over the armour once he is charged.
-    if (rite.intensity > .3 && now > sparkAt && rite.edges.length) {
-      sparkAt = now + (rite.intensity > .9 ? 110 : 380) + Math.random() * 200;
-      const e1 = rite.edges[Math.floor(Math.random() * rite.edges.length)];
-      const x1 = box.left + e1.x * box.width, y1 = box.top + e1.y * box.height;
-      const a = Math.random() * Math.PI * 2, r = (30 + Math.random() * 70) * scale;
-      strike(x1, y1, x1 + Math.cos(a) * r, y1 + Math.sin(a) * r, { width: 1.3 });
-    }
   };
   rite.frame = requestAnimationFrame(tick);
 }
