@@ -67,6 +67,8 @@ Code, as one word) or enter it in the terminal to hear the rest of it; the archi
 awakened for the visit. Type `emperor` (or pick "Summon the Emperor" in the terminal) and
 Darth Azazel, the Sith Emperor, rises and powers up. Type `regent` and Discovery, Dark Regent
 of the Sith, sheathes his sword as the enemies of the Sith fall. Type `voice` and
-UnvincibleShadow, the Emperor's Voice, works an ancient spell from a book of Sith sorcery. Everyone starts on full effects; devices that
+UnvincibleShadow, the Emperor's Voice, works an ancient spell from a book of Sith sorcery.
+Type `wrath` and the Emperor's Wrath plants the banners of conquest across a war map of the
+galaxy. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch
 (or `?fx=lite` / `?fx=full`) chooses either one by hand.

@@ -783,6 +783,79 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 @keyframes rite-slam { 0% { opacity: 0; transform: scale(1.8); filter: blur(10px); } 60% { opacity: 1; filter: none; } 100% { opacity: 1; transform: none; } }
 @keyframes rite-leave { to { opacity: 0; } }
 
+/* ───────── The Emperor's Wrath ─────────
+ * See summonWrath() in app.js: the war map and the Wrath appear (.shown), the Emperor's line
+ * locks on a world (.point), crimson spreads world by world along the lanes (.conquest, each
+ * world on its own --d), the banners drop and unfurl (.banners, each on its own --d), and the
+ * words follow (.conquers, .glory, .titled). The map pulls back for as long as he stands. */
+.wrath-rite { position: fixed; inset: 0; z-index: 84; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto auto; justify-items: center; padding: max(1.4rem, 5vh) 1rem calc(1.2rem + env(safe-area-inset-bottom, 0px)); overflow: hidden; cursor: pointer;
+  background: radial-gradient(ellipse 70% 50% at 50% 30%, rgba(122,13,22,.35), transparent 70%), #070304; animation: veil-in .5s ease both; }
+.wrath-rite[hidden] { display: none; }
+.wrath-map { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transform: scale(1.3); transition: opacity 1s ease; pointer-events: none; }
+.wrath-map .map-grid line { stroke: rgba(227,38,47,.09); stroke-width: 1; }
+.wrath-map .map-lanes line { stroke: #ff3b44; stroke-width: 1.6; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: .8; filter: drop-shadow(0 0 3px #e3262f); }
+.wrath-map .orb { fill: #2a2024; stroke: rgba(255,236,226,.25); stroke-width: 1; transition: fill .5s ease var(--d), stroke .5s ease var(--d); }
+.wrath-map .halo { fill: none; stroke: #ff3b44; stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.wrath-map .flag { fill: #ff3b44; stroke: #ffb3ae; stroke-width: 1.4; stroke-linejoin: round; transform-box: fill-box; transform-origin: 0 100%; transform: scaleY(0); transition: transform .35s cubic-bezier(.2,1.6,.4,1) calc(var(--d) + .15s); }
+.wrath-map .map-pointer line { stroke: #fff; stroke-width: 2.4; stroke-dasharray: 1; stroke-dashoffset: 1; filter: drop-shadow(0 0 4px #ff3b44) drop-shadow(0 0 12px #e3262f); }
+.wrath-map .reticle g { fill: none; stroke: #ffd9d6; stroke-width: 2; opacity: 0; transform: scale(2.2); transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 4px #ff3b44); }
+.wrath-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 26%; pointer-events: none; background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(227,38,47,.25), transparent 70%), linear-gradient(180deg, rgba(7,3,4,0), #0a0405 22%, #050203); border-top: 1px solid rgba(227,38,47,.3); opacity: 0; transition: opacity 1s ease; }
+.wrath-words, .wrath-glory { position: relative; z-index: 2; margin: 0; text-align: center; }
+.wrath-words { display: grid; justify-items: center; gap: .1rem; }
+.wrath-words span, .wrath-glory { display: block; color: #fff; font: 700 clamp(1.5rem, 4.6vw, 3.4rem)/1.08 var(--display); text-shadow: 0 0 1.2rem rgba(227,38,47,.8), 0 0 .2rem #fff; opacity: 0; }
+.wrath-words span:last-child { color: var(--red-light); }
+.wrath-glory { margin-top: .6rem; color: #f0d39a; font: italic 500 clamp(1rem, 2.4vw, 1.6rem)/1.3 var(--serif); letter-spacing: .06em; text-shadow: 0 0 1rem rgba(216,176,106,.5); }
+.wrath-stage { position: relative; z-index: 1; width: 100%; min-height: 0; display: grid; place-items: end center; }
+.wrath-stage.jolt { animation: regent-jolt .25s ease-out; }
+.wrath-rig { position: relative; z-index: 1; height: min(50vh, 32rem, 150vw); aspect-ratio: 288 / 524; opacity: 0; transform: translateY(6%) scale(.96); transition: opacity .9s ease, transform 1.2s cubic-bezier(.2,.8,.2,1); }
+.wrath-rig::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2%; height: 6%; z-index: -1; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.9), transparent 70%); }
+.wrath-rig img { display: block; width: 100%; height: 100%; filter: brightness(1.2) drop-shadow(0 0 1px rgba(255,240,236,.8)) drop-shadow(0 0 1rem rgba(227,38,47,.5)); }
+.wrath-banners { position: absolute; inset: 0; pointer-events: none; }
+.wrath-banner { position: absolute; bottom: 0; height: 118%; aspect-ratio: 120 / 560; translate: -50% 0; z-index: 0; }
+.wrath-banner.far { height: 82%; bottom: 7%; filter: brightness(.7); }
+.banner-drop { width: 100%; height: 100%; transform: translateY(-130vh); }
+.banner-art { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1rem 1.4rem rgba(0,0,0,.7)); }
+.banner-art .pole { fill: #241a1d; stroke: #4a383d; stroke-width: 1; }
+.banner-art .tip, .banner-art .finial { fill: #d8b06a; }
+.banner-art .bar { fill: #3a2a2e; stroke: #d8b06a; stroke-width: 1.2; }
+.banner-art .cloth { transform-box: fill-box; transform-origin: 50% 0; transform: scaleY(.04); }
+.banner-art .cloth > path { fill: #7a0d16; stroke: #d8b06a; stroke-width: 3; stroke-linejoin: round; }
+.banner-art .emblem path { fill: none; stroke: #f0d39a; stroke-width: 3; stroke-linejoin: round; }
+.banner-art .emblem .emblem-core { fill: #ff3b44; stroke: #ffd9d6; }
+.banner-dust { position: absolute; left: 50%; bottom: 0; width: 360%; aspect-ratio: 3 / 1; translate: -50% 50%; border-radius: 50%; background: radial-gradient(ellipse, rgba(200,170,160,.55), rgba(120,90,80,.25) 45%, transparent 70%); opacity: 0; transform: scale(.2); pointer-events: none; }
+.wrath-title { position: relative; z-index: 2; display: grid; justify-items: center; gap: .3rem; margin-top: .4rem; text-align: center; opacity: 0; }
+.wrath-title h2 { margin: 0; color: #fff; font: 700 clamp(2rem, 6vw, 4.4rem)/1 var(--display); text-shadow: var(--blade), 0 0 3rem rgba(227,38,47,.7); }
+.wrath-title p { margin: 0; color: #f0d39a; font: 400 clamp(.62rem, 1.4vw, .8rem) var(--mono); letter-spacing: .34em; text-transform: uppercase; }
+.wrath-rite .code-skip { position: relative; z-index: 2; margin-top: .6rem; }
+.wrath-rite.shown .wrath-map { opacity: 1; }
+.wrath-rite.shown .wrath-ground { opacity: 1; }
+.wrath-rite.shown .wrath-rig { opacity: 1; transform: none; }
+.wrath-rite.point .map-pointer line { animation: rune-draw .55s cubic-bezier(.7,0,.3,1) forwards, pointer-fade 1.6s 1.2s ease forwards; }
+.wrath-rite.point .reticle g { animation: reticle-lock .5s .45s cubic-bezier(.2,1.4,.4,1) forwards; }
+.wrath-rite.point .wrath-words span:first-child { animation: rite-slam .6s .2s cubic-bezier(.2,1.4,.4,1) forwards; }
+.wrath-rite.conquest .wrath-map { animation: map-pull 9s cubic-bezier(.2,.6,.3,1) forwards; }
+.wrath-rite.conquest .orb { fill: #e3262f; stroke: #ffd9d6; }
+.wrath-rite.conquest .halo { animation: world-taken .9s var(--d) ease-out forwards; }
+.wrath-rite.conquest .flag { transform: none; }
+.wrath-rite.conquest .map-lanes line { animation: rune-draw .5s var(--d) ease forwards; }
+.wrath-rite.banners .banner-drop { animation: banner-drop .42s var(--d) cubic-bezier(.55,0,1,.45) forwards; }
+.wrath-rite.banners .banner-dust { animation: banner-dust .9s calc(var(--d) + .42s) ease-out forwards; }
+.wrath-rite.banners .banner-art .cloth { transform: none; transition: transform .7s cubic-bezier(.2,1.2,.4,1) calc(var(--d) + .5s); }
+.wrath-rite.conquers .wrath-words span:last-child { animation: rite-slam .6s cubic-bezier(.2,1.4,.4,1) forwards; }
+.wrath-rite.conquers .banner-art .cloth > path { filter: drop-shadow(0 0 6px rgba(255,59,68,.8)); }
+.wrath-rite.glory .wrath-glory { animation: code-word 1s var(--ease) forwards; }
+.wrath-rite.titled .wrath-title { animation: rite-slam .7s cubic-bezier(.2,1.4,.4,1) forwards; }
+.wrath-rite.leaving { animation: rite-leave .7s ease forwards; }
+.wrath-rite.still .wrath-map, .wrath-rite.still .wrath-rig, .wrath-rite.still .wrath-title, .wrath-rite.still .wrath-words span, .wrath-rite.still .wrath-glory { opacity: 1; transform: none; animation: none; filter: none; }
+.wrath-rite.still .banner-drop, .wrath-rite.still .banner-art .cloth, .wrath-rite.still .flag { transform: none; animation: none; }
+.wrath-rite.still .map-lanes line { stroke-dashoffset: 0; }
+@keyframes pointer-fade { to { opacity: .25; } }
+@keyframes reticle-lock { from { opacity: 0; transform: scale(2.2) rotate(-60deg); } to { opacity: 1; transform: none; } }
+@keyframes world-taken { 0% { opacity: 1; transform: scale(.6); } 100% { opacity: 0; transform: scale(2.4); } }
+@keyframes map-pull { from { transform: scale(1.3); } to { transform: scale(.82); } }
+@keyframes banner-drop { from { transform: translateY(-130vh); } to { transform: none; } }
+@keyframes banner-dust { 0% { opacity: 1; transform: scale(.2); } 100% { opacity: 0; transform: scale(1.3); } }
+
 /* ───────── The Emperor's Voice ─────────
  * See summonVoice() in app.js: the circles of runes draw themselves (.inscribed), he rises
  * into the air (.risen), the spellbook opens and its pages turn (.open) while holocrons circle
@@ -1018,6 +1091,8 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
   .gate-head { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
+  .wrath-banner { height: 66%; }
+  .wrath-banner.far { height: 46%; }
   .tomb, .tomb.side-left, .tomb.side-right { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 1.6rem; text-align: center; }
   .tomb.side-left .statue, .tomb.side-right .statue, .tomb.side-left .tomb-plaque, .tomb.side-right .tomb-plaque { grid-column: 1; grid-row: auto; justify-self: center; text-align: center; }
   .tomb::before { display: none; }

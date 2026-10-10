@@ -1346,6 +1346,7 @@ function renderSearch(query) {
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
+  if (letters.length >= 5 && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "The Emperor points. The Wrath conquers.", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "UnvincibleShadow, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Discovery, Dark Regent of the Sith", ref: "◆", href: "#regent" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
@@ -1596,6 +1597,7 @@ document.addEventListener("keydown", (event) => {
   else if (typed.endsWith(EMPEROR_WORD)) { typed = ""; summonEmperor(); }
   else if (typed.endsWith(REGENT_WORD)) { typed = ""; summonRegent(); }
   else if (typed.endsWith(VOICE_WORD)) { typed = ""; summonVoice(); }
+  else if (typed.endsWith(WRATH_WORD)) { typed = ""; summonWrath(); }
 });
 
 /* ───────── The Code ─────────
@@ -1826,8 +1828,101 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => (who === "regent" ? summonRegent() : who === "voice" ? summonVoice() : summonEmperor());
-const riteBusy = () => recital.running || rite.running || regent.running || voice.running;
+const summon = (who) => ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath }[who] || summonEmperor)();
+const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running;
+
+/* ───────── The Emperor's Wrath ─────────
+ * Typing "wrath" (or summoning him from the terminal) brings the Emperor's Wrath before a war
+ * map of the galaxy. The Emperor points: a targeting line streaks across the map and locks on
+ * a world. The Wrath conquers: from that world crimson spreads along the hyperlanes, planet by
+ * planet, each taking a flag, while four war banners slam into the ground around him and
+ * unfurl. The map keeps pulling back on more worlds falling, for the conquest is never ending. */
+const WRATH_WORD = "wrath";
+const wrath = { running: false, timers: [], built: false };
+const WRATH_BANNERS = [{ x: 30, far: true }, { x: 70, far: true }, { x: 10 }, { x: 90 }];
+function wrathMap() {
+  // Worlds scattered well past the edges, so pulling back finds more of them.
+  const worlds = [];
+  for (let i = 0; worlds.length < 74 && i < 900; i += 1) {
+    const x = -520 + seededRandom(`wx${i}`) * 2640, y = -340 + seededRandom(`wy${i}`) * 1580;
+    if (worlds.every((w) => Math.hypot(w.x - x, w.y - y) > 130)) worlds.push({ x, y, r: 5 + seededRandom(`wr${i}`) * 9, links: [] });
+  }
+  const lanes = [];
+  worlds.forEach((w, i) => {
+    worlds.map((v, j) => [j, Math.hypot(v.x - w.x, v.y - w.y)]).filter(([j]) => j !== i).sort((a, b) => a[1] - b[1]).slice(0, 2).forEach(([j]) => {
+      if (!w.links.includes(j)) { w.links.push(j); worlds[j].links.push(i); lanes.push([i, j]); }
+    });
+  });
+  // The Emperor's mark: the world nearest a point beside the Wrath's head, clear of the words.
+  const start = worlds.reduce((best, w, i) => (Math.hypot(w.x - 1120, w.y - 240) < Math.hypot(worlds[best].x - 1120, worlds[best].y - 240) ? i : best), 0);
+  const hops = worlds.map(() => Infinity); hops[start] = 0;
+  for (const queue = [start]; queue.length;) { const i = queue.shift(); for (const j of worlds[i].links) if (hops[j] === Infinity) { hops[j] = hops[i] + 1; queue.push(j); } }
+  const delay = (i) => Math.round((Number.isFinite(hops[i]) ? hops[i] : 9) * 330 + seededRandom(`wd${i}`) * 140);
+  const grid = [...Array.from({ length: 21 }, (_, i) => `<line x1="${i * 80}" y1="-400" x2="${i * 80}" y2="1300"/>`), ...Array.from({ length: 20 }, (_, i) => `<line x1="-600" y1="${i * 80 - 300}" x2="2200" y2="${i * 80 - 300}"/>`)].join("");
+  const target = worlds[start];
+  return `<g class="map-grid">${grid}</g>
+    <g class="map-lanes">${lanes.map(([i, j]) => `<line pathLength="1" x1="${worlds[i].x.toFixed(0)}" y1="${worlds[i].y.toFixed(0)}" x2="${worlds[j].x.toFixed(0)}" y2="${worlds[j].y.toFixed(0)}" style="--d:${Math.min(delay(i), delay(j)) + 150}ms"/>`).join("")}</g>
+    <g class="map-worlds">${worlds.map((w, i) => `<g class="world" style="--d:${delay(i)}ms" transform="translate(${w.x.toFixed(0)} ${w.y.toFixed(0)})"><circle class="halo" r="${(w.r + 9).toFixed(1)}"/><circle class="orb" r="${w.r.toFixed(1)}"/><path class="flag" d="M0 ${(-w.r).toFixed(1)}V${(-w.r - 20).toFixed(1)}L13 ${(-w.r - 15).toFixed(1)}L0 ${(-w.r - 10).toFixed(1)}"/></g>`).join("")}</g>
+    <g class="map-pointer"><line pathLength="1" x1="-200" y1="-160" x2="${target.x.toFixed(0)}" y2="${target.y.toFixed(0)}"/>
+      <g class="reticle" transform="translate(${target.x.toFixed(0)} ${target.y.toFixed(0)})"><g><circle r="30"/><circle r="44" stroke-dasharray="10 8"/><path d="M-58 0H-36M36 0H58M0 -58V-36M0 36V58"/></g></g></g>`;
+}
+function wrathBanner({ x, far }, i) {
+  const shapes = ["M12 20H108Q108 175 108 330L60 296L12 330Q12 175 12 20Z", "M12 20H108Q122 170 114 332L64 300L16 326Q2 168 12 20Z", "M12 20H108Q98 180 104 328L56 294L8 332Q20 182 12 20Z"];
+  const wave = [0, 1, 0, 2, 0].map((n) => shapes[n]).join(";");
+  return `<div class="wrath-banner${far ? " far" : ""}" style="left:${x}%;--d:${i * 260}ms">
+    <div class="banner-drop"><svg class="banner-art" viewBox="0 -30 120 560">
+      <rect class="pole" x="57" y="0" width="6" height="530" rx="2"/><path class="tip" d="M60 -28 67 2H53Z"/>
+      <g class="cloth"><path d="${shapes[0]}"><animate attributeName="d" values="${wave}" dur="${(2.6 + i * .3).toFixed(1)}s" repeatCount="indefinite"/></path>
+        <g class="emblem" transform="translate(60 150)"><path d="M0 -34 30 -17V17L0 34-30 17V-17Z"/><path class="emblem-core" d="m0 -17 10 17-10 17-10-17Z"/><path d="M-30 -17 0 0 30 -17M0 0V34"/></g></g>
+      <rect class="bar" x="6" y="12" width="108" height="8" rx="4"/><circle class="finial" cx="6" cy="16" r="6"/><circle class="finial" cx="114" cy="16" r="6"/>
+    </svg></div>
+    <span class="banner-dust"></span>
+  </div>`;
+}
+function buildWrath() {
+  if (wrath.built) return;
+  wrath.built = true;
+  byId("wrathMap").innerHTML = wrathMap();
+  byId("wrathBanners").innerHTML = WRATH_BANNERS.map(wrathBanner).join("");
+}
+async function summonWrath() {
+  if (riteBusy()) return;
+  wrath.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  buildWrath();
+  const overlay = byId("wrathRite"), img = byId("wrathImage"), stage = byId("wrathStage");
+  if (!img.getAttribute("src")) img.src = "/wrath.webp";
+  await img.decode().catch(() => {});
+  const still = reducedMotion.matches;
+  overlay.className = `wrath-rite${still ? " still" : ""}`;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => wrath.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    wrath.timers.forEach(clearTimeout); wrath.timers = [];
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "wrath-rite";
+    document.body.style.overflow = "";
+    wrath.running = false;
+    toast("The Wrath has claimed another world.");
+    setTimeout(() => droidReact("Another world conquered. I'll redraw the maps. Again."), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (wrath.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  if (still) { overlay.classList.add("shown", "point", "conquest", "banners", "conquers", "glory", "titled"); later(4500, finish); return; }
+  void overlay.offsetWidth;
+  overlay.classList.add("shown");
+  later(900, () => overlay.classList.add("point"));
+  later(1800, () => overlay.classList.add("conquest"));
+  later(2200, () => overlay.classList.add("banners"));
+  // Each banner shakes the ground as it lands.
+  WRATH_BANNERS.forEach((banner, i) => later(2200 + 420 + i * 260, () => { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); }));
+  later(3700, () => { overlay.classList.add("conquers"); skyFlash(.6); });
+  later(4700, () => overlay.classList.add("glory"));
+  later(5400, () => overlay.classList.add("titled"));
+  later(10400, () => overlay.classList.add("leaving"));
+  later(11100, finish);
+}
 
 /* ───────── The Emperor's Voice ─────────
  * Typing "voice" (or summoning him from the terminal) brings UnvincibleShadow, the Emperor's
@@ -2052,6 +2147,7 @@ const DROID_QUIPS = [
   "Say “emperor”. If you dare.",
   "Type “regent”. Watch his blade.",
   "Type “voice”. The old spells still answer.",
+  "Type “wrath”. Plant a banner.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
