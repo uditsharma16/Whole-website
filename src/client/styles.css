@@ -1003,9 +1003,18 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .voice-rite.s3 .vt-holo { opacity: 1; }
 .vt-holo svg { display: block; width: 100%; height: 100%; }
 .vt-hf { fill: #3a0812; stroke: #ff5a6a; stroke-width: 2; } .vt-hf2 { fill: #5a0e1c; } .vt-hl { fill: none; stroke: #ff8a96; stroke-width: 1.6; }
-.vt-voice { position: absolute; left: 690px; top: 445px; height: 330px; filter: brightness(.55) drop-shadow(0 0 2px rgba(255,220,230,.6)); transition: filter 1s; }
-.voice-rite.s2 .vt-voice { filter: brightness(.85) drop-shadow(0 0 2px #ffd) drop-shadow(0 0 16px rgba(255,59,85,.6)); }
-.voice-rite.s6 .vt-voice { filter: brightness(1.05) drop-shadow(0 0 2px #fff) drop-shadow(0 0 22px #c04dff) drop-shadow(0 0 50px rgba(160,40,255,.6)); }
+/* Darth Soteris at his own proportions (298 by 406), feet on the circle, lit by the temple:
+ * a cool shade on the side away from the beam, a violet rim, and a shadow pooled under him. */
+.vt-voice { position: absolute; left: 800px; top: 398px; width: auto; height: 380px; translate: -50% 0; filter: brightness(.5) saturate(.85) drop-shadow(0 0 1px rgba(255,220,230,.5)); transition: filter 1s; }
+.vt-feet { position: absolute; left: 800px; top: 770px; width: 300px; height: 52px; translate: -50% -50%; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.85), rgba(0,0,0,.4) 45%, transparent 70%); }
+.vt-feet::after { content: ""; position: absolute; inset: -30% -40%; border-radius: 50%; background: radial-gradient(ellipse, rgba(255,60,90,.35), transparent 65%); opacity: 0; transition: opacity 1s; }
+.voice-rite.s2 .vt-feet::after { opacity: 1; }
+.voice-rite.s6 .vt-feet::after { background: radial-gradient(ellipse, rgba(200,90,255,.5), transparent 65%); }
+.voice-rite.s2 .vt-voice { filter: brightness(.82) saturate(.9) sepia(.12) hue-rotate(-20deg) drop-shadow(0 0 1px rgba(255,210,220,.9)) drop-shadow(0 0 14px rgba(255,59,85,.45)); }
+.voice-rite.s6 .vt-voice { filter: brightness(.98) saturate(.95) sepia(.1) hue-rotate(-28deg) drop-shadow(0 0 1px #fff) drop-shadow(0 0 18px #c04dff) drop-shadow(0 0 44px rgba(160,40,255,.5)); }
+.vt-shade { position: absolute; left: 800px; top: 398px; width: 279px; height: 380px; translate: -50% 0; pointer-events: none; mix-blend-mode: multiply; opacity: .55;
+  background: linear-gradient(90deg, rgba(60,20,90,.55), transparent 35%, transparent 60%, rgba(40,10,60,.6)), linear-gradient(180deg, transparent 55%, rgba(30,8,40,.55));
+  -webkit-mask: url("/voice.webp") center / 100% 100% no-repeat; mask: url("/voice.webp") center / 100% 100% no-repeat; }
 .vt-bolts path { fill: none; stroke: #f2d6ff; stroke-width: 3; filter: drop-shadow(0 0 6px #c04dff) drop-shadow(0 0 18px #8a2be2); opacity: 0; }
 .voice-rite.s7 .vt-bolts path { animation: vt-zap .9s calc(var(--k) * .12s) steps(3) 2; }
 .vt-flash { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at 50% 58%, #fff, rgba(220,150,255,.6) 25%, transparent 60%); opacity: 0; }

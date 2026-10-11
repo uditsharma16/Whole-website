@@ -2195,7 +2195,9 @@ function buildVoice() {
     <div class="vt-aura"></div>
     <div class="vt-trails"><svg viewBox="-400 -200 800 400">${[[330, 70, -12], [280, 90, 14], [380, 60, 4]].map(([rx, ry, rot]) => `<ellipse rx="${rx}" ry="${ry}" transform="rotate(${rot})"/>`).join("")}</svg></div>
     <div class="vt-abs" id="vtBack"></div>
+    <div class="vt-feet"></div>
     <img class="vt-voice" id="voiceImage" alt="Darth Soteris, the Emperor's Voice" width="298" height="406" />
+    <div class="vt-shade"></div>
     <div class="vt-abs" id="vtFront"></div>
     <svg class="vt-abs vt-bolts" viewBox="0 0 1600 900">${bolts}</svg>
     <div class="vt-abs vt-motes">${motes}</div>`;
