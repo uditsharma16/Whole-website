@@ -68,7 +68,8 @@ awakened for the visit. Type `emperor` (or pick "Summon the Emperor" in the term
 Darth Azazel, the Sith Emperor, rises and powers up. Type `regent` and Darth Zephros, Dark
 Regent of the Sith, sheathes his sword as the enemies of the Sith fall. Type `voice` and
 Darth Soteris, the Emperor's Voice, wakes an ancient Sith temple and the Emperor's spirit
-rises behind him.
+rises behind him. Type `dhg` and the Dark Honor Guard holds the Emperor's
+gate.
 Type `wrath` and Darth Aeravix, the Emperor's Wrath, burns the enemy's banners and plants the Sith's in their
 place while a war map of the galaxy falls world by world. Type `hand` and Darth Astarion, the Emperor's Hand, steps out of the shadows and snaps. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch

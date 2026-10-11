@@ -1346,6 +1346,7 @@ function renderSearch(query) {
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
+  if (letters.length >= 3 && (letters === GUARD_WORD || (letters.length >= 5 && "darkhonorguard".startsWith(letters)))) matches.splice(Math.min(1, matches.length), 0, { summon: "guard", tag: "DHG", title: "Summon the Dark Honor Guard", where: "The Emperor's Shield. None shall pass.", ref: "◆", href: "#dhg" });
   if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "Darth Astarion, the Emperor's Hand", ref: "◆", href: "#hand" });
   if (letters.length >= 5 && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Aeravix, the Emperor's Wrath", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "Darth Soteris, the Emperor's Voice", ref: "◆", href: "#voice" });
@@ -1600,6 +1601,7 @@ document.addEventListener("keydown", (event) => {
   else if (typed.endsWith(VOICE_WORD)) { typed = ""; summonVoice(); }
   else if (typed.endsWith(WRATH_WORD)) { typed = ""; summonWrath(); }
   else if (typed.endsWith(HAND_WORD)) { typed = ""; summonHand(); }
+  else if (typed.endsWith(GUARD_WORD)) { typed = ""; summonGuard(); }
 });
 
 /* ───────── The Code ─────────
@@ -1830,8 +1832,101 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand }[who] || summonEmperor)();
-const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running || hand.running;
+const summon = (who) => ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)();
+const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running || hand.running || guard.running;
+
+/* ───────── The Dark Honor Guard ─────────
+ * Typing "dhg" (or summoning them from the terminal) brings the Dark Honor Guard to the
+ * Emperor's gate at night. In the rain only a visor glows (.g1); the torches flare on the Lord
+ * Commandant and a line of guards in the fog (.g2); every visor lights: "Loyal." (.g3); he
+ * ignites his saber and the line ignites with him: "Disciplined." (.g4); one stamp shakes
+ * the ground and the seal burns: "Unbroken." (.g5); "None shall pass." (.g6); and their
+ * title (.g7). Like the Voice, the scene is a 1600 by 900 stage scaled to the screen. */
+const GUARD_WORD = "dhg";
+const guard = { running: false, timers: [], built: false };
+const GUARD_STAGES = [400, 1900, 3400, 4700, 6000, 7100, 8000];
+// Both poses share one 1120 by 1040 canvas, lined up on the visor; these are fractions of it.
+const GUARD_POSE = { w: 1120, h: 1040, visor: [.5, .3077], hilt: [.3393, .3606], feet: .8865 };
+function buildGuard() {
+  if (guard.built) return;
+  guard.built = true;
+  let h = hash("guard-gate");
+  const rand = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const between = (lo, hi) => lo + rand() * (hi - lo);
+  const P = GUARD_POSE, place = (cx, feet, tall) => { const w = tall * P.w / P.h; return { left: cx - w / 2, top: feet - P.feet * tall, w }; };
+  const line = [[-1, 0], [1, 0], [-1, 1], [1, 1], [-1, 2], [1, 2], [-1, 3], [1, 3]].map(([side, d], i) => {
+    const tall = 300 - d * 42, { left, top, w } = place(800 + side * (250 + d * 150), 640 - d * 22, tall);
+    const blade = tall * .42;
+    return `<img class="dg-line" src="/dhg-idle.webp" alt="" style="left:${left.toFixed(0)}px;top:${top.toFixed(0)}px;height:${tall}px">
+      <i class="dg-line-visor" style="left:${(left + P.visor[0] * w).toFixed(0)}px;top:${(top + P.visor[1] * tall).toFixed(0)}px;width:${(tall * .05).toFixed(1)}px;--i:${i}"></i>
+      <i class="dg-line-blade" style="left:${(left + P.hilt[0] * w).toFixed(0)}px;top:${(top + P.hilt[1] * tall - blade).toFixed(0)}px;height:${blade.toFixed(0)}px;--i:${i}"></i>`;
+  }).join("");
+  const hero = place(800, 760, 540), hx = hero.left + P.hilt[0] * hero.w, hy = hero.top + P.hilt[1] * 540;
+  const vx = hero.left + P.visor[0] * hero.w, vy = hero.top + P.visor[1] * 540;
+  const rain = Array.from({ length: 110 }, () => `<i style="left:${between(-100, 1700).toFixed(0)}px;--t:${between(.5, .9).toFixed(2)}s;--d:${(-between(0, 1)).toFixed(2)}s;--h:${between(40, 90).toFixed(0)}px"></i>`).join("");
+  const fog = (rows) => rows.map(([y, t, d, w, tall, o]) => `<i style="top:${y}px;--t:${t}s;--d:${-d}s;width:${w}px;height:${tall}px;--o:${o}"></i>`).join("");
+  const sparks = Array.from({ length: 26 }, () => `<i style="--x:${between(-90, 90).toFixed(0)}px;--y:${between(-160, -20).toFixed(0)}px;--t:${between(.5, 1).toFixed(2)}s;--d:${between(0, .25).toFixed(2)}s"></i>`).join("");
+  byId("guardStage").innerHTML = `
+    <svg class="vt-abs dg-gate" viewBox="0 0 1600 900">
+      <rect class="dg-wall" width="1600" height="640"/><path class="dg-wall-edge" d="M0 120H1600M0 300H1600M0 470H1600"/>
+      <path class="dg-door" d="M560 640V200Q800 40 1040 200V640Z"/><path class="dg-door-rib" d="M800 120V640M600 300H1000M590 460H1010"/>
+      <circle class="dg-seal" cx="800" cy="300" r="70"/><path class="dg-seal" d="M800 240 852 270V330L800 360 748 330V270Z"/>
+      <path class="dg-ban" d="M380 60H470V430L425 395L380 430Z"/><path class="dg-ban-emb" d="M425 180l28 16v32l-28 16-28-16v-32Z"/>
+      <path class="dg-ban" d="M1130 60H1220V430L1175 395L1130 430Z"/><path class="dg-ban-emb" d="M1175 180l28 16v32l-28 16-28-16v-32Z"/>
+      <path class="dg-ground" d="M0 620H1600V900H0Z"/><rect class="dg-step" x="500" y="626" width="600" height="18"/><rect class="dg-step" x="460" y="644" width="680" height="18"/></svg>
+    <div class="dg-torch" style="left:330px;top:470px"><b></b></div><div class="dg-torch" style="left:1270px;top:470px"><b></b></div>
+    <div class="vt-abs dg-fog">${fog([[520, 40, 5, 1100, 180, .5], [580, 52, 26, 1300, 200, .55]])}</div>
+    <div class="vt-abs">${line}</div>
+    <div class="vt-abs dg-fog">${fog([[680, 36, 14, 1400, 220, .6], [760, 46, 33, 1500, 240, .7]])}</div>
+    <div class="dg-shock"><i></i></div><div class="dg-shadow"></div>
+    <div class="dg-bladelight" style="left:${hx.toFixed(0)}px;top:${(hy - 110).toFixed(0)}px"></div>
+    <div class="dg-hero" style="left:${hero.left.toFixed(0)}px;top:${hero.top.toFixed(0)}px;width:${hero.w.toFixed(0)}px;height:540px">
+      <img class="dg-idle" id="guardImage" src="/dhg-idle.webp" alt="The Lord Commandant of the Dark Honor Guard" width="1120" height="1040" />
+      <img class="dg-saber" src="/dhg-saber.webp" alt="" width="1120" height="1040" /></div>
+    <div class="dg-blade" style="left:${hx.toFixed(0)}px;top:${(hy - 290).toFixed(0)}px"></div>
+    <div class="dg-sparks" style="left:${hx.toFixed(0)}px;top:${hy.toFixed(0)}px">${sparks}</div>
+    <div class="dg-visor" style="left:${vx.toFixed(0)}px;top:${vy.toFixed(0)}px"></div>
+    <div class="vt-abs dg-rain">${rain}</div>`;
+}
+function fitGuard() {
+  const scale = Math.max(innerWidth / 1600, Math.min(innerHeight / 900, innerWidth / 700));
+  byId("guardStage").style.setProperty("--vt-scale", scale.toFixed(4));
+}
+async function summonGuard() {
+  if (riteBusy()) return;
+  guard.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  buildGuard();
+  const overlay = byId("guardRite"), stage = byId("guardStage");
+  await Promise.all([...stage.querySelectorAll(".dg-hero img")].map((img) => img.decode().catch(() => {})));
+  const still = reducedMotion.matches;
+  overlay.className = `guard-rite${still ? " still" : ""}${perf.lite ? " lite" : ""}`;
+  overlay.hidden = false;
+  fitGuard(); addEventListener("resize", fitGuard);
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => guard.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    guard.timers.forEach(clearTimeout); guard.timers = [];
+    removeEventListener("resize", fitGuard);
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "guard-rite";
+    document.body.style.overflow = "";
+    guard.running = false;
+    toast("The Emperor's gate is held.");
+    setTimeout(() => droidReact("I would not try to pass. I have tried. Once."), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (guard.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  if (still) { GUARD_STAGES.forEach((ms, i) => overlay.classList.add(`g${i + 1}`)); later(4500, finish); return; }
+  const enter = (n) => {
+    overlay.classList.add(`g${n}`);
+    if (n === 4 || n === 5) { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); }
+    if (n === 4) skyFlash(.5);
+  };
+  GUARD_STAGES.forEach((ms, i) => later(ms, () => enter(i + 1)));
+  later(10900, () => overlay.classList.add("leaving"));
+  later(11600, finish);
+}
 
 /* ───────── The Emperor's Hand ─────────
  * Typing "hand" (or summoning him from the terminal) brings the Emperor's Hand out of the
@@ -2196,7 +2291,7 @@ function buildVoice() {
     <div class="vt-trails"><svg viewBox="-400 -200 800 400">${[[330, 70, -12], [280, 90, 14], [380, 60, 4]].map(([rx, ry, rot]) => `<ellipse rx="${rx}" ry="${ry}" transform="rotate(${rot})"/>`).join("")}</svg></div>
     <div class="vt-abs" id="vtBack"></div>
     <div class="vt-feet"></div>
-    <img class="vt-voice" id="voiceImage" alt="Darth Soteris, the Emperor's Voice" width="298" height="406" />
+    <img class="vt-voice" id="voiceImage" alt="Darth Soteris, the Emperor's Voice" width="482" height="664" />
     <div class="vt-shade"></div>
     <div class="vt-abs" id="vtFront"></div>
     <svg class="vt-abs vt-bolts" viewBox="0 0 1600 900">${bolts}</svg>
@@ -2358,6 +2453,7 @@ const DROID_QUIPS = [
   "Type “voice”. The old spells still answer.",
   "Type “wrath”. Plant a banner.",
   "Type “hand”. Then hear the snap.",
+  "Type “dhg”. The gate is guarded.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
