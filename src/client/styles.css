@@ -954,7 +954,7 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 
 /* ───────── The Dark Honor Guard ─────────
  * See summonGuard() in app.js. It borrows the Voice's scaled stage (.vt-stage) and title, and
- * steps through .g1 … .g7 (GUARD_STAGES), each adding to the last. */
+ * steps through .g1 … .g8 (GUARD_STAGES), each adding to the last. */
 .guard-rite { position: fixed; inset: 0; z-index: 84; overflow: hidden; cursor: pointer; background: #030102; animation: veil-in .5s ease both; }
 .guard-rite[hidden] { display: none; }
 .guard-rite .dg-stage { background: linear-gradient(180deg, #07030a, #0d0507 55%, #060203); }
@@ -1004,8 +1004,10 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .guard-rite.g3 .guard-vow span:nth-child(1), .guard-rite.g4 .guard-vow span:nth-child(2), .guard-rite.g5 .guard-vow span:nth-child(3) { opacity: 1; transform: none; }
 .guard-pass { margin-top: .4rem !important; color: #f3c9a0; font: italic 400 clamp(1rem, 2.2vw, 1.9rem) var(--serif); letter-spacing: .24em; text-shadow: 0 0 12px rgba(216,160,64,.6); opacity: 0; transition: opacity 1s; }
 .guard-rite.g6 .guard-pass { opacity: 1; }
+.guard-glory { margin-top: .5rem !important; color: #f0d39a; font: 700 clamp(1.5rem, 4vw, 3.2rem)/1.1 var(--display); letter-spacing: .04em; text-shadow: 0 0 .3rem #fff6d8, 0 0 1.4rem rgba(216,160,64,.8), 0 0 3rem rgba(255,42,58,.6); opacity: 0; transform: scale(1.8); transition: opacity .3s, transform .45s cubic-bezier(.2,1.3,.4,1); }
+.guard-rite.g7 .guard-glory { opacity: 1; transform: none; }
 .guard-rite .guard-title { transform: scale(1.3); transition: opacity .5s, transform .6s cubic-bezier(.2,1.3,.4,1); }
-.guard-rite.g7 .guard-title { opacity: 1; transform: none; }
+.guard-rite.g8 .guard-title { opacity: 1; transform: none; }
 .guard-rite .guard-title h2 { text-shadow: 0 0 .3rem #fff, 0 0 1.4rem #ff2a3a, 0 0 3rem rgba(160,16,26,.9); }
 .guard-rite .guard-title p { color: #f0c890; }
 .guard-rite .guard-title::before { background: radial-gradient(ellipse, rgba(3,1,2,.92), transparent 70%); }

@@ -1840,11 +1840,11 @@ const riteBusy = () => recital.running || rite.running || regent.running || voic
  * Emperor's gate at night. In the rain only a visor glows (.g1); the torches flare on the Lord
  * Commandant and a line of guards in the fog (.g2); every visor lights: "Loyal." (.g3); he
  * ignites his saber and the line ignites with him: "Disciplined." (.g4); one stamp shakes
- * the ground and the seal burns: "Unbroken." (.g5); "None shall pass." (.g6); and their
- * title (.g7). Like the Voice, the scene is a 1600 by 900 stage scaled to the screen. */
+ * the ground and the seal burns: "Unbroken." (.g5); "None shall pass." (.g6); the guard's
+ * cry, "Glory to the Emperor!" (.g7); and their title (.g8). Like the Voice, the scene is a 1600 by 900 stage scaled to the screen. */
 const GUARD_WORD = "dhg";
 const guard = { running: false, timers: [], built: false };
-const GUARD_STAGES = [400, 1900, 3400, 4700, 6000, 7100, 8000];
+const GUARD_STAGES = [400, 1900, 3400, 4700, 6000, 7100, 8100, 9100];
 // Both poses share one 1120 by 1040 canvas, lined up on the visor; these are fractions of it.
 const GUARD_POSE = { w: 1120, h: 1040, visor: [.5, .3077], hilt: [.3393, .3606], feet: .8865 };
 function buildGuard() {
@@ -1922,10 +1922,11 @@ async function summonGuard() {
     overlay.classList.add(`g${n}`);
     if (n === 4 || n === 5) { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); }
     if (n === 4) skyFlash(.5);
+    if (n === 7) { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); skyFlash(.6); }
   };
   GUARD_STAGES.forEach((ms, i) => later(ms, () => enter(i + 1)));
-  later(10900, () => overlay.classList.add("leaving"));
-  later(11600, finish);
+  later(11800, () => overlay.classList.add("leaving"));
+  later(12500, finish);
 }
 
 /* ───────── The Emperor's Hand ─────────
