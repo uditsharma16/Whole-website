@@ -2016,13 +2016,27 @@ function wrathMap() {
     <g class="map-pointer"><line pathLength="1" x1="-200" y1="-160" x2="${target.x.toFixed(0)}" y2="${target.y.toFixed(0)}"/>
       <g class="reticle" transform="translate(${target.x.toFixed(0)} ${target.y.toFixed(0)})"><g><circle r="30"/><circle r="44" stroke-dasharray="10 8"/><path d="M-58 0H-36M36 0H58M0 -58V-36M0 36V58"/></g></g></g>`;
 }
+// The enemy's banners stand first; each burns from the hem up and falls, and a Sith banner
+// is driven into the ground where it stood (--f: when this one catches fire).
+const WRATH_BURN_MS = 420, WRATH_REPLACE_MS = 1150;
+const BANNER_SHAPES = ["M12 20H108Q108 175 108 330L60 296L12 330Q12 175 12 20Z", "M12 20H108Q122 170 114 332L64 300L16 326Q2 168 12 20Z", "M12 20H108Q98 180 104 328L56 294L8 332Q20 182 12 20Z"];
+const bannerWave = (i) => `<animate attributeName="d" values="${[0, 1, 0, 2, 0].map((n) => BANNER_SHAPES[n]).join(";")}" dur="${(2.6 + i * .3).toFixed(1)}s" repeatCount="indefinite"/>`;
+function wrathFoe({ x, far }, i) {
+  const rays = Array.from({ length: 8 }, (_, k) => { const a = k * Math.PI / 4; return `M${(Math.cos(a) * 24).toFixed(1)} ${(Math.sin(a) * 24).toFixed(1)}L${(Math.cos(a) * 34).toFixed(1)} ${(Math.sin(a) * 34).toFixed(1)}`; }).join("");
+  const embers = Array.from({ length: 12 }, (_, k) => `<i style="--x:${(10 + seededRandom(`em${i}${k}`) * 80).toFixed(0)}%;--e:${(k * .08).toFixed(2)}s"></i>`).join("");
+  return `<div class="wrath-banner wrath-foe${far ? " far" : ""}${x < 50 ? " left" : ""}" style="left:${x}%;--f:${i * WRATH_BURN_MS}ms">
+    <svg class="banner-art foe-pole" viewBox="0 -30 120 560"><rect class="pole" x="57" y="0" width="6" height="530" rx="2"/><path class="tip" d="M60 -28 67 2H53Z"/>
+      <rect class="bar" x="6" y="12" width="108" height="8" rx="4"/><circle class="finial" cx="6" cy="16" r="6"/><circle class="finial" cx="114" cy="16" r="6"/></svg>
+    <svg class="banner-art foe-cloth" viewBox="0 -30 120 560"><g class="cloth"><path d="${BANNER_SHAPES[0]}">${bannerWave(i + 1)}</path>
+      <g class="emblem" transform="translate(60 150)"><circle r="17"/><path d="${rays}"/></g></g></svg>
+    <span class="foe-burn"></span><span class="foe-embers">${embers}</span>
+  </div>`;
+}
 function wrathBanner({ x, far }, i) {
-  const shapes = ["M12 20H108Q108 175 108 330L60 296L12 330Q12 175 12 20Z", "M12 20H108Q122 170 114 332L64 300L16 326Q2 168 12 20Z", "M12 20H108Q98 180 104 328L56 294L8 332Q20 182 12 20Z"];
-  const wave = [0, 1, 0, 2, 0].map((n) => shapes[n]).join(";");
-  return `<div class="wrath-banner${far ? " far" : ""}" style="left:${x}%;--d:${i * 260}ms">
+  return `<div class="wrath-banner${far ? " far" : ""}" style="left:${x}%;--d:${i * WRATH_BURN_MS + WRATH_REPLACE_MS}ms">
     <div class="banner-drop"><svg class="banner-art" viewBox="0 -30 120 560">
       <rect class="pole" x="57" y="0" width="6" height="530" rx="2"/><path class="tip" d="M60 -28 67 2H53Z"/>
-      <g class="cloth"><path d="${shapes[0]}"><animate attributeName="d" values="${wave}" dur="${(2.6 + i * .3).toFixed(1)}s" repeatCount="indefinite"/></path>
+      <g class="cloth"><path d="${BANNER_SHAPES[0]}">${bannerWave(i)}</path>
         <g class="emblem" transform="translate(60 150)"><path d="M0 -34 30 -17V17L0 34-30 17V-17Z"/><path class="emblem-core" d="m0 -17 10 17-10 17-10-17Z"/><path d="M-30 -17 0 0 30 -17M0 0V34"/></g></g>
       <rect class="bar" x="6" y="12" width="108" height="8" rx="4"/><circle class="finial" cx="6" cy="16" r="6"/><circle class="finial" cx="114" cy="16" r="6"/>
     </svg></div>
@@ -2033,7 +2047,7 @@ function buildWrath() {
   if (wrath.built) return;
   wrath.built = true;
   byId("wrathMap").innerHTML = wrathMap();
-  byId("wrathBanners").innerHTML = WRATH_BANNERS.map(wrathBanner).join("");
+  byId("wrathBanners").innerHTML = WRATH_BANNERS.map(wrathFoe).join("") + WRATH_BANNERS.map(wrathBanner).join("");
 }
 async function summonWrath() {
   if (riteBusy()) return;
@@ -2059,19 +2073,34 @@ async function summonWrath() {
   };
   const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
   setTimeout(() => { if (wrath.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
-  if (still) { overlay.classList.add("shown", "point", "conquest", "banners", "conquers", "glory", "titled"); later(4500, finish); return; }
+  if (still) { overlay.classList.add("shown", "point", "conquest", "banners", "conquers", "glory", "titled"); byId("wrathTally").textContent = "∞"; byId("wrathTally").parentElement.classList.add("infinite"); later(4500, finish); return; }
   void overlay.offsetWidth;
   overlay.classList.add("shown");
   later(900, () => overlay.classList.add("point"));
   later(1800, () => overlay.classList.add("conquest"));
+  later(1800, () => countConquests(5700 - 1800));
   later(2200, () => overlay.classList.add("banners"));
-  // Each banner shakes the ground as it lands.
-  WRATH_BANNERS.forEach((banner, i) => later(2200 + 420 + i * 260, () => { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); }));
-  later(3700, () => { overlay.classList.add("conquers"); skyFlash(.6); });
-  later(4700, () => overlay.classList.add("glory"));
-  later(5400, () => overlay.classList.add("titled"));
-  later(10400, () => overlay.classList.add("leaving"));
-  later(11100, finish);
+  // Each Sith banner shakes the ground as it lands where an enemy's stood.
+  WRATH_BANNERS.forEach((banner, i) => later(2200 + i * WRATH_BURN_MS + WRATH_REPLACE_MS + 420, () => { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); }));
+  later(4500, () => { overlay.classList.add("conquers"); skyFlash(.6); });
+  later(5700, () => overlay.classList.add("glory"));
+  later(6400, () => overlay.classList.add("titled"));
+  later(11200, () => overlay.classList.add("leaving"));
+  later(11900, finish);
+}
+// The tally of worlds taken climbs ever faster, then gives way to infinity.
+function countConquests(duration) {
+  const tally = byId("wrathTally"), box = tally.parentElement;
+  box.classList.remove("infinite");
+  const start = performance.now(), rate = Math.log(9000) / duration;
+  const step = () => {
+    if (!wrath.running) return;
+    const t = performance.now() - start;
+    if (t >= duration) { tally.textContent = "∞"; box.classList.add("infinite"); return; }
+    tally.textContent = Math.max(1, Math.floor(Math.exp(rate * t))).toLocaleString("en-GB");
+    wrath.timers.push(setTimeout(step, 70));
+  };
+  step();
 }
 
 /* ───────── The Emperor's Voice ─────────

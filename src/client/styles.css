@@ -881,6 +881,37 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .banner-art .emblem path { fill: none; stroke: #f0d39a; stroke-width: 3; stroke-linejoin: round; }
 .banner-art .emblem .emblem-core { fill: #ff3b44; stroke: #ffd9d6; }
 .banner-dust { position: absolute; left: 50%; bottom: 0; width: 360%; aspect-ratio: 3 / 1; translate: -50% 50%; border-radius: 50%; background: radial-gradient(ellipse, rgba(200,170,160,.55), rgba(120,90,80,.25) 45%, transparent 70%); opacity: 0; transform: scale(.2); pointer-events: none; }
+/* The enemy's banners: pale steel, a silver sun. Each burns from the hem up (the mask's edge
+ * and the glowing .foe-burn line climb together), its pole falls, and the Sith banner is
+ * driven down in its place (that banner's --d is this one's --f plus the burn). */
+.wrath-foe .foe-pole, .wrath-foe .foe-cloth { position: absolute; inset: 0; }
+.wrath-foe .foe-cloth .cloth { transform: none; }
+.wrath-foe .foe-cloth .cloth > path { fill: #b9c7d6; stroke: #e8eef5; stroke-width: 3; stroke-linejoin: round; }
+.wrath-foe .foe-cloth .emblem circle, .wrath-foe .foe-cloth .emblem path { fill: none; stroke: #3c6fb0; stroke-width: 4; stroke-linecap: round; }
+.wrath-foe .foe-pole .tip, .wrath-foe .foe-pole .finial { fill: #c9d2dc; }
+.wrath-foe .foe-pole .bar { fill: #3a3f47; stroke: #c9d2dc; }
+.wrath-foe { transform-origin: 50% 100%; }
+.wrath-foe .foe-cloth { -webkit-mask-image: linear-gradient(to top, transparent 45%, #000 52%); mask-image: linear-gradient(to top, transparent 45%, #000 52%); -webkit-mask-size: 100% 300%; mask-size: 100% 300%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: 0 38%; mask-position: 0 38%; }
+.foe-burn { position: absolute; left: 2%; right: 2%; top: 68%; height: 9%; translate: 0 -55%; background: radial-gradient(ellipse 50% 22% at 50% 62%, #fff6d0, transparent), linear-gradient(to top, transparent 20%, rgba(255,90,30,.85) 52%, #ffd27a 60%, rgba(255,120,40,.55) 72%, transparent); -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 9%, rgba(0,0,0,.55) 13%, #000 18%); mask-image: repeating-linear-gradient(90deg, #000 0 9%, rgba(0,0,0,.55) 13%, #000 18%); filter: blur(1.5px) drop-shadow(0 0 6px #ff7a2e); opacity: 0; pointer-events: none; }
+.wrath-rite.banners .foe-burn { animation: foe-burn-line 1s var(--f) linear forwards, flame-flicker .12s steps(2) infinite; }
+.foe-embers i { position: absolute; left: var(--x); top: 60%; width: 4px; height: 4px; border-radius: 50%; background: #ffcf7a; box-shadow: 0 0 6px #ff8a3d; opacity: 0; }
+.wrath-rite.banners .wrath-foe .foe-cloth { animation: foe-burn 1s var(--f) linear forwards; }
+.wrath-rite.banners .foe-embers i { animation: foe-ember 1.2s calc(var(--f) + var(--e)) ease-out forwards; }
+.wrath-rite.banners .wrath-foe { animation: foe-fall .6s calc(var(--f) + .95s) cubic-bezier(.5,0,.9,.5) forwards; }
+.wrath-rite.banners .wrath-foe.left { animation-name: foe-fall-left; }
+.wrath-tally { position: absolute; z-index: 2; top: max(1.4rem, 5vh); left: 4vw; display: grid; justify-items: start; gap: .1rem; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+.wrath-tally small { color: #f0d39a; font: 400 .66rem var(--mono); letter-spacing: .3em; text-transform: uppercase; }
+.wrath-tally strong { min-width: 5ch; color: #fff; font: 700 clamp(1.8rem, 3.6vw, 2.8rem)/1 var(--mono); text-align: left; font-variant-numeric: tabular-nums; text-shadow: 0 0 1rem rgba(227,38,47,.8); }
+.wrath-tally.infinite strong { color: #ffd9d6; font-family: var(--display); font-size: clamp(3rem, 6vw, 4.6rem); text-shadow: var(--blade), 0 0 2.4rem rgba(227,38,47,.9); animation: tally-infinite 1.6s ease-in-out infinite; }
+.wrath-rite.conquest .wrath-tally { opacity: 1; }
+.wrath-rite.leaving .wrath-tally { opacity: 0; }
+@keyframes foe-burn { from { -webkit-mask-position: 0 38%; mask-position: 0 38%; } to { -webkit-mask-position: 0 70%; mask-position: 0 70%; } }
+@keyframes foe-burn-line { 0% { opacity: 1; top: 68%; } 92% { opacity: 1; } 100% { opacity: 0; top: 4%; } }
+@keyframes foe-ember { 0% { opacity: 1; transform: translate(0, 0); } 100% { opacity: 0; transform: translate(calc((var(--x) - 50%) * .2), -18vh); } }
+@keyframes foe-fall { to { transform: rotate(78deg); opacity: 0; } }
+@keyframes foe-fall-left { to { transform: rotate(-78deg); opacity: 0; } }
+@keyframes flame-flicker { 50% { scale: 1 1.18; } }
+@keyframes tally-infinite { 0%, 100% { scale: 1; } 50% { scale: 1.08; } }
 .wrath-title { position: relative; z-index: 2; display: grid; justify-items: center; gap: .3rem; margin-top: .4rem; text-align: center; opacity: 0; }
 .wrath-title h2 { margin: 0; color: #fff; font: 700 clamp(2rem, 6vw, 4.4rem)/1 var(--display); text-shadow: var(--blade), 0 0 3rem rgba(227,38,47,.7); }
 .wrath-title p { margin: 0; color: #f0d39a; font: 400 clamp(.62rem, 1.4vw, .8rem) var(--mono); letter-spacing: .34em; text-transform: uppercase; }
@@ -907,6 +938,8 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .wrath-rite.still .wrath-map, .wrath-rite.still .wrath-rig, .wrath-rite.still .wrath-title, .wrath-rite.still .wrath-words span, .wrath-rite.still .wrath-glory { opacity: 1; transform: none; animation: none; filter: none; }
 .wrath-rite.still .banner-drop, .wrath-rite.still .banner-art .cloth, .wrath-rite.still .flag { transform: none; animation: none; }
 .wrath-rite.still .map-lanes line { stroke-dashoffset: 0; }
+.wrath-rite.still .wrath-foe { display: none; }
+.wrath-rite.still .wrath-tally { opacity: 1; }
 @keyframes pointer-fade { to { opacity: .25; } }
 @keyframes reticle-lock { from { opacity: 0; transform: scale(2.2) rotate(-60deg); } to { opacity: 1; transform: none; } }
 @keyframes world-taken { 0% { opacity: 1; transform: scale(.6); } 100% { opacity: 0; transform: scale(2.4); } }
@@ -1149,6 +1182,9 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
   .gate-head { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
+  .wrath-tally { top: auto; bottom: 30vh; left: 3vw; }
+  .wrath-tally strong { font-size: 1.4rem; }
+  .wrath-tally.infinite strong { font-size: 2.4rem; }
   .wrath-banner { height: 66%; }
   .wrath-banner.far { height: 46%; }
   .tomb, .tomb.side-left, .tomb.side-right { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 1.6rem; text-align: center; }
