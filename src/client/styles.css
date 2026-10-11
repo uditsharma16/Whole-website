@@ -971,6 +971,9 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .dg-fog i { position: absolute; left: -300px; border-radius: 50%; background: radial-gradient(ellipse, rgba(70,40,50,calc(var(--o) * .7)), rgba(40,20,28,calc(var(--o) * .5)) 45%, transparent 70%); filter: blur(16px); animation: dg-drift var(--t) var(--d) linear infinite; }
 .dg-line { position: absolute; filter: brightness(.38) saturate(.75) contrast(1.05) drop-shadow(0 0 1px rgba(255,140,90,.35)) blur(.4px); opacity: 0; transition: opacity 1.5s; }
 .guard-rite.g2 .dg-line { opacity: 1; }
+.guard-rite .dg-line-armed { opacity: 0; transition: opacity .2s calc(.25s + var(--i) * .09s); }
+.guard-rite.g4 .dg-line:not(.dg-line-armed) { opacity: 0; transition: opacity .2s calc(.25s + var(--i) * .09s); }
+.guard-rite.g4 .dg-line-armed { opacity: 1; }
 .dg-line-visor { position: absolute; height: 1.6px; translate: -50% -50%; border-radius: 40%; background: #ff3a3a; box-shadow: 0 0 8px #ff2a2a, 0 0 18px #ff2a2a; opacity: 0; transition: opacity .25s calc(var(--i) * .12s); }
 .guard-rite.g3 .dg-line-visor { opacity: 1; }
 .dg-line-blade { position: absolute; width: 4px; translate: -50% 0; rotate: 4deg; border-radius: 3px; background: linear-gradient(0deg, #fff, #ffdada 70%, #fff); box-shadow: 0 0 6px #ff2a2a, 0 0 16px #ff2a2a, 0 0 30px rgba(255,30,40,.6); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .25s calc(.25s + var(--i) * .09s) cubic-bezier(.2,.9,.3,1); }

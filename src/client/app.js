@@ -1857,7 +1857,9 @@ function buildGuard() {
   const line = [[-1, 0], [1, 0], [-1, 1], [1, 1], [-1, 2], [1, 2], [-1, 3], [1, 3]].map(([side, d], i) => {
     const tall = 300 - d * 42, { left, top, w } = place(800 + side * (250 + d * 150), 640 - d * 22, tall);
     const blade = tall * .42;
-    return `<img class="dg-line" src="/dhg-idle.webp" alt="" style="left:${left.toFixed(0)}px;top:${top.toFixed(0)}px;height:${tall}px">
+    // Each guard holds the same two poses as the Commandant: at rest, then with the saber drawn.
+    const at = `left:${left.toFixed(0)}px;top:${top.toFixed(0)}px;height:${tall}px;--i:${i}`;
+    return `<img class="dg-line" src="/dhg-idle.webp" alt="" style="${at}"><img class="dg-line dg-line-armed" src="/dhg-saber.webp" alt="" style="${at}">
       <i class="dg-line-visor" style="left:${(left + P.visor[0] * w).toFixed(0)}px;top:${(top + P.visor[1] * tall).toFixed(0)}px;width:${(tall * .05).toFixed(1)}px;--i:${i}"></i>
       <i class="dg-line-blade" style="left:${(left + P.hilt[0] * w).toFixed(0)}px;top:${(top + P.hilt[1] * tall - blade).toFixed(0)}px;height:${blade.toFixed(0)}px;--i:${i}"></i>`;
   }).join("");
