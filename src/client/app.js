@@ -1346,10 +1346,10 @@ function renderSearch(query) {
   const letters = lettersOf(value);
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
-  if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "The Emperor commands. The Hand enforces.", ref: "◆", href: "#hand" });
-  if (letters.length >= 5 && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "The Emperor points. The Wrath conquers.", ref: "◆", href: "#wrath" });
-  if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "UnvincibleShadow, the Emperor's Voice", ref: "◆", href: "#voice" });
-  if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Discovery, Dark Regent of the Sith", ref: "◆", href: "#regent" });
+  if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "Darth Astarion, the Emperor's Hand", ref: "◆", href: "#hand" });
+  if (letters.length >= 5 && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Aeravix, the Emperor's Wrath", ref: "◆", href: "#wrath" });
+  if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "Darth Soteris, the Emperor's Voice", ref: "◆", href: "#voice" });
+  if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Darth Zephros, Dark Regent of the Sith", ref: "◆", href: "#regent" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
   byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${items.length} ${items.length === 1 ? "entry" : "entries"} on file`;
@@ -1736,7 +1736,7 @@ async function summonEmperor() {
   later(8500, finish);
 }
 /* ───────── The Dark Regent ─────────
- * Typing "regent" (or summoning him from the terminal) brings Discovery, Dark Regent of the
+ * Typing "regent" (or summoning him from the terminal) brings Darth Zephros, Dark Regent of the
  * Sith and its second in command, before the enemies of the Sith. He has already struck:
  * three cuts of blade-light cross the screen while he stands still, his sword spins down out
  * of the air and slides home into the scabbard on his back, and on the click of the hilt the
@@ -2075,7 +2075,7 @@ async function summonWrath() {
 }
 
 /* ───────── The Emperor's Voice ─────────
- * Typing "voice" (or summoning him from the terminal) brings UnvincibleShadow, the Emperor's
+ * Typing "voice" (or summoning him from the terminal) brings Darth Soteris, the Emperor's
  * Voice, into a circle of Sith runes that inscribes itself behind him and on the ground. He
  * rises into the air; an ancient spellbook opens before him and its pages turn; runes lift off
  * the pages and spiral up around him while four holocrons circle him; then the runes gather

@@ -65,10 +65,10 @@ Hold the pointer down on any empty part of the page to channel Force lightning, 
 archive core on the home page, or type `power`. Type `peaceisalie` (the start of the Sith
 Code, as one word) or enter it in the terminal to hear the rest of it; the archive stays
 awakened for the visit. Type `emperor` (or pick "Summon the Emperor" in the terminal) and
-Darth Azazel, the Sith Emperor, rises and powers up. Type `regent` and Discovery, Dark Regent
-of the Sith, sheathes his sword as the enemies of the Sith fall. Type `voice` and
-UnvincibleShadow, the Emperor's Voice, works an ancient spell from a book of Sith sorcery.
-Type `wrath` and the Emperor's Wrath plants the banners of conquest across a war map of the
-galaxy. Type `hand` and the Emperor's Hand steps out of the shadows and snaps. Everyone starts on full effects; devices that
+Darth Azazel, the Sith Emperor, rises and powers up. Type `regent` and Darth Zephros, Dark
+Regent of the Sith, sheathes his sword as the enemies of the Sith fall. Type `voice` and
+Darth Soteris, the Emperor's Voice, works an ancient spell from a book of Sith sorcery.
+Type `wrath` and Darth Aeravix, the Emperor's Wrath, plants the banners of conquest across a war map of the
+galaxy. Type `hand` and Darth Astarion, the Emperor's Hand, steps out of the shadows and snaps. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch
 (or `?fx=lite` / `?fx=full`) chooses either one by hand.

@@ -815,6 +815,7 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .fist-ring { position: absolute; left: 0; top: 0; width: 40vmax; height: 40vmax; translate: -50% -50%; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 2rem #ff3b44, inset 0 0 2rem #ff3b44; opacity: 0; transform: scale(.02); }
 .hand-title { position: relative; z-index: 3; display: grid; justify-items: center; gap: .3rem; margin-top: .4rem; text-align: center; opacity: 0; }
 .hand-title h2 { margin: 0; color: #fff; font: 700 clamp(2rem, 6vw, 4.4rem)/1 var(--display); text-shadow: var(--blade), 0 0 3rem rgba(227,38,47,.7); }
+.hand-title p { margin: 0; color: #f3b9b3; font: 400 clamp(.62rem, 1.4vw, .8rem) var(--mono); letter-spacing: .34em; text-transform: uppercase; }
 .hand-rite .code-skip { position: relative; z-index: 3; margin-top: .6rem; }
 .hand-rite.shadowed .hand-rig img { opacity: 1; filter: brightness(0) blur(3px) drop-shadow(0 0 .6rem rgba(227,38,47,.6)); }
 .hand-rite.formed .hand-rig img { filter: brightness(1.2) blur(0) drop-shadow(0 0 1px rgba(255,236,232,.8)) drop-shadow(0 0 1rem rgba(227,38,47,.55)); transform: none; }
