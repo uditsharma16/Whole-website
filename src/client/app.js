@@ -2105,12 +2105,15 @@ function countConquests(duration) {
 
 /* ───────── The Emperor's Voice ─────────
  * Typing "voice" (or summoning him from the terminal) brings Darth Soteris, the Emperor's
- * Voice, into a circle of Sith runes that inscribes itself behind him and on the ground. He
- * rises into the air; an ancient spellbook opens before him and its pages turn; runes lift off
- * the pages and spiral up around him while four holocrons circle him; then the runes gather
- * into a sigil above his head, the holocrons open, and the spell is made manifest. */
+ * Voice, into an ancient Sith temple. The hall wakes (.s1), the ritual circle at his feet
+ * ignites (.s2), six holocrons rise and orbit him on rings of violet energy (.s3), the temple
+ * answers with flying debris and burning rune pillars (.s4), and the Emperor's spirit rises
+ * behind him: "The Emperor whispers." (.s5). Power gathers round the Voice (.s6) and is
+ * released in violet lightning: "The Voice thunders." (.s7). Then the aftermath and his name
+ * (.s8). The scene is drawn on a 1600 by 900 stage scaled to fill the screen. */
 const VOICE_WORD = "voice";
-const voice = { running: false, timers: [], frame: 0, built: false, glyphs: [], runes: null, holocrons: [] };
+const voice = { running: false, timers: [], frame: 0, built: false, holocrons: [] };
+const VOICE_STAGES = [300, 1100, 2200, 3400, 4600, 5800, 6800, 8000];
 // A rune: two or three angular strokes on a stem, in a 10 by 10 cell.
 function runePath(seed) {
   let h = hash(`rune:${seed}`);
@@ -2126,45 +2129,122 @@ function runePath(seed) {
   ];
   return stem + kinds[Math.floor(rand() * kinds.length)]() + (rand() < .4 ? kinds[Math.floor(rand() * kinds.length)]() : "");
 }
-function runeCircle(prefix, outer, count) {
-  const band = Array.from({ length: count }, (_, i) => {
-    const a = (i / count) * 360, r = outer - 9;
-    return `<path class="rune" style="--i:${i}" d="${runePath(`${prefix}${i}`)}" transform="rotate(${a}) translate(-4 ${-r - 4}) scale(.8)"/>`;
-  }).join("");
-  const inner = Array.from({ length: 12 }, (_, i) => `<path class="rune" style="--i:${i + count}" d="${runePath(`${prefix}in${i}`)}" transform="rotate(${i * 30 + 15}) translate(-3 -45) scale(.6)"/>`).join("");
-  return `<circle class="line" pathLength="1" r="${outer}"/><circle class="line" pathLength="1" r="${outer - 18}"/>${band}
-    <polygon class="line" pathLength="1" points="0,-72 62.4,36 -62.4,36"/><polygon class="line" pathLength="1" points="0,72 62.4,-36 -62.4,-36"/>
-    <circle class="line" pathLength="1" r="52"/><circle class="line" pathLength="1" r="36"/>${inner}`;
-}
+// A ring of runes about the origin, each standing on the circle and facing out.
+const runeRing = (prefix, radius, count, size, turn = 0) => Array.from({ length: count }, (_, i) =>
+  `<path d="${runePath(`${prefix}${i}`)}" transform="rotate(${(i * 360 / count + turn).toFixed(1)}) translate(0 ${-radius}) scale(${size}) translate(-5 -5)"/>`).join("");
+const spinning = (seconds, to) => `<animateTransform attributeName="transform" type="rotate" from="0" to="${to}" dur="${seconds}s" repeatCount="indefinite"/>`;
 function buildVoice() {
   if (voice.built) return;
   voice.built = true;
-  // The circles turn about their own centre (SVG's rotate, which CSS origins get wrong on a centred viewBox).
-  const turning = (seconds, to) => `<animateTransform attributeName="transform" type="rotate" from="0" to="${to}" dur="${seconds}s" repeatCount="indefinite"/>`;
-  byId("voiceRing").innerHTML = `<g>${turning(48, 360)}${runeCircle("ring", 96, 30)}</g>`;
-  byId("voiceFloor").innerHTML = `<g>${turning(64, -360)}${runeCircle("floor", 96, 36)}</g>`;
-  voice.runes = Array.from({ length: 18 }, (_, i) => new Path2D(runePath(`spell${i}`)));
-  byId("voiceHolocrons").innerHTML = Array.from({ length: 4 }, (_, i) => `<span class="voice-holocron tone-${i % 2 ? 3 : 2}">${holocronSvg(`voice${i}`)}</span>`).join("");
-  voice.holocrons = [...byId("voiceHolocrons").children];
+  let h = hash("voice-temple");
+  const rand = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+  const between = (lo, hi) => lo + rand() * (hi - lo);
+  // The hall: receding columns hung with banners, and a stair up to a lit doorway.
+  let hall = "";
+  for (const side of [-1, 1]) {
+    [[740, 120, 0], [560, 90, 40], [420, 70, 90], [320, 52, 130]].forEach(([dx, w, top]) => {
+      const x = 800 + side * dx - w / 2;
+      hall += `<rect class="vt-col" x="${x}" y="${top}" width="${w}" height="${900 - top}"/><rect class="vt-col-edge" x="${x + (side < 0 ? w - 4 : 0)}" y="${top}" width="4" height="${900 - top}"/>`;
+    });
+    [[650, 62, 360, 30], [490, 48, 300, 70], [370, 38, 250, 110]].forEach(([dx, w, len, top]) => {
+      const x = 800 + side * dx - w / 2;
+      hall += `<path class="vt-ban" d="M${x} ${top}H${x + w}V${top + len}L${x + w / 2} ${top + len - w * .5}L${x} ${top + len}Z"/><path class="vt-emb" d="M${x + w / 2} ${top + len * .32}l${w * .24} ${w * .14}v${w * .28}l${-w * .24} ${w * .14}l${-w * .24} ${-w * .14}v${-w * .28}Z"/>`;
+    });
+  }
+  const stairs = Array.from({ length: 10 }, (_, i) => `<rect class="vt-step" x="${630 + i * 14}" y="${560 - i * 14}" width="${340 - i * 28}" height="14"/>`).join("");
+  const pillars = [-1, 1].flatMap((side) => [[560, 760, 300, 56], [380, 700, 220, 42]].map(([dx, base, tall, w], k) => {
+    const x = 800 + side * dx;
+    const runes = Array.from({ length: 6 }, (_, j) => `<path d="${runePath(`pillar${side}${k}${j}`)}" transform="translate(${x} ${(base - tall + 40 + j * (tall - 60) / 5).toFixed(0)}) scale(${(w / 22).toFixed(2)}) translate(-5 -5)"/>`).join("");
+    return `<path class="vt-ob" d="M${x - w / 2} ${base}L${x - w / 2 + 4} ${base - tall + 20}L${x} ${base - tall}L${x + w / 2 - 4} ${base - tall + 20}L${x + w / 2} ${base}Z"/><g class="vt-runes">${runes}</g>`;
+  })).join("");
+  const bolt = (ang, len) => {
+    let x = 800, y = 560; const pts = [[x, y]];
+    for (let k = 0; k < 10; k += 1) { x += Math.cos(ang) * len / 10 + between(-14, 14); y += Math.sin(ang) * len / 10 + between(-14, 14); pts.push([x, y]); }
+    return "M" + pts.map(([a, b]) => `${a.toFixed(0)} ${b.toFixed(0)}`).join(" L");
+  };
+  const bolts = [-2.9, -2.5, -2.1, -1.8, -1.4, -1, -.6, -.25, .15, 3, 2.7].map((a, i) => `<path d="${bolt(a, between(260, 520))}" style="--k:${i % 4}"/>`).join("");
+  const debris = Array.from({ length: 26 }, () => `<i style="left:${between(40, 1560).toFixed(0)}px;top:${between(380, 860).toFixed(0)}px;--s:${between(14, 46).toFixed(0)}px;--r:${between(0, 360).toFixed(0)}deg;--t:${between(5, 9).toFixed(1)}s;--d:${(-between(0, 5)).toFixed(1)}s"></i>`).join("");
+  const motes = Array.from({ length: 60 }, () => `<i style="left:${between(200, 1400).toFixed(0)}px;--t:${between(4, 8).toFixed(1)}s;--d:${(-between(0, 8)).toFixed(1)}s;--x:${between(-60, 60).toFixed(0)}px"></i>`).join("");
+  const holocron = `<svg viewBox="-40 -40 80 80"><polygon class="vt-hf" points="0,-34 29,-17 29,17 0,34 -29,17 -29,-17"/><polygon class="vt-hf2" points="0,-34 29,-17 0,0 -29,-17"/>
+    <path class="vt-hl" d="M0 -34V0M29 -17L0 0L-29 -17M0 0V34M-29 17L-14 8M29 17L14 8M-14 -25L0 -12L14 -25M-20 6L-10 0M20 6L10 0"/><circle r="11" fill="url(#vtCore)"/></svg>`;
+  const stage = byId("voiceStage");
+  stage.innerHTML = `
+    <svg class="vt-abs vt-hall" viewBox="0 0 1600 900"><defs>
+      <linearGradient id="vtCol" x1="0" x2="1"><stop offset="0" stop-color="#140a10"/><stop offset=".5" stop-color="#22121a"/><stop offset="1" stop-color="#0c0609"/></linearGradient>
+      <linearGradient id="vtBeam" x1="0" x2="1"><stop offset="0" stop-color="#ff2e4a" stop-opacity="0"/><stop offset=".5" stop-color="#ff6a80" stop-opacity=".9"/><stop offset="1" stop-color="#ff2e4a" stop-opacity="0"/></linearGradient>
+      <linearGradient id="vtBeamFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".45" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff"/></linearGradient>
+      <mask id="vtBeamMask"><rect x="700" y="0" width="200" height="560" fill="url(#vtBeamFade)"/></mask>
+      <radialGradient id="vtCore"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#ff5a6a"/><stop offset="1" stop-color="#ff1e3c" stop-opacity="0"/></radialGradient>
+      <radialGradient id="vtSpirit" cx=".5" cy=".35" r=".7"><stop offset="0" stop-color="#d27bff" stop-opacity=".75"/><stop offset=".55" stop-color="#7a1fd1" stop-opacity=".42"/><stop offset="1" stop-color="#3a0a6a" stop-opacity="0"/></radialGradient>
+    </defs>
+      <g mask="url(#vtBeamMask)"><rect class="vt-beam" x="760" y="0" width="80" height="560" fill="url(#vtBeam)"/><rect class="vt-beam" x="792" y="0" width="16" height="560" fill="#ffd0d8" opacity=".5"/></g>
+      <rect x="740" y="380" width="120" height="180" fill="#0a0408" stroke="#3a1420"/>${stairs}${hall}</svg>
+    <div class="vt-floor"></div>
+    <div class="vt-ring"><svg viewBox="-340 -340 680 680"><g>${spinning(60, 360)}<circle r="320"/><circle r="280"/><circle r="214"/>${runeRing("vring", 300, 40, 2.4)}${runeRing("vring2", 236, 28, 1.9, 6)}</g></svg></div>
+    <svg class="vt-spirit" viewBox="0 0 800 820">
+      <path class="vt-sb" d="M400 40C340 40 300 100 295 170C250 190 200 220 150 300L60 480C90 500 130 490 160 470L230 380C240 500 230 640 210 820H590C570 640 560 500 570 380L640 470C670 490 710 500 740 480L650 300C600 220 550 190 505 170C500 100 460 40 400 40Z"/>
+      <path class="vt-sl" d="M400 40C340 40 300 100 295 170C250 190 200 220 150 300L60 480M400 40C460 40 500 100 505 170C550 190 600 220 650 300L740 480M400 170V820"/>
+      <path class="vt-folds" d="M330 260Q360 520 330 820M470 260Q440 520 470 820M400 300V820M260 400Q300 600 270 820M540 400Q500 600 530 820"/>
+      <path class="vt-claws" d="M60 480l-22 14M60 480l-14 22M60 480l-26 2M740 480l22 14M740 480l14 22M740 480l26 2"/>
+      <ellipse cx="400" cy="180" rx="56" ry="64" fill="#07020c"/><path class="vt-hood" d="M344 180Q400 100 456 180"/><circle class="vt-eye" cx="380" cy="178" r="6"/><circle class="vt-eye" cx="420" cy="178" r="6"/></svg>
+    <svg class="vt-abs vt-pillars" viewBox="0 0 1600 900">${pillars}</svg>
+    <div class="vt-circle"><div class="vt-circle-glow"></div><svg viewBox="-560 -120 1120 240"><g transform="scale(1 .21)">
+      <g class="vt-r0">${spinning(40, 360)}<circle r="500"/>${runeRing("floor", 440, 36, 3.6)}<circle r="380"/></g>
+      <g class="vt-r1">${spinning(28, -360)}<circle r="340"/>${runeRing("floor2", 300, 24, 2.9)}<circle r="200"/></g></g></svg></div>
+    <div class="vt-abs vt-debris">${debris}</div>
+    <div class="vt-aura"></div>
+    <div class="vt-trails"><svg viewBox="-400 -200 800 400">${[[330, 70, -12], [280, 90, 14], [380, 60, 4]].map(([rx, ry, rot]) => `<ellipse rx="${rx}" ry="${ry}" transform="rotate(${rot})"/>`).join("")}</svg></div>
+    <div class="vt-abs" id="vtBack"></div>
+    <img class="vt-voice" id="voiceImage" alt="Darth Soteris, the Emperor's Voice" width="298" height="406" />
+    <div class="vt-abs" id="vtFront"></div>
+    <svg class="vt-abs vt-bolts" viewBox="0 0 1600 900">${bolts}</svg>
+    <div class="vt-abs vt-motes">${motes}</div>`;
+  voice.holocrons = Array.from({ length: 6 }, () => {
+    const el = document.createElement("div");
+    el.className = "vt-holo"; el.innerHTML = holocron;
+    byId("vtBack").append(el);
+    return el;
+  });
+}
+// The stage keeps its shape and fills the screen; on tall phones it fills the width instead.
+function fitVoice() {
+  const scale = Math.max(innerWidth / 1600, Math.min(innerHeight / 900, innerWidth / 700));
+  byId("voiceStage").style.setProperty("--vt-scale", scale.toFixed(4));
+}
+// The holocrons ride three tilted orbits round him, passing in front and behind; they rise
+// from the floor once the third stage begins.
+const VOICE_ORBITS = [[330, 70, -12], [280, 90, 14], [380, 60, 4]];
+function placeVoiceHolocrons(t, rise) {
+  const back = byId("vtBack"), front = byId("vtFront");
+  voice.holocrons.forEach((el, i) => {
+    const [rx, ry, rot] = VOICE_ORBITS[i % 3], r = rot * Math.PI / 180;
+    const a = t * .0006 * (i % 2 ? 1 : -1) * (1 + i * .08) + i * Math.PI / 3;
+    const x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+    const X = x * Math.cos(r) - y * Math.sin(r), Y = x * Math.sin(r) + y * Math.cos(r);
+    const depth = Math.sin(a), scale = .75 + .35 * (depth + 1) / 2;
+    el.style.transform = `translate(${(800 + X - 38).toFixed(1)}px, ${(580 + Y - 38 + (1 - rise) * 220).toFixed(1)}px) scale(${scale.toFixed(3)}) rotate(${(t * .05 + i * 40).toFixed(1)}deg)`;
+    const layer = depth > 0 ? front : back;
+    if (el.parentNode !== layer) layer.append(el);
+  });
 }
 async function summonVoice() {
   if (riteBusy()) return;
   voice.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   buildVoice();
-  const overlay = byId("voiceRite"), img = byId("voiceImage");
+  const overlay = byId("voiceRite"), img = byId("voiceImage"), stage = byId("voiceStage");
   if (!img.getAttribute("src")) img.src = "/voice.webp";
   await img.decode().catch(() => {});
-  const rig = byId("voiceRig");
   const still = reducedMotion.matches;
-  overlay.className = `voice-rite${still ? " still" : ""}`;
+  overlay.className = `voice-rite${still ? " still" : ""}${perf.lite ? " lite" : ""}`;
   overlay.hidden = false;
-  rig.style.setProperty("--rig-w", `${rig.getBoundingClientRect().width}px`);
+  fitVoice(); addEventListener("resize", fitVoice);
   document.body.style.overflow = "hidden";
   const later = (ms, fn) => voice.timers.push(setTimeout(fn, ms));
   const finish = () => {
     voice.timers.forEach(clearTimeout); voice.timers = [];
-    cancelAnimationFrame(voice.frame); voice.frame = 0; voice.glyphs = [];
+    cancelAnimationFrame(voice.frame); voice.frame = 0;
+    removeEventListener("resize", fitVoice);
     removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
     overlay.hidden = true; overlay.className = "voice-rite";
     document.body.style.overflow = "";
@@ -2174,75 +2254,23 @@ async function summonVoice() {
   };
   const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
   setTimeout(() => { if (voice.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
-  if (still) { overlay.classList.add("inscribed", "risen", "open", "manifest", "vow"); placeHolocrons(0); later(4500, finish); return; }
-  void overlay.offsetWidth;
-  overlay.classList.add("inscribed"); // the circles draw themselves
-  later(500, () => overlay.classList.add("risen"));
-  later(1400, () => overlay.classList.add("open")); // the book opens and its pages turn
-  later(2000, () => { voice.casting = true; });
-  voice.casting = false; voice.manifest = false;
-  startSpell();
-  later(4600, () => {
-    voice.manifest = true; overlay.classList.add("manifest");
-    skyFlash(.7);
-  });
-  later(5200, () => overlay.classList.add("vow"));
-  later(9800, () => { overlay.classList.add("leaving"); voice.casting = false; });
-  later(10500, finish);
-}
-// The holocrons ride an ellipse round his middle, larger and in front of him on the near side.
-function placeHolocrons(t) {
-  const rig = byId("voiceRig").getBoundingClientRect();
-  voice.holocrons.forEach((el, i) => {
-    const a = t * .0009 + i * Math.PI / 2, near = Math.sin(a);
-    const x = Math.cos(a) * rig.width * .95, y = near * rig.height * .09 - rig.height * .06;
-    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${(.82 + near * .22).toFixed(3)})`;
-    el.style.zIndex = near > 0 ? 4 : 1;
-    el.style.opacity = byId("voiceRite").classList.contains("open") ? (.75 + near * .25).toFixed(2) : "0";
-  });
-}
-function startSpell() {
-  const back = byId("voiceBack"), front = byId("voiceFront");
-  const ratio = Math.min(devicePixelRatio || 1, perf.lite ? 1 : 1.5);
-  const size = () => { const r = back.getBoundingClientRect(); for (const c of [back, front]) { c.width = r.width * ratio; c.height = r.height * ratio; c.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0); } return r; };
-  let box = size();
-  const gb = back.getContext("2d"), gf = front.getContext("2d");
+  if (still) { VOICE_STAGES.forEach((ms, i) => overlay.classList.add(`s${i + 1}`)); placeVoiceHolocrons(0, 1); later(4500, finish); return; }
   const t0 = performance.now();
+  let risen = 0;
   const tick = (now) => {
     voice.frame = requestAnimationFrame(tick);
-    placeHolocrons(now - t0);
-    const img = byId("voiceImage").getBoundingClientRect();
-    box = back.getBoundingClientRect();
-    const cx = img.left + img.width / 2 - box.left, top = img.top - box.top;
-    const sigil = { x: cx, y: top - img.height * .17 };
-    const book = byId("voiceRig").querySelector(".book-tilt").getBoundingClientRect();
-    for (const g of [gb, gf]) g.clearRect(0, 0, box.width, box.height);
-    if (voice.casting && voice.glyphs.length < (perf.lite ? 40 : 90)) {
-      for (let i = 0; i < (perf.lite ? 1 : 2); i += 1) voice.glyphs.push({
-        x0: book.left - box.left + book.width * (.15 + Math.random() * .7), y0: book.top - box.top + book.height * (.2 + Math.random() * .5),
-        phase: Math.random() * Math.PI * 2, spin: (Math.random() < .5 ? -1 : 1) * (2.2 + Math.random() * 1.6) * Math.PI,
-        reach: img.width * (.75 + Math.random() * .5), life: 0, max: 130 + Math.random() * 80, rune: voice.runes[Math.floor(Math.random() * voice.runes.length)], size: 15 + Math.random() * 12
-      });
-    }
-    voice.glyphs = voice.glyphs.filter((p) => {
-      p.life += voice.manifest ? 2.2 : 1;
-      const u = Math.min(1, p.life / p.max);
-      if (u >= 1) return false;
-      // Up from the page in a widening, then tightening spiral, ending in the sigil.
-      const ease = u * u * (3 - 2 * u), radius = p.reach * Math.sin(Math.PI * Math.min(1, u * 1.1)) * (1 - u * .4);
-      const a = p.phase + p.spin * u;
-      const x = p.x0 + (sigil.x - p.x0) * ease + Math.cos(a) * radius, y = p.y0 + (sigil.y - p.y0) * ease;
-      const g = Math.sin(a) > 0 ? gf : gb;
-      const alpha = Math.min(1, u * 6) * (1 - Math.max(0, u - .85) / .15);
-      g.save(); g.translate(x, y); g.rotate(Math.sin(a) * .3); g.scale(p.size / 10, p.size / 10); g.translate(-5, -5);
-      g.lineCap = "round"; g.lineJoin = "round";
-      g.globalAlpha = alpha * .45; g.strokeStyle = "#b48cff"; g.lineWidth = 3.2; g.stroke(p.rune);
-      g.globalAlpha = alpha; g.strokeStyle = "#ffe3a3"; g.lineWidth = 1.1; g.stroke(p.rune);
-      g.restore();
-      return true;
-    });
+    if (!risen && overlay.classList.contains("s3")) risen = now;
+    placeVoiceHolocrons(now - t0, risen ? Math.min(1, (now - risen) / 1400) : 0);
   };
   voice.frame = requestAnimationFrame(tick);
+  const enter = (n) => {
+    overlay.classList.add(`s${n}`);
+    if (n === 4 || n === 7) { stage.classList.remove("jolt"); void stage.offsetWidth; stage.classList.add("jolt"); }
+    if (n === 7) skyFlash(.8);
+  };
+  VOICE_STAGES.forEach((ms, i) => later(ms, () => enter(i + 1)));
+  later(11600, () => overlay.classList.add("leaving"));
+  later(12300, finish);
 }
 
 function startAura() {
