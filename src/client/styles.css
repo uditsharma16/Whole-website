@@ -682,30 +682,41 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .fx-lite .door { transition-duration: .4s; }
 
 /* ───────── Opening a holocron ─────────
- * See holocronOpen() in app.js: a copy of the chosen holocron rises to the middle of the
- * screen (.active), its capstone lifts away (.unsealed), its light floods the screen (.flood)
- * and fades off the newly opened record (.fade). */
+ * See holocronOpen() in app.js: a copy of the holocron rises to rest low in the middle of the
+ * screen (.active) and unlocks (.unsealed); its beam projects the record's name (.projecting);
+ * the projection splits the screen open from the centre (.opening) and fades off the record
+ * (.fade). */
 .holo-open { position: fixed; inset: 0; z-index: 84; pointer-events: none; visibility: hidden; }
 .holo-open.active { visibility: visible; pointer-events: auto; background: rgba(4,2,3,0); animation: holo-dim .45s ease forwards; }
 .holo-open.fade { animation: none; background: transparent; }
 .holocron.lifted .holocron-float, .holocron.lifted .holocron-pool { visibility: hidden; }
-.holo-flyer { position: fixed; transform-origin: 50% 50%; will-change: transform; }
-.holo-flyer .holocron-art { filter: drop-shadow(0 0 1.2rem var(--seam)); }
-.holo-open .holocron-art .cap { transition: transform .75s cubic-bezier(.3,1.3,.5,1), opacity .6s ease .25s; }
-.holo-open.unsealed .holocron-art .cap { transform: translateY(-30px) rotate(-8deg); }
-.holo-open.flood .holocron-art .cap { opacity: 0; }
-.holo-open.unsealed .holocron-art .beam { opacity: 1; transform: scaleY(1.5); }
-.holo-open.unsealed .holocron-art .core { opacity: .9; }
+.holo-flyer { position: fixed; z-index: 2; transform-origin: 50% 50%; will-change: transform; }
+.holo-flyer .holocron-art { filter: drop-shadow(0 .6rem .8rem rgba(0,0,0,.6)) drop-shadow(0 0 .9rem var(--seam-soft)); }
+.holo-open .holocron-art .cap { transition: transform .6s cubic-bezier(.2,.8,.2,1), opacity .5s ease .2s; }
+.holo-open.unsealed .holocron-art .cap { transform: translateY(-26px); opacity: .55; }
+.holo-open.unsealed .holocron-art .core { opacity: .85; }
 .holo-open.unsealed .holocron-art .runes { stroke: var(--seam); filter: drop-shadow(0 0 2px var(--seam)); }
-.holo-open.unsealed .holocron-art .seam.cut { animation: none; stroke: #fff; filter: drop-shadow(0 0 4px var(--seam)) drop-shadow(0 0 10px var(--seam)); }
-.holo-flare { position: fixed; left: 50%; top: 46%; border-radius: 50%; translate: -50% -50%; transform: scale(0); opacity: 0;
-  background: radial-gradient(circle, #fff 0%, #ffe3df 5%, var(--seam) 20%, color-mix(in srgb, var(--seam) 40%, #0b0406) 42%, #0b0406 66%); }
-.holo-open.flood .holo-flare { opacity: 1; transform: scale(1); transition: transform .5s cubic-bezier(.55,.05,.7,.4), opacity .15s ease; }
-.holo-open.fade .holo-flare, .holo-open.fade .holo-flyer { opacity: 0; transition: opacity .65s ease; }
-.fx-lite .holo-open.flood .holo-flare { transition-duration: .32s; }
-#app.holo-arrive { animation: holo-arrive .8s cubic-bezier(.16,.84,.44,1) both; }
-@keyframes holo-dim { to { background: rgba(4,2,3,.72); } }
-@keyframes holo-arrive { from { opacity: 0; transform: scale(1.03); filter: brightness(2.2) saturate(.6) blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.holo-open.unsealed .holocron-art .seam.cut { animation: none; stroke: #fff; filter: drop-shadow(0 0 4px var(--seam)); }
+/* The projection: a cone of light widening upward, lined like a hologram. */
+.holo-beam { position: fixed; z-index: 1; width: min(78vw, 46rem); translate: -50% 0; transform: scaleY(0); transform-origin: 50% 100%; opacity: 0;
+  clip-path: polygon(0 0, 100% 0, 53% 100%, 47% 100%);
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.07) 0 1px, transparent 1px 4px), linear-gradient(0deg, color-mix(in srgb, var(--seam) 70%, transparent), color-mix(in srgb, var(--seam) 18%, transparent) 70%, transparent);
+  transition: transform .55s cubic-bezier(.2,.8,.2,1), opacity .3s ease; }
+.holo-open.projecting .holo-beam { transform: none; opacity: 1; }
+.holo-text { position: absolute; left: 0; right: 0; top: 18%; display: grid; justify-items: center; gap: .5rem; padding: 0 12%; text-align: center; opacity: 0; }
+.holo-open.projecting .holo-text { opacity: 1; transition: opacity .25s ease .3s; animation: holo-flicker 1.6s .55s linear infinite; }
+.holo-text strong { color: #fff; font: 700 clamp(1.5rem, 4vw, 2.8rem)/1.1 var(--display); text-shadow: 0 0 .3rem #fff, 0 0 1.2rem var(--seam), 0 0 2.6rem var(--seam); }
+.holo-text small { color: color-mix(in srgb, var(--seam) 60%, #fff); font: 400 .72rem var(--mono); letter-spacing: .32em; text-transform: uppercase; opacity: .9; }
+/* The split: a line of light down the middle that opens to the edges. */
+.holo-curtain { position: fixed; inset: 0; z-index: 3; transform: scaleX(.004); opacity: 0;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.16) 0 1px, transparent 1px 4px), linear-gradient(90deg, rgba(4,2,3,.78), color-mix(in srgb, var(--seam) 75%, #1a0508) 30%, #ffece8 50%, color-mix(in srgb, var(--seam) 75%, #1a0508) 70%, rgba(4,2,3,.78)); }
+.holo-open.opening .holo-curtain { transform: none; opacity: 1; transition: transform .42s cubic-bezier(.7,0,.3,1), opacity .08s ease; }
+.holo-open.opening .holo-beam .holo-text { opacity: 0; transition: opacity .2s; animation: none; }
+.holo-open.fade .holo-curtain, .holo-open.fade .holo-beam, .holo-open.fade .holo-flyer { opacity: 0; transition: opacity .6s ease; }
+#app.holo-arrive { animation: holo-arrive .75s cubic-bezier(.16,.84,.44,1) both; }
+@keyframes holo-dim { to { background: rgba(4,2,3,.78); } }
+@keyframes holo-flicker { 0%, 44%, 50%, 100% { opacity: 1; } 46% { opacity: .45; } 80% { opacity: .82; } }
+@keyframes holo-arrive { from { opacity: 0; filter: brightness(1.8) saturate(.5) blur(3px); } to { opacity: 1; filter: none; } }
 
 /* ───────── The Code ─────────
  * See reciteCode() in app.js: each line of the Code is spoken in turn (.spoken), word by word;

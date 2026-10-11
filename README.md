@@ -56,8 +56,8 @@ Pushes to `main` deploy automatically through `.github/workflows/deploy.yml`, wh
 
 ## Effects
 
-Records are kept as holocrons; opening one lifts its capstone and floods the screen with its
-light. A page that is a roll of the fallen (a portrait, a name and a few lines, again and again,
+Records are kept as holocrons; opening one unlocks it, projects the record's name as a
+hologram and splits the screen open onto it. A page that is a roll of the fallen (a portrait, a name and a few lines, again and again,
 like the Valley of the Dark Lords) becomes a walk down a canyon past their statues, each
 waking from stone as you draw level with it.
 

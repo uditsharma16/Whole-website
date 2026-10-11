@@ -388,8 +388,10 @@ async function blastDoors(swap) {
 
 /* ───────── Opening a holocron ─────────
  * A record picked from the vault opens itself instead of going through the doors: the
- * holocron rises to the middle of the screen, its capstone lifts away, and the light inside
- * floods out to fill the screen. The record is swapped in under the light as it fades. */
+ * holocron lifts to the middle of the screen and unlocks, its capstone rising away; a beam of
+ * light projects from its core with the record's name flickering in it as a hologram; then
+ * the projection splits the screen open from the middle, like a curtain of light, onto the
+ * record, which resolves out of the scanlines. */
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 function openingHolocron(source) {
   let holocron = source?.closest?.(".holocron");
@@ -401,6 +403,7 @@ function openingHolocron(source) {
 async function holocronOpen(holocron, swap) {
   doorsBusy = true;
   const stage = byId("holoOpen");
+  const lite = perf.lite;
   let swapped = false;
   try {
     const art = holocron.querySelector(".holocron-art");
@@ -411,31 +414,33 @@ async function holocronOpen(holocron, swap) {
     flyer.className = `holo-flyer ${[...holocron.classList].filter((name) => name.startsWith("tone-")).join(" ")}`;
     flyer.style.cssText = `left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px`;
     flyer.append(art.cloneNode(true));
-    const flare = document.createElement("div");
-    flare.className = "holo-flare";
-    const diagonal = Math.hypot(innerWidth, innerHeight);
-    flare.style.cssText = `width:${diagonal * 1.25}px;height:${diagonal * 1.25}px`;
-    stage.replaceChildren(flyer, flare);
+    // Where it comes to rest, and the beam it throws up from there.
+    const size = Math.min(innerWidth * .3, innerHeight * .26, 200), scale = size / box.width;
+    const restX = innerWidth / 2, restY = innerHeight * .7;
+    const beam = document.createElement("div");
+    beam.className = "holo-beam";
+    beam.style.cssText = `left:${restX}px;top:${innerHeight * .08}px;height:${restY - innerHeight * .08 - size * .18}px`;
+    const name = holocron.querySelector(".holocron-name")?.textContent.trim() || "";
+    const ref = holocron.querySelector(".holocron-ref")?.textContent.trim() || "";
+    beam.innerHTML = `<div class="holo-text"><small>Holocron ${esc(ref)}</small><strong>${esc(name)}</strong><small>Unsealing</small></div>`;
+    const curtain = document.createElement("div");
+    curtain.className = "holo-curtain";
+    stage.replaceChildren(beam, flyer, curtain);
     stage.className = "holo-open active";
     holocron.classList.add("lifted");
-    const size = Math.min(innerWidth * .46, innerHeight * .42, 340);
-    const scale = size / box.width;
-    const dx = innerWidth / 2 - (box.left + box.width / 2), dy = innerHeight * .46 - (box.top + box.height / 2);
-    const rise = flyer.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px) scale(${scale})` }], { duration: perf.lite ? 380 : 560, easing: "cubic-bezier(.2,.75,.25,1)", fill: "forwards" });
-    await wait(perf.lite ? 260 : 400);
-    stage.classList.add("unsealed"); // the capstone lifts, the beam and core ignite
+    const dx = restX - (box.left + box.width / 2), dy = restY - (box.top + box.height / 2);
+    const rise = flyer.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px) scale(${scale})` }], { duration: lite ? 380 : 520, easing: "cubic-bezier(.2,.75,.25,1)", fill: "forwards" });
     await rise.finished.catch(() => {});
-    if (!perf.lite) {
-      const cx = innerWidth / 2, cy = innerHeight * .46;
-      for (let i = 0; i < 5; i += 1) setTimeout(() => { const a = Math.random() * Math.PI * 2, r = size * (.9 + Math.random() * .7); strike(cx, cy - size * .1, cx + Math.cos(a) * r, cy + Math.sin(a) * r, { width: 1.6 }); }, i * 70);
-    }
-    await wait(perf.lite ? 120 : 260);
-    stage.classList.add("flood"); // the light pours out over the screen
-    await wait(perf.lite ? 340 : 480);
+    stage.classList.add("unsealed"); // the capstone lifts away, the core ignites
+    await wait(lite ? 150 : 260);
+    stage.classList.add("projecting"); // the beam rises and the name resolves in it
+    await wait(lite ? 900 : 1300);
+    stage.classList.add("opening"); // the projection splits the screen open
+    await wait(lite ? 300 : 420);
     swap(); swapped = true;
     app.classList.remove("holo-arrive"); void app.offsetWidth; app.classList.add("holo-arrive");
     stage.classList.add("fade");
-    await wait(perf.lite ? 420 : 700);
+    await wait(lite ? 420 : 650);
   } finally {
     if (!swapped) swap();
     stage.className = "holo-open"; stage.replaceChildren();
