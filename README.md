@@ -65,7 +65,7 @@ Hold the pointer down on any empty part of the page to channel Force lightning, 
 archive core on the home page, or type `power`. Type `peaceisalie` (the start of the Sith
 Code, as one word) or enter it in the terminal to hear the rest of it; the archive stays
 awakened for the visit. Type `emperor` (or pick "Summon the Emperor" in the terminal) and
-Darth Azazel, the Sith Emperor, rises and powers up. Type `vanquish` (`regent` outside the Halloween hunt) and Darth Zephros, Dark
+Darth Azazel, the Sith Emperor, rises and powers up. Type `sentinel` (`regent` outside the Halloween hunt) and Darth Zephros, Dark
 Regent of the Sith, sheathes his sword as the enemies of the Sith fall. Type `knowledge` (`voice` outside the Halloween hunt) and
 Darth Soteris, the Emperor's Voice, wakes an ancient Sith temple and the Emperor's spirit
 rises behind him. Type `dhg` and the Dark Honor Guard holds the Emperor's
@@ -77,7 +77,7 @@ render the atmosphere slowly switch to a lighter mode automatically, and the foo
 
 ### The Halloween hunt (temporary)
 
-While `HUNT.on` is true in `src/client/app.js`, the Regent answers to `vanquish`, the Voice to
+While `HUNT.on` is true in `src/client/app.js`, the Regent answers to `sentinel`, the Voice to
 `knowledge` and the Wrath to `rage`, and the droid gives riddles for all eight secrets instead of its usual hints: one each
 time it is tapped and now and then on its own. It remembers which secrets this browser has found
 and keeps count. Set `HUNT.on` to `false` to return to `regent`, `voice` and `wrath` and the plain hints.
