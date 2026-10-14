@@ -1610,8 +1610,8 @@ document.addEventListener("keydown", (event) => {
 });
 
 /* ───────── The Halloween hunt (temporary) ─────────
- * While HUNT.on, two summons answer to new words ("knowledge" for the Voice, "rage" for the
- * Wrath) and the droid gives riddles instead of the plain "Type …" hints: one each time it is
+ * While HUNT.on, three summons answer to new words ("vanquish" for the Regent, "knowledge" for
+ * the Voice, "rage" for the Wrath) and the droid gives riddles instead of the plain "Type …" hints: one each time it is
  * tapped, and now and then on its own. Secrets found are remembered in this browser, their
  * riddles retire, and the droid keeps count. Set HUNT.on to false to put everything back. */
 const HUNT = {
@@ -1621,7 +1621,7 @@ const HUNT = {
     ["power", "Unlimited… what? Say the word the old Emperor screamed, and the sky will answer."],
     ["code", "The Sith Code begins with a lie. Type its first four words as one, and hear the rest."],
     ["emperor", "One sits upon the throne above all others. Call him by his title, and he rises."],
-    ["regent", "When the throne is empty, one rules in its place. Name his rank, and watch his blade."],
+    ["regent", "The Regent sheathes his blade and swears what becomes of every enemy of the Sith. Say what he swears to do."],
     ["voice", "Every holocron holds it. Every Sith hungers for it. Type it, and the Voice will answer."],
     ["wrath", "Not anger. Not fury. Four letters, red as blood. Type it, and the Wrath conquers."],
     ["hand", "Five fingers. One snap. What does the Emperor reach with?"],
@@ -1801,7 +1801,7 @@ async function summonEmperor() {
  * three cuts of blade-light cross the screen while he stands still, his sword spins down out
  * of the air and slides home into the scabbard on his back, and on the click of the hilt the
  * enemies fall apart along the cuts. Then the vow, and his name. */
-const REGENT_WORD = "regent";
+const REGENT_WORD = HUNT.on ? "vanquish" : "regent";
 const regent = { running: false, timers: [], built: false };
 const REGENT_CUTS = [[14, 36], [44, 62], [71, 93]]; // each cut: where it crosses the top and the bottom, in % of the width
 function regentEnemies() {
