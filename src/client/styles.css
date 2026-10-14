@@ -1230,6 +1230,9 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .droid-glow { position: absolute; left: 50%; bottom: -4%; width: 62%; height: 16%; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, var(--droid-eye) 0%, transparent 72%); opacity: .45; filter: blur(6px); animation: droid-glow-pulse 4.6s ease-in-out infinite; }
 .droid-bubble { position: absolute; right: 0; bottom: 100%; margin-bottom: .7rem; width: max-content; max-width: 14rem; padding: .55rem .75rem; border: 1px solid rgba(227,38,47,.35); border-radius: 3px 3px 0 3px; background: var(--glass-strong); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: var(--shadow); color: var(--ink-2); font: 400 .78rem/1.35 var(--mono); text-align: left; text-transform: none; letter-spacing: normal; opacity: 0; transform: translateY(.4rem) scale(.96); transform-origin: 100% 100%; transition: opacity .25s ease, transform .25s var(--ease); pointer-events: none; }
 .droid-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+/* A riddle for the Halloween hunt: wider, lantern-orange, with its tally on top. */
+.droid-bubble.clue { max-width: 17rem; border-color: rgba(255,138,61,.6); box-shadow: var(--shadow), 0 0 1.4rem rgba(255,120,40,.25); color: #ffe7d2; font-family: var(--serif); font-size: .92rem; font-style: italic; line-height: 1.4; }
+.bubble-label { display: block; margin-bottom: .3rem; color: var(--ember); font: 400 .62rem var(--mono); font-style: normal; letter-spacing: .18em; text-transform: uppercase; }
 .droid[data-side="left"] .droid-bubble { left: 72%; right: auto; border-radius: 3px 3px 3px 0; transform-origin: 0 100%; }
 .droid[data-vertical="top"] .droid-bubble { top: 92%; bottom: auto; margin-top: .6rem; margin-bottom: 0; }
 

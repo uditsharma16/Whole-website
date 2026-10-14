@@ -1353,7 +1353,7 @@ function renderSearch(query) {
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
   if (letters.length >= 3 && (letters === GUARD_WORD || (letters.length >= 5 && "darkhonorguard".startsWith(letters)))) matches.splice(Math.min(1, matches.length), 0, { summon: "guard", tag: "DHG", title: "Summon the Dark Honor Guard", where: "The Emperor's Shield. None shall pass.", ref: "◆", href: "#dhg" });
   if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "Darth Astarion, the Emperor's Hand", ref: "◆", href: "#hand" });
-  if (letters.length >= 5 && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Aeravix, the Emperor's Wrath", ref: "◆", href: "#wrath" });
+  if (letters.length >= Math.min(5, WRATH_WORD.length) && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Aeravix, the Emperor's Wrath", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "Darth Soteris, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Darth Zephros, Dark Regent of the Sith", ref: "◆", href: "#regent" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
@@ -1411,7 +1411,7 @@ document.addEventListener("click", (event) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault(); navigate(anchor.getAttribute("href"), anchor); return;
   }
-  if (event.target.closest("[data-recite]")) { event.preventDefault(); reciteCode(); return; }
+  if (event.target.closest("[data-recite]")) { event.preventDefault(); huntFound("code"); reciteCode(); return; }
   const summoned = event.target.closest("[data-summon]");
   if (summoned) { event.preventDefault(); summon(summoned.dataset.summon); return; }
   const scroller = event.target.closest("a[data-scroll]");
@@ -1599,15 +1599,68 @@ let typed = "";
 document.addEventListener("keydown", (event) => {
   if (riteBusy() || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || !/^[a-z]$/i.test(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
   typed = (typed + event.key.toLowerCase()).slice(-16);
-  if (typed.endsWith("power")) { typed = ""; forceStorm(); }
-  else if (typed.endsWith(CODE_WORDS)) { typed = ""; reciteCode(); }
-  else if (typed.endsWith(EMPEROR_WORD)) { typed = ""; summonEmperor(); }
-  else if (typed.endsWith(REGENT_WORD)) { typed = ""; summonRegent(); }
-  else if (typed.endsWith(VOICE_WORD)) { typed = ""; summonVoice(); }
-  else if (typed.endsWith(WRATH_WORD)) { typed = ""; summonWrath(); }
-  else if (typed.endsWith(HAND_WORD)) { typed = ""; summonHand(); }
-  else if (typed.endsWith(GUARD_WORD)) { typed = ""; summonGuard(); }
+  if (typed.endsWith("power")) { typed = ""; huntFound("power"); forceStorm(); }
+  else if (typed.endsWith(CODE_WORDS)) { typed = ""; huntFound("code"); reciteCode(); }
+  else if (typed.endsWith(EMPEROR_WORD)) { typed = ""; summon("emperor"); }
+  else if (typed.endsWith(REGENT_WORD)) { typed = ""; summon("regent"); }
+  else if (typed.endsWith(VOICE_WORD)) { typed = ""; summon("voice"); }
+  else if (typed.endsWith(WRATH_WORD)) { typed = ""; summon("wrath"); }
+  else if (typed.endsWith(HAND_WORD)) { typed = ""; summon("hand"); }
+  else if (typed.endsWith(GUARD_WORD)) { typed = ""; summon("guard"); }
 });
+
+/* ───────── The Halloween hunt (temporary) ─────────
+ * While HUNT.on, two summons answer to new words ("knowledge" for the Voice, "rage" for the
+ * Wrath) and the droid gives riddles instead of the plain "Type …" hints: one each time it is
+ * tapped, and now and then on its own. Secrets found are remembered in this browser, their
+ * riddles retire, and the droid keeps count. Set HUNT.on to false to put everything back. */
+const HUNT = {
+  on: true,
+  key: "tso-hunt-found-v1",
+  clues: [
+    ["power", "Unlimited… what? Say the word the old Emperor screamed, and the sky will answer."],
+    ["code", "The Sith Code begins with a lie. Type its first four words as one, and hear the rest."],
+    ["emperor", "One sits upon the throne above all others. Call him by his title, and he rises."],
+    ["regent", "When the throne is empty, one rules in its place. Name his rank, and watch his blade."],
+    ["voice", "Every holocron holds it. Every Sith hungers for it. Type it, and the Voice will answer."],
+    ["wrath", "Not anger. Not fury. Four letters, red as blood. Type it, and the Wrath conquers."],
+    ["hand", "Five fingers. One snap. What does the Emperor reach with?"],
+    ["guard", "Three letters stand at the Emperor's gate. Loyal. Disciplined. Unbroken."]
+  ],
+  next: 0, timer: 0
+};
+function huntFoundSet() { try { return new Set(JSON.parse(localStorage.getItem(HUNT.key) || "[]")); } catch { return new Set(); } }
+function huntFound(id) {
+  if (!HUNT.on) return;
+  const found = huntFoundSet();
+  if (found.has(id)) return;
+  found.add(id);
+  try { localStorage.setItem(HUNT.key, JSON.stringify([...found])); } catch {}
+  // Tell the hunter once the scene (and the droid's own line after it) has passed.
+  const total = HUNT.clues.length, count = found.size;
+  const report = () => {
+    if (riteBusy()) { setTimeout(report, 800); return; }
+    setTimeout(() => droidReact(count === total ? `All ${total} secrets found. The archive has no more to hide from you.` : `Secret found: ${count} of ${total}. Tap me for the next riddle.`), 4200);
+  };
+  setTimeout(report, 1500);
+}
+function huntClue(asked) {
+  const found = huntFoundSet();
+  const left = HUNT.clues.filter(([id]) => !found.has(id));
+  if (!left.length) { if (asked) droidReact(`You found all ${HUNT.clues.length} secrets. Happy Halloween, Sith.`); return; }
+  const [, clue] = left[HUNT.next++ % left.length];
+  const droid = byId("droid");
+  droid.classList.remove("startled"); void droid.offsetWidth; droid.classList.add("startled");
+  showDroidBubble(clue, { label: `Hunt · ${found.size} of ${HUNT.clues.length} found`, ms: 8000 });
+}
+// Now and then, unasked, the droid whispers a riddle.
+function scheduleHuntClue(delay = 45000 + Math.random() * 30000) {
+  clearTimeout(HUNT.timer);
+  HUNT.timer = setTimeout(() => {
+    if (!document.hidden && !riteBusy() && !byId("droidBubble").classList.contains("show")) huntClue(false);
+    scheduleHuntClue();
+  }, delay);
+}
 
 /* ───────── The Code ─────────
  * Typing "peaceisalie" (the Code's first words, as one word) anywhere outside a text field,
@@ -1837,7 +1890,7 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)();
+const summon = (who) => { if (!riteBusy()) huntFound(who); return ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)(); };
 const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running || hand.running || guard.running;
 
 /* ───────── The Dark Honor Guard ─────────
@@ -2090,7 +2143,7 @@ function startShadow() {
  * a world. The Wrath conquers: from that world crimson spreads along the hyperlanes, planet by
  * planet, each taking a flag, while four war banners slam into the ground around him and
  * unfurl. The map keeps pulling back on more worlds falling, for the conquest is never ending. */
-const WRATH_WORD = "wrath";
+const WRATH_WORD = HUNT.on ? "rage" : "wrath";
 const wrath = { running: false, timers: [], built: false };
 const WRATH_BANNERS = [{ x: 30, far: true }, { x: 70, far: true }, { x: 10 }, { x: 90 }];
 function wrathMap() {
@@ -2214,7 +2267,7 @@ function countConquests(duration) {
  * behind him: "The Emperor whispers." (.s5). Power gathers round the Voice (.s6) and is
  * released in violet lightning: "The Voice thunders." (.s7). Then the aftermath and his name
  * (.s8). The scene is drawn on a 1600 by 900 stage scaled to fill the screen. */
-const VOICE_WORD = "voice";
+const VOICE_WORD = HUNT.on ? "knowledge" : "voice";
 const voice = { running: false, timers: [], frame: 0, built: false, holocrons: [] };
 const VOICE_STAGES = [300, 1100, 2200, 3400, 4600, 5800, 6800, 8000];
 // A rune: two or three angular strokes on a stem, in a 10 by 10 cell.
@@ -2465,12 +2518,14 @@ const DROID_QUIPS = [
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
-function showDroidBubble(text) {
+function showDroidBubble(text, { label = "", ms = 2800 } = {}) {
   const bubble = byId("droidBubble");
   bubble.textContent = text;
+  if (label) { const tag = document.createElement("small"); tag.className = "bubble-label"; tag.textContent = label; bubble.prepend(tag); }
+  bubble.classList.toggle("clue", Boolean(label));
   bubble.classList.add("show");
   clearTimeout(droidBubbleTimer);
-  droidBubbleTimer = setTimeout(() => bubble.classList.remove("show"), 2800);
+  droidBubbleTimer = setTimeout(() => bubble.classList.remove("show"), ms);
 }
 function droidReact(line) {
   const droid = byId("droid");
@@ -2561,7 +2616,8 @@ function initDroid() {
   };
   droid.addEventListener("pointerup", release);
   droid.addEventListener("pointercancel", release);
-  droid.addEventListener("click", () => { if (!droidMotion.suppressClick) droidReact(); });
+  droid.addEventListener("click", () => { if (droidMotion.suppressClick) return; if (HUNT.on) huntClue(true); else droidReact(); });
+  if (HUNT.on) scheduleHuntClue(9000);
   window.addEventListener("resize", () => { placeDroid(droidMotion.x, droidMotion.y); scheduleDroidPatrol(2400); }, { passive: true });
   document.addEventListener("visibilitychange", () => { if (document.hidden) stopDroidPatrol(); else scheduleDroidPatrol(2200); });
   scheduleDroidPatrol();
@@ -2717,7 +2773,7 @@ byId("globalSearch").addEventListener("input", (event) => renderSearch(event.tar
 byId("globalSearch").addEventListener("keydown", (event) => {
   if (event.key === "ArrowDown") { event.preventDefault(); moveSearch(1); }
   if (event.key === "ArrowUp") { event.preventDefault(); moveSearch(-1); }
-  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) reciteCode(); else if (item.summon) summon(item.summon); else navigate(item.href); } }
+  if (event.key === "Enter") { const item = state.searchMatches[state.searchIndex]; if (item) { event.preventDefault(); if (item.recite) { huntFound("code"); reciteCode(); } else if (item.summon) summon(item.summon); else navigate(item.href); } }
 });
 document.addEventListener("keydown", (event) => {
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "");
