@@ -422,7 +422,7 @@ async function holocronOpen(holocron, swap) {
     beam.style.cssText = `left:${restX}px;top:${innerHeight * .08}px;height:${restY - innerHeight * .08 - size * .18}px`;
     const name = holocron.querySelector(".holocron-name")?.textContent.trim() || "";
     const ref = holocron.querySelector(".holocron-ref")?.textContent.trim() || "";
-    beam.innerHTML = `<div class="holo-text"><small>Holocron ${esc(ref)}</small><strong>${esc(name)}</strong><small>Unsealing</small></div>`;
+    beam.innerHTML = `<div class="holo-text"><small>Holocron ${esc(ref)}</small><strong>${esc(name)}</strong><small>Opening ${esc(holocron.dataset.kind || "record")}</small></div>`;
     const curtain = document.createElement("div");
     curtain.className = "holo-curtain";
     stage.replaceChildren(beam, flyer, curtain);
@@ -575,18 +575,18 @@ function holocronSvg(seed) {
 function holocronHtml(file, index = 0) {
   const r = seededRandom(file.key), r2 = seededRandom(`${file.key}:w`);
   const tone = r2 < .5 ? 0 : r2 < .68 ? 1 : r2 < .84 ? 2 : 3; // crimson most of all, then ember, violet, gold
-  return `<a class="holocron tone-${tone}" role="listitem" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}" data-holocron="${esc(file.key)}" style="--scale:${(.86 + r * .26).toFixed(3)};--d:${Math.min(index * 70, 700)}ms;--bob:${(4.2 + r2 * 2.6).toFixed(2)}s">
+  return `<a class="holocron tone-${tone}" role="listitem" data-kind="${esc((KIND[file.kind]?.label || "record").toLowerCase())}" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}" data-holocron="${esc(file.key)}" style="--scale:${(.86 + r * .26).toFixed(3)};--d:${Math.min(index * 70, 700)}ms;--bob:${(4.2 + r2 * 2.6).toFixed(2)}s">
     <span class="holocron-float">${holocronSvg(file.key)}</span>
     <span class="holocron-pool" aria-hidden="true"></span>
     <span class="holocron-name" data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</span>
-    <span class="holocron-ref">${esc(fileRefNo(file).slice(-3))} · ${esc(KIND[file.kind]?.short || "File")}</span>
+    <span class="holocron-ref">${kindIcon(file.kind)}${esc(KIND[file.kind]?.label || "File")} · ${esc(fileRefNo(file).slice(-3))}</span>
   </a>`;
 }
 function plaqueHtml(file) {
   const vault = fileVault(file);
   return `<span class="plaque-thumb" data-seed="${esc(file.key)}">${thumbHtml(file)}</span>
     <span class="plaque-text"><small>${esc(fileRefNo(file))} · ${esc(KIND[file.kind]?.label || "File")}${vault ? ` · ${esc(vault.title)}` : ""}</small><strong data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</strong></span>
-    <span class="plaque-open" aria-hidden="true">Unseal →</span>`;
+    <span class="plaque-open" aria-hidden="true">Open ${esc((KIND[file.kind]?.label || "File").toLowerCase())} →</span>`;
 }
 function shelfHtml(files) {
   if (!files.length) return "";
@@ -604,6 +604,21 @@ function setPlaque(holocron) {
   plaque.innerHTML = plaqueHtml(file);
   plaque.classList.remove("flip"); void plaque.offsetWidth; plaque.classList.add("flip");
   bindImageFallbacks(plaque);
+}
+/* A record embedded in a page: a sealed archive document. Its first page (Google's own
+ * thumbnail) lies in a dark sleeve with a turned corner and the Order's seal, so it reads
+ * at once as a document to open. */
+function artifactHtml(file) {
+  const kind = KIND[file.kind] || KIND.file;
+  return `<a class="artifact kind-${esc(file.kind)}" href="${fileHref(file)}" data-link data-prefetch="${esc(file.key)}">
+    <span class="artifact-page" data-seed="${esc(file.key)}">${thumbHtml(file)}<i class="artifact-seal" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 5 55 18v28L32 59 9 46V18Z"/><path d="m32 17 8 15-8 15-8-15Z"/></svg></i></span>
+    <span class="artifact-text">
+      <small class="artifact-kind">${kindIcon(file.kind)}${esc(kind.label)} · ${esc(kind.app)}</small>
+      <strong data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</strong>
+      <small class="artifact-ref">${esc(fileRefNo(file))}</small>
+      <span class="artifact-open">Open ${esc(kind.label.toLowerCase())} <span aria-hidden="true">→</span></span>
+    </span>
+  </a>`;
 }
 /* A catalogue slip: one record as a line in the card index. */
 function slipHtml(file, options = {}) {
@@ -635,7 +650,7 @@ function blocksHtml(blocks) {
       out.push(`<div class="button-row">${items.map((item) => item.html).join("")}</div>`);
     } else if (block.type === "file") {
       const items = run("file");
-      out.push(`<div class="slips in-prose">${items.map((item) => { const file = fileByKey(item.key); return file ? slipHtml(file) : ""; }).join("")}</div>`);
+      out.push(`<div class="artifacts">${items.map((item) => { const file = fileByKey(item.key); return file ? artifactHtml(file) : ""; }).join("")}</div>`);
     }
   }
   return out.join("");
@@ -1095,8 +1110,6 @@ function siblingsNav(file) {
 }
 function renderFile(file, options) {
   document.title = `${fileTitle(file)} — TSO Central Archives`;
-  if (file.kind === "document") return renderDoc(file, options);
-  if (file.kind === "spreadsheets") return renderSheet(file, options);
   return renderViewer(file, options);
 }
 const LOADING = (label) => `<div class="decrypting" role="status"><div class="decrypt-core">${glyph("loading")}</div><p>${esc(label)}</p><div class="decrypt-bar"><i></i></div></div>`;
@@ -1133,110 +1146,50 @@ function loadDoc(file) {
   return entry.promise;
 }
 
-let docScale = 1;
-try { docScale = Math.min(1.3, Math.max(.85, Number(localStorage.getItem("tso-archives-scale")) || 1)); } catch {}
-async function renderDoc(file, options) {
-  const token = state.renderToken;
-  app.innerHTML = `<article class="page dossier">${dossierHead(file)}<div id="docBody">${LOADING("Decrypting the record")}</div></article>`;
-  afterRender(options);
-  const doc = await loadDoc(file);
-  if (token !== state.renderToken) return;
-  if (doc.error) {
-    setStatus(doc.error === "missing" ? "Struck" : doc.error === "error" ? "Unreachable" : "Sealed", true);
-    byId("fileLength").textContent = "—";
-    byId("docBody").innerHTML = doc.error === "error" ? `<div class="sealed"><h2>The archive could not reach this record</h2><p>Google did not answer in time. Try again in a moment.</p><button class="btn" type="button" id="retryDoc">Try again</button></div>` : sealedNotice(file, doc.error);
-    byId("retryDoc")?.addEventListener("click", () => route({ instant: true }));
-    return;
-  }
-  document.title = `${fileTitle(file)} — TSO Central Archives`;
-  setStatus("Unsealed");
-  byId("fileLength").textContent = `${readingMinutes(doc.words)} min · ${doc.words.toLocaleString("en-GB")} words`;
-  byId("fileTools").innerHTML = `<span class="scale-control" role="group" aria-label="Text size"><button type="button" data-scale="-1" aria-label="Smaller text">A−</button><button type="button" data-scale="1" aria-label="Larger text">A+</button></span>
-    <button type="button" class="tool" id="copyLink">Copy link</button>${originalLink(file)}`;
-  const vault = fileVault(file);
-  const related = vault ? vault.fileKeys.map(fileByKey).filter((item) => item && item.key !== file.key) : [];
-  byId("docBody").innerHTML = `<div class="prose doc-prose" style="--doc-scale:${docScale}">${doc.html || `<p class="notice">This record is blank.</p>`}</div>
-    ${related.length ? `${SABER_RULE(`More holocrons from ${vault.title}`)}<div class="stacks">${shelfHtml(related)}</div>` : ""}
-    ${siblingsNav(file)}`;
-  app.querySelectorAll("[data-scale]").forEach((button) => button.addEventListener("click", () => {
-    docScale = Math.min(1.3, Math.max(.85, docScale + Number(button.dataset.scale) * .075));
-    app.querySelector(".doc-prose").style.setProperty("--doc-scale", docScale);
-    try { localStorage.setItem("tso-archives-scale", String(docScale)); } catch {}
-    requestAnimationFrame(layoutScrubber);
-  }));
-  byId("copyLink").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(location.href); toast("Link copied to your datapad"); } catch { toast("Copy failed — use the address bar"); }
-  });
-  const body = byId("docBody");
-  bindImageFallbacks(body); observeReveals(body);
-  setupScrubber(doc.headings);
-  if (options.hash) byId(decodeURIComponent(options.hash.slice(1)))?.scrollIntoView({ block: "start" });
-  updateProgress();
-}
-
-async function renderSheet(file, options) {
-  const token = state.renderToken;
-  app.innerHTML = `<article class="page dossier sheet-page">${dossierHead(file)}<div id="sheetBody">${LOADING("Opening the ledger")}</div></article>`;
-  afterRender(options);
-  const base = `/api/sheet?id=${encodeURIComponent(file.id)}${file.pub ? "&pub=1" : ""}`;
-  let tabs = [], status = "";
-  try {
-    const body = await (await fetch(base)).json();
-    if (body.ok) tabs = P.sheet(body.html).tabs; else status = body.status || "error";
-    if (!tabs.length && status !== "restricted" && status !== "missing") {
-      const csvBody = await (await fetch(`${base}&format=csv${file.gid ? `&gid=${file.gid}` : ""}`)).json();
-      if (csvBody.ok) { const rows = P.csv(csvBody.csv); if (rows.length) tabs = [{ gid: file.gid || "0", name: "Sheet", rows }]; status = ""; }
-      else status = csvBody.status || status;
-    }
-  } catch { status = "error"; }
-  if (token !== state.renderToken) return;
-  if (!tabs.length) { setStatus("Sealed", true); byId("fileLength").textContent = "—"; byId("sheetBody").innerHTML = sealedNotice(file, status === "missing" ? "missing" : "restricted"); return; }
-  setStatus("Unsealed");
-  byId("fileLength").textContent = `${plural(tabs.length, "sheet")} · ${plural(tabs.reduce((sum, tab) => sum + Math.max(0, tab.rows.length - 1), 0), "row")}`;
-  let active = Math.max(0, tabs.findIndex((tab) => tab.gid === file.gid));
-  let filter = "";
-  const paint = () => {
-    const tab = tabs[active];
-    const [head, ...rows] = tab.rows;
-    const matches = filter ? rows.filter((row) => row.some((cell) => cell.text.toLowerCase().includes(filter))) : rows;
-    const cell = (item, tag) => `<${tag}>${item.href ? (() => { const link = P.resolveLink(item.href); return link ? `<a href="${esc(link.href)}"${link.internal ? " data-link" : ' target="_blank" rel="noopener"'}>${esc(item.text)}</a>` : esc(item.text); })() : esc(item.text)}</${tag}>`;
-    byId("sheetTable").innerHTML = `<table><thead><tr>${head.map((item) => cell(item, "th")).join("")}</tr></thead><tbody>${matches.slice(0, 800).map((row) => `<tr>${row.map((item) => cell(item, "td")).join("")}</tr>`).join("")}</tbody></table>`;
-    byId("sheetCount").textContent = `${filter ? `${matches.length} of ` : ""}${plural(rows.length, "row")}${matches.length > 800 ? " · first 800 shown" : ""}`;
-    app.querySelectorAll(".sheet-tabs button").forEach((button, index) => button.setAttribute("aria-pressed", String(index === active)));
-  };
-  byId("sheetBody").innerHTML = `<div class="sheet-tools">
-      ${tabs.length > 1 ? `<div class="sheet-tabs kind-filter" role="group" aria-label="Sheets">${tabs.map((tab, index) => `<button type="button" data-tab="${index}" aria-pressed="false">${esc(tab.name)}</button>`).join("")}</div>` : "<span></span>"}
-      <label class="filter"><span aria-hidden="true">›</span><input id="sheetFilter" type="search" placeholder="filter rows" autocomplete="off" aria-label="Filter rows" /></label>
-    </div>
-    <p class="sheet-count" id="sheetCount"></p>
-    <div class="table-wrap ledger-table" id="sheetTable"></div>
-    ${siblingsNav(file)}`;
-  app.querySelectorAll(".sheet-tabs button").forEach((button) => button.addEventListener("click", () => { active = Number(button.dataset.tab); paint(); }));
-  byId("sheetFilter").addEventListener("input", (event) => { filter = event.target.value.trim().toLowerCase(); paint(); });
-  paint();
-  updateProgress();
-}
-
-function renderViewer(file, options) {
-  const id = encodeURIComponent(file.id);
-  const pub = file.pub ? "e/" : "";
-  const frames = {
+/* Every record opens as itself: Google's own viewer for the document, sheet, deck, form or
+ * file, framed in the archive. (Rebuilding them here lost too much of their formatting.) */
+function viewerFrame(file) {
+  const id = encodeURIComponent(file.id), pub = file.pub ? "e/" : "", gid = file.gid ? encodeURIComponent(file.gid) : "";
+  return {
+    document: { src: file.pub ? `https://docs.google.com/document/d/e/${id}/pub?embedded=true` : `https://docs.google.com/document/d/${id}/preview`, shape: "page" },
+    spreadsheets: { src: file.pub ? `https://docs.google.com/spreadsheets/d/e/${id}/pubhtml?widget=true&headers=false${gid ? `&gid=${gid}` : ""}` : `https://docs.google.com/spreadsheets/d/${id}/preview${gid ? `#gid=${gid}` : ""}`, shape: "page" },
     presentation: { src: `https://docs.google.com/presentation/d/${pub}${id}/embed?start=false&loop=false&delayms=6000`, shape: "slides" },
     forms: { src: `https://docs.google.com/forms/d/${pub}${id}/viewform?embedded=true`, shape: "tall" },
     file: { src: `https://drive.google.com/file/d/${id}/preview`, shape: "tall" },
     folder: { src: `https://drive.google.com/embeddedfolderview?id=${id}#grid`, shape: "folder" }
-  };
-  const frame = frames[file.kind];
+  }[file.kind];
+}
+function renderViewer(file, options) {
+  const token = state.renderToken;
+  const frame = viewerFrame(file);
+  const kind = KIND[file.kind] || KIND.file;
   const drawing = `/api/img?u=${encodeURIComponent(`https://docs.google.com/drawings/d/${file.id}/export/png`)}`;
-  const body = file.kind === "drawings"
-    ? `<div class="viewer viewer-image"><button data-zoom="${drawing}" aria-label="Enlarge drawing"><img src="${drawing}" alt="${esc(fileTitle(file))}" /></button></div>`
-    : `<div class="viewer viewer-${frame.shape}"><iframe src="${esc(frame.src)}" title="${esc(fileTitle(file))}" loading="lazy" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe></div>`;
-  app.innerHTML = `<article class="page dossier viewer-page">${dossierHead(file, "Projected", "Projected")}
-    ${body}
-    <p class="viewer-note">If the projection stays dark, the record has not been shared publicly — open it in ${esc(KIND[file.kind]?.app || "Google Drive")} instead.</p>
+  const view = file.kind === "drawings"
+    ? `<div class="viewer-image"><button data-zoom="${drawing}" aria-label="Enlarge drawing"><img src="${drawing}" alt="${esc(fileTitle(file))}" /></button></div>`
+    : `<iframe src="${esc(frame.src)}" title="${esc(fileTitle(file))}" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+  const vault = fileVault(file);
+  const related = vault ? vault.fileKeys.map(fileByKey).filter((item) => item && item.key !== file.key) : [];
+  app.innerHTML = `<article class="page dossier viewer-page">${dossierHead(file, "—", "Open")}
+    <section class="viewer viewer-${frame?.shape || "image"}" aria-label="${esc(kind.label)}">
+      <header class="viewer-bar">
+        <span class="viewer-kind">${kindIcon(file.kind)}${esc(kind.label)}</span>
+        <span class="viewer-name" data-file-name="${esc(file.key)}">${esc(fileTitle(file))}</span>
+        <a class="viewer-out" href="${esc(originalUrl(file))}" target="_blank" rel="noopener">Open in ${esc(kind.app)} ↗</a>
+      </header>
+      <div class="viewer-body">${view}</div>
+    </section>
+    <p class="viewer-note">Shown here exactly as it is in ${esc(kind.app)}. If it stays blank, the record has not been shared publicly — open it in ${esc(kind.app)} instead.</p>
+    ${related.length ? `${SABER_RULE(`More holocrons from ${vault.title}`)}<div class="stacks">${shelfHtml(related)}</div>` : ""}
     ${siblingsNav(file)}
   </article>`;
+  byId("fileTools")?.remove(); // the frame's own bar carries the link out
   afterRender(options);
+  // A document's length still comes from its text (also used by the archive's search).
+  if (file.kind === "document") loadDoc(file).then((doc) => {
+    if (token !== state.renderToken) return;
+    if (doc.error) { if (doc.error !== "error") setStatus(doc.error === "missing" ? "Struck" : "Sealed", true); return; }
+    byId("fileLength").textContent = `${readingMinutes(doc.words)} min · ${doc.words.toLocaleString("en-GB")} words`;
+  });
 }
 
 function renderNotFound() {
@@ -1389,7 +1342,7 @@ function bindImageFallbacks(root) {
       image.removeEventListener("error", fail);
       const statue = image.closest(".statue");
       if (statue) { statue.classList.add("faceless"); statue.querySelector("[data-zoom]")?.removeAttribute("data-zoom"); image.remove(); return; }
-      const thumb = image.closest(".plaque-thumb, .dossier-thumb");
+      const thumb = image.closest(".plaque-thumb, .dossier-thumb, .artifact-page");
       if (thumb) { thumb.classList.add("is-glyph"); image.replaceWith(document.createRange().createContextualFragment(glyph(thumb.dataset.seed || image.alt || "record"))); return; }
       if (image.classList.contains("chamber-banner")) { image.closest(".chamber-head")?.classList.remove("has-banner"); image.remove(); return; }
       (image.closest("figure") || image).remove();
