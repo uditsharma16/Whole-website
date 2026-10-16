@@ -81,3 +81,18 @@ While `HUNT.on` is true in `src/client/app.js`, the Regent answers to `sentinel`
 `knowledge` and the Wrath to `rage`, and the droid gives riddles for all eight secrets instead of its usual hints: one each
 time it is tapped and now and then on its own. It remembers which secrets this browser has found
 and keeps count. Set `HUNT.on` to `false` to return to `regent`, `voice` and `wrath` and the plain hints.
+
+### The Halloween theme (seasonal)
+
+Until `HALLOWEEN.until` (2 November 2026) the archive wears a Nightsister Halloween theme, on by
+default:
+- **Colours.** The crimson turns green with pumpkin-orange accents, and the default holocrons glow green.
+- **Effects.** The embers become green spirit-fire, Force lightning crackles green, and the sky flashes green.
+- **Background layer.** A sickly moon, a cobweb with a spider, bats, hooded Sith spectres, green fog, blinking eyes and a graveyard of Sith tombstones (one of them the Jedi's).
+- **The droid.** It wears a witch's hat.
+- **The pumpkin patch.** Pressing the jack-o'-lanterns at the foot of the stage releases a swarm of bats.
+
+Visitors can switch the theme off from the rail, and that choice is remembered. Lite mode and
+reduced motion hold the scene still. The `<head>` script in `index.html` carries the same end date
+so the theme applies before the first paint. Keep both dates in step, or set
+`HALLOWEEN.enabled = false` to retire the theme early.

@@ -669,7 +669,7 @@ const HERO_CORE = (() => {
   return `<svg viewBox="-100 -100 200 200" aria-hidden="true">
   <defs>
     <path id="coreTextPath" d="M0,-76 a76,76 0 1,1 -0.01,0"/>
-    <linearGradient id="kyber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd2c8"/><stop offset=".35" stop-color="#ff3b44"/><stop offset="1" stop-color="#5c0610"/></linearGradient>
+    <linearGradient id="kyber" x1="0" y1="0" x2="0" y2="1"><stop class="kyber-a" offset="0" stop-color="#ffd2c8"/><stop class="kyber-b" offset=".35" stop-color="#ff3b44"/><stop class="kyber-c" offset="1" stop-color="#5c0610"/></linearGradient>
   </defs>
   <g class="ring r1" stroke-width=".6"><circle r="97"/>${ticks}</g>
   <g class="ring r2"><text class="core-text"><textPath href="#coreTextPath">KNOWLEDGE IS POWER · THE ARCHIVES REMEMBER · PEACE IS A LIE · THERE IS ONLY PASSION ·</textPath></text></g>
@@ -1472,10 +1472,12 @@ function drawLightning() {
     if (bolt.life <= 0) { bolts.splice(i, 1); continue; }
     const flicker = bolt.life * (.65 + Math.random() * .35);
     const trace = () => { lctx.beginPath(); bolt.points.forEach(([x, y], index) => (index ? lctx.lineTo(x, y) : lctx.moveTo(x, y))); lctx.stroke(); };
-    if (!perf.lite) { lctx.shadowColor = "rgba(150,130,255,.9)"; lctx.shadowBlur = 18; }
-    lctx.strokeStyle = `rgba(140,120,255,${(flicker * .55).toFixed(3)})`; lctx.lineWidth = bolt.width * 3.2; trace();
+    // Nightsister magick crackles green while the Halloween theme is on.
+    const [glow, core] = halloween.on ? ["90,255,120", "225,255,225"] : ["140,120,255", "235,232,255"];
+    if (!perf.lite) { lctx.shadowColor = `rgba(${glow},.9)`; lctx.shadowBlur = 18; }
+    lctx.strokeStyle = `rgba(${glow},${(flicker * .55).toFixed(3)})`; lctx.lineWidth = bolt.width * 3.2; trace();
     lctx.shadowBlur = 0;
-    lctx.strokeStyle = `rgba(235,232,255,${flicker.toFixed(3)})`; lctx.lineWidth = bolt.width; trace();
+    lctx.strokeStyle = `rgba(${core},${flicker.toFixed(3)})`; lctx.lineWidth = bolt.width; trace();
   }
   if (bolts.length || channel.active) requestAnimationFrame(drawLightning);
   else { lightningLoop = false; lctx.clearRect(0, 0, innerWidth, innerHeight); }
@@ -2638,6 +2640,147 @@ function watchFrameRate() {
   requestAnimationFrame(tick);
 }
 
+/* ───────── Seasonal wrapper: Halloween ─────────
+ * Dathomir comes to the archive: the crimson turns Nightsister green, embers become
+ * spirit-fire, Force lightning crackles green, and a fixed layer behind the page holds a
+ * sickly moon, a web with a dangling spider, bats, hooded Sith spectres drifting through
+ * the dark, a graveyard of Sith tombstones in green fog, eyes that blink from the shadows
+ * and a patch of jack-o'-lanterns (press them: trick or treat). The droid wears a
+ * Nightsister's hat. Page content is never covered except by the small pumpkin patch.
+ * Lite mode and reduced motion hold the same scene still. On by default for the season,
+ * switchable from the rail (remembered). The <head> script in index.html applies the
+ * class before first paint and carries the same end date: keep both in step.
+ * Site-wide off: HALLOWEEN.enabled = false (and drop the class from that script). */
+const HALLOWEEN = { enabled: true, until: "2026-11-02" };
+const HW_PREF = "tso-halloween";
+const halloween = { on: false, built: false, recolor: null, swarm: 0 };
+const HW_EMBERS = ["95,227,106", "150,255,140", "60,200,90", "205,255,170", "255,140,26"];
+const HW_QUIPS = [
+  "Something is moving in the graveyard.",
+  "The Nightsisters have claimed the archive tonight.",
+  "Trick or treat. Mostly trick.",
+  "The pumpkins are restless. Press one.",
+  "Even the spectres come to read here.",
+  "Do not feed the bats. Or the Sithspawn.",
+  "Here lies the Jedi Order. Rest in pieces.",
+];
+const HW_SPECTRE = `<svg viewBox="0 0 80 124"><path d="M40 3C22 3 12 19 12 37c0 15-3 30-8 48 6-4 10 2 12 12 4-8 10-5 12 8 4-10 10-6 12 14 2-20 8-24 12-14 2-13 8-16 12-8 2-10 6-16 12-12-5-18-8-33-8-48C68 19 58 3 40 3z" fill="url(#hwSpectre)"/><path d="M40 14c-11 0-18 10-18 22 0 11 8 18 18 18s18-7 18-18c0-12-7-22-18-22z" fill="#020a05"/><path d="M14 52c8 6 14 18 14 30M66 52c-8 6-14 18-14 30" fill="none" stroke="rgba(190,255,200,.35)" stroke-width="1.6" stroke-linecap="round"/><ellipse class="hw-spectre-eye" cx="33" cy="35" rx="3.4" ry="1.7"/><ellipse class="hw-spectre-eye" cx="47" cy="35" rx="3.4" ry="1.7"/></svg>`;
+const HW_GRAVEYARD = `<svg class="hw-graveyard" viewBox="0 0 1440 140" preserveAspectRatio="xMidYMax slice">
+  <path class="hw-iron" stroke-width="5" d="M1320 114C1322 84 1316 62 1310 40M1312 58C1296 48 1288 42 1274 34M1314 50C1330 38 1342 32 1358 28M1310 40C1308 28 1312 18 1320 8M1284 39 1270 26M1346 31 1356 16M1274 34C1268 36 1262 34 1258 30"/>
+  <path class="hw-iron" stroke-width="4" d="M604 106V76M626 104V72M648 105V78M670 103V70M692 106V75M714 104V73M736 105V79M758 103V71M780 106V76M598 86H786M598 98H786"/>
+  <g class="hw-stone"><path d="M380 114V82q0-17 18-17t18 17v32z"/><path class="hw-rune" d="M398 74 405 78v8L398 90 391 86v-8Z"/></g>
+  <g class="hw-stone" transform="rotate(-7 520 100)"><path d="M504 114V80q0-16 16-16t16 16v34z"/><text x="520" y="92" text-anchor="middle">RIP</text></g>
+  <g class="hw-stone"><path d="M840 112V58l10-14 10 14v54z"/><path class="hw-rune" d="M850 66 855 69v6L850 78 845 75v-6Z"/></g>
+  <g class="hw-stone"><path d="M900 112V66q0-22 26-22t26 22v46z"/><text x="926" y="80" text-anchor="middle">JEDI</text><text class="hw-small" x="926" y="92" text-anchor="middle">R.I.P.</text></g>
+  <g class="hw-stone" transform="rotate(6 1060 96)"><path d="M1046 108V80h-11v-9h11V60h10v11h11v9h-11v28z"/></g>
+  <g class="hw-stone" transform="rotate(4 1190 98)"><path d="M1176 108V88q0-10 12-10t12 10v20z"/></g>
+  <path class="hw-ground" d="M0 140V112q120-14 260-4t300-6 320 6 300-10 260 8v34z"/>
+</svg>`;
+const HW_BAT = `<svg viewBox="0 0 64 28"><path d="M32 11C30 7 28 6 26 6c1 2 1 3 0 4-4-3-11-5-20-3 4 2 5 5 4 8 4-1 7 0 9 3 2-2 5-2 7 0l6 6 6-6c2-2 5-2 7 0 2-3 5-4 9-3-1-3 0-6 4-8-9-2-16 0-20 3-1-1-1-2 0-4-2 0-4 1-6 5z"/></svg>`;
+const HW_SPIDER = `<svg class="hw-spider-body" viewBox="0 0 40 40"><path d="M16 18 8 10 4 14M16 20 6 18 2 24M16 22 8 26 6 33M17 24 12 30 12 37M24 18 32 10 36 14M24 20 34 18 38 24M24 22 32 26 34 33M23 24 28 30 28 37" fill="none" stroke="#2c3a30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="20" cy="22" rx="6" ry="7" fill="#1d2a21"/><circle cx="20" cy="13.5" r="4" fill="#1d2a21"/><circle cx="18.6" cy="13" r="1" fill="#8cff6a"/><circle cx="21.4" cy="13" r="1" fill="#8cff6a"/></svg>`;
+const HW_PUMPKIN = `<svg viewBox="0 0 100 92"><path d="M47 22c0-9 3-14 9-17l4 4c-5 2-7 7-7 13z" fill="#3f6b25"/><path d="M58 9c8-2 14 2 16 8-6-3-11-3-15-1z" fill="#4c8a2a"/><ellipse cx="29" cy="56" rx="24" ry="32" fill="#b24a0a"/><ellipse cx="71" cy="56" rx="24" ry="32" fill="#b24a0a"/><ellipse cx="50" cy="56" rx="27" ry="35" fill="#e2690f"/><path d="M50 22v68" stroke="#b24a0a" stroke-width="1.6" opacity=".6"/><g class="hw-face" fill="#ffd36a"><path d="M27 48l12-10 6 12z"/><path d="M55 50l6-12 12 10z"/><path d="M46 58l4-8 4 8z"/><path d="M24 62q26 12 52 0-4 20-26 22-22-2-26-22z"/></g><path d="M34 65l5 8 5-7zM52 67l5 7 5-8zM44 79l3-6 3 6z" fill="#e2690f"/></svg>`;
+
+function halloweenInSeason() {
+  return HALLOWEEN.enabled && Date.now() < new Date(`${HALLOWEEN.until}T00:00:00`).getTime();
+}
+/* A corner web for the top-right of the viewport: spokes fanning from the corner, joined
+ * by rings that sag slightly toward it (the SVG is mirrored in CSS). */
+function hwWeb() {
+  const spokes = [0, 15, 30, 45, 60, 75, 90].map((deg) => (deg * Math.PI) / 180);
+  const at = (r, a) => `${(r * Math.cos(a)).toFixed(1)} ${(r * Math.sin(a)).toFixed(1)}`;
+  let d = spokes.map((a) => `M0 0L${at(220, a)}`).join("");
+  for (const r of [34, 70, 108, 150, 196]) {
+    for (let i = 0; i < spokes.length - 1; i += 1) d += `M${at(r, spokes[i])}Q${at(r * .86, (spokes[i] + spokes[i + 1]) / 2)} ${at(r, spokes[i + 1])}`;
+  }
+  return `<svg class="hw-web" viewBox="0 0 220 220"><path d="${d}"/></svg>`;
+}
+function buildHalloween() {
+  if (halloween.built) return;
+  halloween.built = true;
+  // sx/sy: where a bat hangs when the scene is held still (Lite / reduced motion).
+  const bats = [
+    { w: 40, y: "9vh", dur: 24, delay: -3, sx: "63vw", sy: "3vh" },
+    { w: 26, y: "21vh", dur: 31, delay: -14, sx: "50vw", sy: "10vh", back: true },
+    { w: 32, y: "14vh", dur: 27, delay: -20, sx: "57vw", sy: "15vh" },
+    { w: 22, y: "30vh", dur: 35, delay: -8, sx: "0", sy: "0", back: true },
+    { w: 28, y: "5vh", dur: 29, delay: -25, sx: "0", sy: "0" },
+  ];
+  // Spectres drift between A and B, fading as they pass; S is where each waits when held still.
+  const spectres = [
+    { size: 84, ax: "26vw", ay: "58vh", bx: "34vw", by: "26vh", sx: "28vw", sy: "40vh", dur: 18, delay: -4 },
+    { size: 70, ax: "90vw", ay: "36vh", bx: "80vw", by: "60vh", sx: "88vw", sy: "46vh", dur: 21, delay: -9 },
+    { size: 54, ax: "44vw", ay: "14vh", bx: "70vw", by: "8vh", sx: "52vw", sy: "12vh", dur: 26, delay: -12, wide: true },
+    { size: 46, ax: "30vw", ay: "78vh", bx: "76vw", by: "70vh", sx: "0", sy: "0", dur: 30, delay: -18, roamer: true, wide: true },
+  ];
+  const eyes = [
+    { at: "left:calc(var(--rail-w) + 14vw);bottom:5vh", eye: 6, gap: 7, blink: 6, delay: -1 },
+    { at: "right:30vw;bottom:8vh", eye: 5, gap: 6, blink: 8, delay: -5, wide: true },
+    { at: "right:2.4vw;top:42vh", eye: 7, gap: 8, blink: 7, delay: -3 },
+  ];
+  byId("hwLayer").innerHTML = `
+    <div class="hw-moon"><i></i></div>
+    ${hwWeb()}
+    <div class="hw-spider"><i class="hw-thread"></i>${HW_SPIDER}</div>
+    <div class="hw-bats">${bats.map((b) => `<div class="hw-bat${b.back ? " is-back" : ""}" style="--w:${b.w}px;--y:${b.y};--dur:${b.dur}s;--delay:${b.delay}s;--sx:${b.sx};--sy:${b.sy}">${HW_BAT}</div>`).join("")}</div>
+    <div class="hw-spectres">${spectres.map((g) => `<div class="hw-spectre${g.roamer ? " is-roamer" : ""}${g.wide ? " is-wide" : ""}" style="--size:${g.size}px;--sx:${g.sx};--sy:${g.sy};--ax:${g.ax};--ay:${g.ay};--bx:${g.bx};--by:${g.by};--dur:${g.dur}s;--delay:${g.delay}s"><div class="hw-spectre-bob">${HW_SPECTRE}</div></div>`).join("")}</div>
+    <div class="hw-spectre-peek">${HW_SPECTRE}</div>
+    <div class="hw-graveyard-glow"></div>
+    <div class="hw-fog hw-fog-a"></div><div class="hw-fog hw-fog-b"></div>
+    ${HW_GRAVEYARD}
+    ${eyes.map((e) => `<div class="hw-eyes${e.wide ? " is-wide" : ""}" style="${e.at};--eye:${e.eye}px;--gap:${e.gap}px;--blink:${e.blink}s;--delay:${e.delay}s"><i></i><i></i></div>`).join("")}`;
+  byId("hwPatch").innerHTML = `<span class="hw-pumpkin"><i class="hw-pumpkin-glow"></i>${HW_PUMPKIN}</span><span class="hw-pumpkin is-small"><i class="hw-pumpkin-glow"></i>${HW_PUMPKIN}</span>`;
+}
+/* Trick or treat: the lanterns flare and a swarm of bats bursts out across the screen. */
+const HW_TRICKS = ["Trick or treat!", "You woke the bats.", "The lanterns remember you.", "Bats. Why is it always bats.", "Treat denied. Trick granted."];
+function hwTrick() {
+  const patch = byId("hwPatch");
+  patch.classList.remove("flare"); void patch.offsetWidth; patch.classList.add("flare");
+  droidReact(HW_TRICKS[halloween.swarm++ % HW_TRICKS.length]);
+  if (reducedMotion.matches || perf.lite) return;
+  const box = patch.getBoundingClientRect();
+  const swarm = document.createElement("div");
+  swarm.className = "hw-swarm";
+  swarm.setAttribute("aria-hidden", "true");
+  swarm.innerHTML = Array.from({ length: 22 }, (_, i) => {
+    const angle = -Math.PI / 2 + (Math.random() - .3) * 1.9;
+    const reach = innerHeight * (.55 + Math.random() * .6);
+    return `<i class="hw-swarm-bat" style="--x0:${(box.left + box.width / 2).toFixed(0)}px;--y0:${(box.top + box.height * .4).toFixed(0)}px;--dx:${(Math.cos(angle) * reach * 1.4).toFixed(0)}px;--dy:${(Math.sin(angle) * reach).toFixed(0)}px;--w:${(26 + Math.random() * 38).toFixed(0)}px;--t:${(1.3 + Math.random() * .9).toFixed(2)}s;--d:${(i * .04).toFixed(2)}s">${HW_BAT}</i>`;
+  }).join("");
+  document.body.appendChild(swarm);
+  setTimeout(() => swarm.remove(), 2800);
+}
+function setHalloween(on) {
+  halloween.on = on;
+  if (on) buildHalloween();
+  document.documentElement.classList.toggle("theme-halloween", on);
+  byId("hwLayer").hidden = !on;
+  byId("hwPatch").hidden = !on;
+  byId("hwToggle").setAttribute("aria-checked", String(on));
+  byId("hwToggleState").textContent = on ? "On" : "Off";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", on ? "#040a06" : "#070508");
+  halloween.recolor?.();
+}
+function initHalloween() {
+  if (!halloweenInSeason()) { document.documentElement.classList.remove("theme-halloween"); return; }
+  byId("hwToggle").hidden = false;
+  let pref = null;
+  try { pref = localStorage.getItem(HW_PREF); } catch {}
+  setHalloween(pref !== "off");
+  if (halloween.on) DROID_QUIPS.push(...HW_QUIPS);
+  if (!halloween.on) return;
+  try {
+    if (sessionStorage.getItem("tso-hw-greeted")) return;
+    sessionStorage.setItem("tso-hw-greeted", "1");
+  } catch {}
+  setTimeout(() => { if (halloween.on && !riteBusy()) showDroidBubble("The Nightsisters have claimed the archive. Happy Halloween.", { ms: 4200 }); }, 2600);
+}
+function toggleHalloween() {
+  setHalloween(!halloween.on);
+  try { localStorage.setItem(HW_PREF, halloween.on ? "on" : "off"); } catch {}
+  for (const line of HW_QUIPS) { const at = DROID_QUIPS.indexOf(line); if (at >= 0) DROID_QUIPS.splice(at, 1); }
+  if (halloween.on) DROID_QUIPS.push(...HW_QUIPS);
+}
+
 /* ───────── Atmosphere ─────────
  * Embers rise from the bottom of the archive, sway, flicker, and scatter away from the
  * pointer; the crimson aura follows the cursor and the archive core tilts toward it. */
@@ -2661,7 +2804,9 @@ function createAtmosphere() {
   if (!context) return;
   const colors = ["255,72,64", "255,138,61", "227,38,47", "255,196,150", "157,140,255"];
   let width = 0, height = 0, embers = [], running = true, looping = false;
-  const spawn = (anywhere) => ({ x: Math.random() * width, y: anywhere ? Math.random() * height : height + 10, vx: 0, size: .6 + Math.random() * 1.8, speed: .25 + Math.random() * .7, sway: Math.random() * Math.PI * 2, swaySpeed: .004 + Math.random() * .014, alpha: .25 + Math.random() * .55, color: colors[Math.random() < .08 ? 4 : Math.floor(Math.random() * 4)] });
+  const pickColor = () => { const palette = halloween.on ? HW_EMBERS : colors; return palette[Math.random() < .08 ? 4 : Math.floor(Math.random() * 4)]; };
+  const spawn = (anywhere) => ({ x: Math.random() * width, y: anywhere ? Math.random() * height : height + 10, vx: 0, size: .6 + Math.random() * 1.8, speed: .25 + Math.random() * .7, sway: Math.random() * Math.PI * 2, swaySpeed: .004 + Math.random() * .014, alpha: .25 + Math.random() * .55, color: pickColor() });
+  halloween.recolor = () => { for (const ember of embers) ember.color = pickColor(); };
   const resize = () => {
     const ratio = Math.min(devicePixelRatio || 1, 2);
     width = innerWidth; height = innerHeight;
@@ -2721,6 +2866,8 @@ byId("menuToggle").addEventListener("click", () => (document.body.classList.cont
 byId("searchTrigger").addEventListener("click", () => openSearch());
 byId("searchTriggerMobile").addEventListener("click", () => openSearch());
 byId("fxToggle").addEventListener("click", toggleFxMode);
+byId("hwToggle").addEventListener("click", toggleHalloween);
+byId("hwPatch").addEventListener("click", hwTrick);
 byId("closeSearch").addEventListener("click", closeSearch);
 byId("globalSearch").addEventListener("input", (event) => renderSearch(event.target.value));
 byId("globalSearch").addEventListener("keydown", (event) => {
@@ -2736,6 +2883,7 @@ document.addEventListener("keydown", (event) => {
 narrow.addEventListener("change", () => { closeMenus(); placeDroid(droidMotion.x, droidMotion.y); });
 window.addEventListener("popstate", () => route({ hash: location.hash }));
 applyChosenFxMode();
+initHalloween();
 createAtmosphere();
 initDroid();
 start();
