@@ -1210,13 +1210,13 @@ const PP_PATHS = [
     entry: "Trial of Courage, from Warrior", minRank: 2, t: { combat: 3, lead: 1, guard: 1 } },
   { id: "sorcerer", kind: "pathway", name: "Sorcerer", sphere: "Ancient Knowledge",
     blurb: "Keepers of the Order's history, lore and mysteries. They build world-building events, relics and archive records, often with the Dread Hosts.",
-    entry: "See the SoAK guidelines", t: { lore: 3, events: 2, teaching: 1, community: 1 } },
+    entry: "Warrior+ · see the SoAK guidelines", minRank: 2, t: { lore: 3, events: 2, teaching: 1, community: 1 } },
   { id: "assassin", kind: "pathway", name: "Assassin", sphere: "Imperial Judgement",
     blurb: "Trained to move unseen, infiltrate, gather intelligence and eliminate targets through contracts. Held as the most disciplined of the Order.",
-    entry: "See the POA guidelines", t: { stealth: 3, combat: 2, enforce: 1 } },
+    entry: "Warrior+ · see the POA guidelines", minRank: 2, t: { stealth: 3, combat: 2, enforce: 1 } },
   { id: "dark-honor-guard", kind: "pathway", name: "Dark Honor Guard", sphere: "The Emperor's detachment",
     blurb: "Personal protectors of the Emperor. They lock down spawn points and strongholds, and answer only to the Powerbase and the Emperor.",
-    entry: "Guardsmen Academy, as Acolyte (rarely Warrior)", minRank: 1, maxRank: 2,
+    entry: "Guardsmen Academy, Acolyte+", minRank: 1,
     warn: "Joining means leaving the main Sith progression. You can only join divisions linked to the Guard.",
     t: { guard: 3, combat: 2, enforce: 1 } },
   { id: "galactic-influence", kind: "pathway", name: "Galactic Influence", sphere: "Galactic Influence",
@@ -1224,10 +1224,10 @@ const PP_PATHS = [
     entry: "Application, Acolyte+", minRank: 1, t: { community: 3, events: 2, lead: 1 } },
   { id: "courts-and-appeals", kind: "pathway", name: "Courts and Appeals", sphere: "Courts and Appeals",
     blurb: "The final arbiter on appeals against blacklists, rank-locks and SR deductions. Imperial Accusers prosecute; Imperial Advocates defend.",
-    entry: "Application, Warrior+", minRank: 2, t: { law: 3, enforce: 1, lead: 1 } },
+    entry: "Application, Acolyte+", minRank: 1, t: { law: 3, enforce: 1, lead: 1 } },
   { id: "education-and-academics", kind: "pathway", name: "Education and Academics", sphere: "Education & Academics",
     blurb: "The Sith Academy: an alternative route for Acolytes without a master. Dark Mentors run training; Sith Instructors host Warrior Trials.",
-    entry: "Application: Acolyte, Dark Honor Guard or Warrior+", minRank: 1, t: { teaching: 3, lead: 1, community: 1 } },
+    entry: "Application, Acolyte+", minRank: 1, t: { teaching: 3, lead: 1, community: 1 } },
   { id: "inquisitors", kind: "division", name: "Inquisitors", sphere: "Imperial Judgement",
     blurb: "Enforcers of Sith Doctrine who root out heresy and weakness, and take reports against members of the Order.",
     entry: "Tryout, from Acolyte · led by the Grand Inquisitor", minRank: 1, t: { enforce: 3, stealth: 1, law: 1, guard: 1 } },
@@ -1267,7 +1267,7 @@ const PP_STEPS = [
     opts: [
       ["First through the gate, saber lit.", { combat: 2 }],
       ["Behind their lines, waiting for their commander to turn his back.", { stealth: 2, combat: 1 }],
-      ["Holding the spawn point so no one gets through.", { guard: 2 }],
+      ["Guarding the VIP so no one gets near them.", { guard: 2 }],
       ["Calling formations and telling everyone where to go.", { lead: 2, combat: 1 }]
     ] },
   { type: "single", title: "Pick your ideal night in the Order.",
@@ -1449,7 +1449,7 @@ function ppResult(q, progress) {
   const top = main[0], runner = main[1], sideTop = side[0];
   const sideAlso = side.slice(1).filter((p) => p.pct >= 50);
   const joinNote = top.members.length > 1
-    ? `In this sphere you join both: the ${top.members[0].name} pathway and the ${top.members[1].name} division.`
+    ? `In this sphere you join both: the ${top.members[0].name} pathway and the ${top.members[1].name} division. The division is open from Acolyte; the pathway opens at Warrior.`
     : "The Guard has no division of its own. It stands apart from the other spheres and answers only to the Powerbase and the Emperor.";
   q.innerHTML = `${progress}
     <div class="pp-result">
