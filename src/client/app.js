@@ -1540,40 +1540,39 @@ const GUIDE = [
   { id: "order", next: "Join the Roblox group and the communication server, and read the Sith Doctrine. You begin as a Minion: watch the server for your first training.", title: "The Order", kicker: "Begin here",
     quote: "Peace is a lie, there is only passion.",
     lead: "The Sith Order is an anti-peace-keeping organisation that seeks to assert domination over the galaxy through any means necessary. Where the Jedi use the Force in moderation to help those weaker than themselves, the Sith see it as a tool to gain power over them, and the two are kept in constant war.",
-    body: ["The Order prizes skill, discipline and reputation above all else. Everything that follows is earned: every rank has a trial, and every trial has someone watching."],
+    body: ["The Order values skill, discipline and reputation. Each rank is earned through trainings, trials and contribution to the Order."],
     reqs: [guideReq("join-group", "Join the Roblox group"), guideReq("join-server", "Join the communication server"), guideReq("read-doctrine", "Read the Sith Doctrine")],
     extra: "code",
     links: [["Roblox group", GUIDE_LINKS.roblox, true], ["Communication server", GUIDE_LINKS.discord, true], ["Sith Doctrine", GUIDE_LINKS.doctrine, true]] },
   { id: "low", next: "Attend the trainings in order: Submission, then Strength, then Knowledge, and finally the Crystal Bleeding Ceremony. Each one moves you up a rank.", title: "The Low Ranks", kicker: "Minion to Adept",
-    lead: "Minions to Adepts are the lowest of the low: new Force-sensitives who have yet to be trained in the ways of the Sith. Together they are the Low Ranks, and they rise by attending trainings to learn and prove their worth.",
+    lead: "Minion, Hopeful, Initiate and Adept are the first four ranks of the Order, known together as the Low Ranks. New members progress through them by attending trainings, where they learn the ways of the Sith and show their commitment.",
     ranks: [
-      { key: "minion", name: "Minion", quote: "It is refreshing to see the weakness of inferiors affirmed and exploited for gain.", text: "The first rank. Minions still wear a shock collar, are not yet considered Sith, and are treated as pawns by their superiors.", reqs: [guideReq("t-submission", "Complete the Training of Submission")] },
-      { key: "hopeful", name: "Hopeful", quote: "Others were former Jedi who had been seduced by the dark side.", text: "The collar comes off. Hopefuls are officially members of the Order, though far from true Sith.", reqs: [guideReq("t-strength", "Complete the Training of Strength")] },
-      { key: "initiate", name: "Initiate", quote: "For an initiate, there is nothing more important than gaining strength.", text: "Initiates have proven their value in combat and spilt blood in the name of the Emperor.", reqs: [guideReq("t-knowledge", "Complete the Training of Knowledge")] },
-      { key: "adept", name: "Adept", quote: "Foolish Jedi! These are Sith Adepts!", text: "Adepts begin to taste the true power of the dark side, studying the deeds of the Lords before them.", reqs: [guideReq("t-crystal", "Complete the Crystal Bleeding Ceremony")] }
+      { key: "minion", name: "Minion", text: "The first rank in the Order, given to new members who wish to prove themselves. Minions are not yet considered Sith.", reqs: [guideReq("t-submission", "Complete the Training of Submission")] },
+      { key: "hopeful", name: "Hopeful", text: "Hopefuls are officially members of the Sith Order, with more still to learn before they are considered true Sith.", reqs: [guideReq("t-strength", "Complete the Training of Strength")] },
+      { key: "initiate", name: "Initiate", text: "Initiates have proven their ability in combat and are a step closer to becoming true Sith.", reqs: [guideReq("t-knowledge", "Complete the Training of Knowledge")] },
+      { key: "adept", name: "Adept", text: "Adepts begin their study of the history and teachings of the Sith Lords who came before them.", reqs: [guideReq("t-crystal", "Complete the Crystal Bleeding Ceremony")] }
     ],
     links: [["Minion – Adept vault", "/p/sith-progression/minion-adept"]] },
-  { id: "acolyte", next: "Pick your door. Show a Warrior you are worth training, or apply to the Sith Academy or the Guardsmen Academy. You can also try out for a division now.", title: "Three Doors", kicker: "Becoming an Acolyte",
-    quote: "Watch yourself around those lot. Seen those Sith Acolytes torture people for less.",
-    lead: "Acolytes stand at the precipice of becoming true Sith, marked by the first saber of their own, burning crimson. From here the Doctrine is enforced far more harshly. To rise, an Acolyte walks through one of three doors.",
+  { id: "acolyte", next: "Choose your route: seek a Warrior willing to take you on as an Apprentice, or apply to the Sith Academy or the Guardsmen Academy. You can also try out for a division at this rank.", title: "Three Routes", kicker: "Becoming an Acolyte",
+    lead: "Acolytes stand at the threshold of becoming true Sith and craft a lightsaber of their own. From this rank, members are held to the Sith Doctrine and the Order's standards more strictly. To progress, an Acolyte follows one of three routes.",
     doors: [
-      { name: "Be chosen as an Apprentice", text: "A Warrior or above sees potential in you and takes you on. The traditional road.", href: "/p/sith-progression/acolyte-warrior" },
+      { name: "Be chosen as an Apprentice", text: "A Warrior or above who sees your potential takes you on as their Apprentice. This is the traditional route.", href: "/p/sith-progression/acolyte-warrior" },
       { name: "Enrol in the Sith Academy", text: "The alternative route for Acolytes without a master. Dark Mentors train you; Sith Instructors host Warrior Trials.", href: "/p/pathways/education-and-academics" },
-      { key: "guard", name: "Enter the Guardsmen Academy", text: "Join the Emperor's Dark Honor Guard. The hardest entrance course in the Order.", warn: "You forsake the Sith progression and the chain of command, and may only join divisions linked to the Guard. In return only the Powerbase and the Emperor may command you.", href: "/p/pathways/dark-honor-guard", ext: ["Guardsmen Academy server", GUIDE_LINKS.dhgAcademy] }
+      { key: "guard", name: "Enter the Guardsmen Academy", text: "Join the Emperor's Dark Honor Guard. Its academy is the most demanding entrance course in the Order.", warn: "Joining means leaving the main Sith progression and chain of command, and you may only join divisions linked to the Guard. Guardsmen answer only to the Powerbase and the Emperor.", href: "/p/pathways/dark-honor-guard", ext: ["Guardsmen Academy server", GUIDE_LINKS.dhgAcademy] }
     ],
-    body: ["Divisions open now too. From Acolyte you can try out for the Reavers, the Dread Hosts or the Inquisitors, and apply to the side spheres. Going far within a division later needs its matching pathway."],
-    reqs: [guideReq("door", "Be chosen, enrol in the Academy, or enter the Guardsmen Academy")],
+    body: ["Divisions also open at this rank. From Acolyte you can try out for the Reavers, the Dread Hosts or the Inquisitors, and apply to the side spheres. Progressing further within a division later requires its matching pathway."],
+    reqs: [guideReq("door", "Be chosen as an Apprentice, enrol in the Sith Academy, or enter the Guardsmen Academy")],
     links: [["Acolyte – Warrior vault", "/p/sith-progression/acolyte-warrior"], ["Path Picker", "/paths"]] },
   { id: "apprentice", next: "Work through the Trials of an Apprentice with your master, give it at least two days, then take your Warrior Trial.", title: "The Apprentice", kicker: "Earning the Warrior Trial",
     quote: "It is the apprentice's duty to learn all that he can from the master, and the master's right to refrain from revealing all of his secrets.",
-    lead: "An Apprentice has been chosen by a Warrior or above who sees in them a future pillar of the Order. Your task is to learn from your master and prepare for what is coming.",
+    lead: "An Apprentice has been chosen by a Warrior or above to be trained as a valued member of the Order. Your task is to learn from your master and prepare for your Warrior Trial.",
     reqs: [guideReq("trials-apprentice", "Complete the Trials of an Apprentice"), guideReq("two-days", "Spend 2 or more days as an Apprentice"), guideReq("warrior-trial", "Pass the Warrior Trial")],
     note: "Fail the Warrior Trial and you must wait 24 hours before trying again.",
     record: "Trials of an Apprentice",
     links: [["Acolyte – Warrior vault", "/p/sith-progression/acolyte-warrior"]] },
   { id: "warrior", next: "Take on an apprentice of your own, host your events, and choose the pathway you will trial for.", title: "The Warrior", kicker: "True authority",
     quote: "A Sith Warrior's skills are unrivaled.",
-    lead: "Many hold that you may only truly call yourself Sith once you pass the Warrior Trial. Warriors are the first to hold real authority: they raise apprentices of their own, and then walk a Pathway that suits them.",
+    lead: "Many in the Order hold that one truly becomes Sith on passing the Warrior Trial. Warriors are the first rank with real authority: they train apprentices of their own, and then choose a Pathway that suits their interests and skills.",
     reqs: [guideReq("three-days", "Spend at least 3 days as a Warrior"), guideReq("apprentice-passed", "Have an Apprentice pass their Warrior Trial"), guideReq("five-events", "Host at least 5 events"), guideReq("pathway-trial", "Choose a Pathway and complete its trial")],
     sr: true,
     links: [["Acolyte – Warrior vault", "/p/sith-progression/acolyte-warrior"], ["Sith Reputation vault", "/p/sith-progression/sith-reputation"]] },
@@ -1582,14 +1581,13 @@ const GUIDE = [
     lead: "Every Warrior is expected to walk a Path of Power, and all progression after that follows it. Each Pathway belongs to a Sphere led by a Dark Councillor. You hold one main sphere, joining both its pathway and its division, and may take a side sphere alongside it.",
     spheres: true,
     links: [["Pathway Ranks vault", "/p/sith-progression/pathway-ranks"], ["Pathways", "/s/pathways"], ["Divisions", "/s/divisions"]] },
-  { id: "lords", next: "Commit to your pathway and keep earning Sith Reputation. Overseers are chosen by the Lords for their dedication.", title: "Overseers and Lords", kicker: "The Lesser Councils",
-    quote: "You are what Sith Lords scrape off their boots.",
-    lead: "Reach your pathway's advanced rank and a Lord may raise you to Overseer for your relentless commitment. Overseers help their pathway's Lesser Council run it, set the example for every other Sith, and are expected to help in the Sith Academy unless their role belongs to a division.",
+  { id: "lords", next: "Stay committed to your pathway and keep earning Sith Reputation. Overseers are selected by the Lords for their dedication.", title: "Overseers and Lords", kicker: "The Lesser Councils",
+    lead: "Members who reach their pathway's advanced rank may be selected by a Lord to become an Overseer, in recognition of their commitment. Overseers help their pathway's Lesser Council run it, set the example for every other Sith, and are expected to help in the Sith Academy unless their role belongs to a division.",
     reqs: [guideReq("advanced", "Reach Marauder, Alchemist or Eradicator"), guideReq("overseer", "Be selected as Overseer"), guideReq("lesser-council", "Be selected into a Lesser Council to become a Sith Lord")],
     councils: [["Council of Conquest", "Juggernauts"], ["Council of Dread", "Sorcerers · the Dread Masters"], ["Council of Shadow", "Assassins"], ["Council of Masters", "The Sith Academy"], ["Council of Influence", "Galactic Influence"], ["Council of Justice", "Courts and Appeals"]],
-    body: ["The Lesser Councils are turbulent and ever-changing: every Lord is fighting for reputation and the notice of the Dark Council and the Emperor."],
+    body: ["Lesser Council places are limited and change often. They are earned through reputation and continued contribution, and each council answers to its Dark Councillor."],
     links: [["Overseer + vault", "/p/sith-progression/overseer"], ["The Sith Lords vault", "/p/sith-leadership/the-sith-lords"]] },
-  { id: "throne", next: "Learn who leads the Order. You will meet these titles at events and in the server.", title: "The Throne", kicker: "Who rules the Order",
+  { id: "throne", next: "Get to know who leads the Order. You will see these titles at events and in the server.", title: "The Throne", kicker: "Who rules the Order",
     quote: "Answerable only to the Force.",
     lead: "Above the Lords sits the Dark Council: one Councillor for each sphere, together able to change any part of the Order except the Powerbase. The Council is led by the Emperor's Voice. Above it is the Emperor's Powerbase, the true ruling body, chosen by the Emperor himself.",
     pyramid: true,
@@ -1606,9 +1604,9 @@ const GUIDE = [
     ] }
 ];
 const GUIDE_SPHERES = [
-  { name: "Imperial Conquest", ladder: ["Juggernaut", "Marauder", "Siege Lord"], division: "Reavers", path: "juggernaut", div: "reavers", note: "Masters of the saber, first through the gate." },
-  { name: "Ancient Knowledge", ladder: ["Sorcerer", "Alchemist", "Sorcerer Lord"], division: "Dread Hosts", path: "sorcerer", div: "dread-hosts", note: "Keepers of lore, relics and the Order's events." },
-  { name: "Imperial Judgement", ladder: ["Assassin", "Eradicator", "Decimator"], division: "Inquisitors", path: "assassin", div: "inquisitors", note: "Unseen hunters, and the enforcers of Doctrine." }
+  { name: "Imperial Conquest", ladder: ["Juggernaut", "Marauder", "Siege Lord"], division: "Reavers", path: "juggernaut", div: "reavers", note: "The Order's combat pathway, leading on the battlefield." },
+  { name: "Ancient Knowledge", ladder: ["Sorcerer", "Alchemist", "Sorcerer Lord"], division: "Dread Hosts", path: "sorcerer", div: "dread-hosts", note: "Keepers of the Order's history, lore and events." },
+  { name: "Imperial Judgement", ladder: ["Assassin", "Eradicator", "Decimator"], division: "Inquisitors", path: "assassin", div: "inquisitors", note: "Stealth, intelligence and upholding the Doctrine." }
 ];
 const GUIDE_THRONE = [
   { tier: "The Emperor", items: ["Darth Azazel"], href: "/p/sith-leadership/emperors-powerbase" },
@@ -1662,7 +1660,7 @@ function renderGuide(options = {}) {
     const rank = GUIDE_RANKS.find(([key]) => key === s.rank);
     if (rank) guide.at = GUIDE.findIndex((ch) => ch.id === rank[2]);
     guideSave(s); guideShow(true);
-    if (rank) droidReact(rank[0] === "outsider" ? "An outsider. Start at the beginning." : `${rank[1].split(" · ")[0]}. Here is your next step.`);
+    if (rank) droidReact(rank[0] === "outsider" ? "Welcome. Chapter one is the place to start." : `Here is your next step as ${rank[1].split(" · ")[0]}.`);
   });
   guideShow(false);
   afterRender({ ...options, hash: "" });
@@ -1698,7 +1696,7 @@ function guideChapterHtml(ch, store) {
   if (ch.extra === "code") html += `<div class="gd-code"><p>Peace is a lie, there is only passion. Through passion, I gain strength. Through strength, I gain power. Through power, I gain victory. Through victory, my chains are broken. The Force shall free me.</p><button type="button" class="btn" id="gdCode">Hear the Code spoken</button></div>`;
   if (ch.ranks) html += `<ol class="gd-ranks">${ch.ranks.map((r) => `<li class="gd-rank${r.key === you ? " is-you" : ""}">
       <span class="gd-node" aria-hidden="true"></span>
-      <div><h3>${esc(r.name)}${r.key === you ? ` <i class="gd-you">You are here</i>` : ""}</h3><p class="gd-rq">“${esc(r.quote)}”</p><p>${esc(r.text)}</p>${r.reqs.map((q) => guideCheck(q, store)).join("")}</div>
+      <div><h3>${esc(r.name)}${r.key === you ? ` <i class="gd-you">You are here</i>` : ""}</h3><p>${esc(r.text)}</p>${r.reqs.map((q) => guideCheck(q, store)).join("")}</div>
     </li>`).join("")}</ol>`;
   if (ch.doors) html += `<div class="gd-doors">${ch.doors.map((d, i) => `<article class="gd-door${d.key && d.key === you ? " is-you" : ""}">
       <span class="gd-door-num" aria-hidden="true">${roman(i + 1)}</span>
@@ -1745,13 +1743,13 @@ function guideShow(scroll) {
     if (input.checked) s.done.add(input.dataset.req); else s.done.delete(input.dataset.req);
     guideSave(s); guideAscent(s);
     const reqs = guideReqs(ch);
-    if (input.checked && reqs.every((r) => s.done.has(r.id))) droidReact(ch.id === "order" ? "Welcome to the Order." : `${ch.title}: complete. Onward.`);
+    if (input.checked && reqs.every((r) => s.done.has(r.id))) droidReact(ch.id === "order" ? "Welcome to the Order." : `${ch.title} complete. Well done.`);
   }));
   byId("gdCode")?.addEventListener("click", () => reciteCode());
   byId("gdPrev").addEventListener("click", () => { guide.at = Math.max(0, guide.at - 1); guideShow(true); });
   byId("gdNext").addEventListener("click", () => {
     if (guide.at === GUIDE.length - 1) { guide.at = 0; } else guide.at += 1;
-    if (guide.at === GUIDE.length - 1) droidReact("You have walked the whole path. Now go and earn it.");
+    if (guide.at === GUIDE.length - 1) droidReact("That is the whole guide. Best of luck on your path.");
     guideShow(true);
   });
   if (scroll) byId("gdChapter").scrollIntoView({ block: "start", behavior: reducedMotion.matches ? "auto" : "smooth" });
@@ -2178,7 +2176,8 @@ function huntClue(asked) {
 function scheduleHuntClue(delay = 45000 + Math.random() * 30000) {
   clearTimeout(HUNT.timer);
   HUNT.timer = setTimeout(() => {
-    if (!document.hidden && !riteBusy() && !byId("droidBubble").classList.contains("show")) huntClue(false);
+    // Unprompted riddles stay off the New Player Guide, which should read without interruptions.
+    if (!document.hidden && !riteBusy() && !byId("droidBubble").classList.contains("show") && parseRoute().view !== "guide") huntClue(false);
     scheduleHuntClue();
   }, delay);
 }
@@ -3338,7 +3337,7 @@ function initHalloween() {
     if (sessionStorage.getItem("tso-hw-greeted")) return;
     sessionStorage.setItem("tso-hw-greeted", "1");
   } catch {}
-  setTimeout(() => { if (halloween.on && !riteBusy()) showDroidBubble("The Nightsisters have claimed the archive. Happy Halloween.", { ms: 4200 }); }, 2600);
+  setTimeout(() => { if (halloween.on && !riteBusy() && parseRoute().view !== "guide") showDroidBubble("The Nightsisters have claimed the archive. Happy Halloween.", { ms: 4200 }); }, 2600);
 }
 function toggleHalloween() {
   setHalloween(!halloween.on);

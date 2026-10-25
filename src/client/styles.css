@@ -1540,7 +1540,6 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .gd-rank.is-you > div { border-color: rgba(216,176,106,.55); box-shadow: 0 0 1.4rem rgba(216,176,106,.15); }
 .gd-rank h3, .gd-door h3, .gd-sphere h3 { margin: 0; color: var(--ink); font: 700 1.35rem/1.1 var(--display); }
 .gd-rank p, .gd-door p, .gd-sphere p { margin: 0; }
-.gd-rq { color: var(--muted); font-size: .95rem; font-style: italic; }
 
 .gd-check { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr); align-items: start; gap: .7rem; padding: .35rem 0; color: var(--ink-2); cursor: pointer; }
 .gd-check input { position: absolute; opacity: 0; pointer-events: none; }
