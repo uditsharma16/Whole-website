@@ -31,8 +31,9 @@ sphere, with a live match board as they answer. The questions, the pathway and d
 descriptions, and the trait weights are in the Path Picker block of `src/client/app.js`. Update
 them there if the Order's pathways change.
 
-The **Guide to the Order** at `/guide` (top of the rail, and linked from the gate) walks new
-members through the Order in nine chapters:
+The **New Player Guide** (titled Guide to the Order) at `/guide` is at the top of the rail and
+linked from the gate. It walks new players through the Order in nine chapters, each ending with
+a plain "Your next step":
 1. Joining
 2. The low ranks
 3. The three doors to Acolyte

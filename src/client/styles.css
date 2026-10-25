@@ -1599,6 +1599,9 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .gd-record { display: inline-flex; align-items: center; gap: .5rem; justify-self: start; color: var(--gold); font: 400 .8rem var(--mono); text-decoration: none; }
 .gd-record .kind-icon { width: 1rem; height: 1rem; }
 .gd-record:hover { color: var(--gold-light); text-decoration: underline; }
+.gd-next { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .9rem; align-items: start; padding: 1rem 1.1rem; border: 1px solid rgba(216,176,106,.45); border-radius: 3px; background: linear-gradient(100deg, rgba(216,176,106,.12), rgba(216,176,106,.02)); }
+.gd-next-mark { display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--gold); border-radius: 50%; color: var(--gold); font-size: .9rem; }
+.gd-next p { margin: 0; } .gd-next .pp-kind { margin-bottom: .25rem; color: var(--gold); }
 .gd-links { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; padding-top: .9rem; border-top: 1px solid var(--soft-line); }
 
 @media (max-width: 960px) {
