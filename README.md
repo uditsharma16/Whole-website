@@ -31,6 +31,23 @@ sphere, with a live match board as they answer. The questions, the pathway and d
 descriptions, and the trait weights are in the Path Picker block of `src/client/app.js`. Update
 them there if the Order's pathways change.
 
+The **Guide to the Order** at `/guide` (top of the rail, and linked from the gate) walks new
+members through the Order in nine chapters:
+1. Joining
+2. The low ranks
+3. The three doors to Acolyte
+4. The Apprentice and the Warrior Trial
+5. The Warrior and Sith Reputation
+6. Pathways and spheres
+7. Overseers and the Lesser Councils
+8. The Dark Council and the Powerbase
+9. Where to go next
+
+Readers can pick their rank to jump to their next step and tick off requirements as they go.
+The ticks, their rank and their place are remembered in their browser. Each chapter can be
+linked directly, for example `/guide#warrior`. Its wording is taken from the Order's Google Site
+pages and lives in the Guide block of `src/client/app.js`. Update it there when those pages change.
+
 Documents must be shared as **Anyone with the link can view** (or published to the web). A
 document that isn't is shown as a sealed record with a link to the original.
 

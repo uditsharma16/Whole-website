@@ -297,6 +297,7 @@ function parseRoute(path = currentPath()) {
   if (parts[0] === "p") return { view: "page", path: parts.slice(1).join("/") };
   if (parts[0] === "codex" || parts[0] === "catalogue") return { view: "codex" };
   if (parts[0] === "paths" || parts[0] === "path-picker") return { view: "paths" };
+  if (parts[0] === "guide") return { view: "guide" };
   if (parts[0] === "s" && parts[1]) return { view: "section", slug: parts[1] };
   const kind = P.ROUTE_KIND[parts[0]];
   if (kind) {
@@ -317,6 +318,7 @@ function route(options = {}) {
     if (target.view === "home") return renderGate(options);
     if (target.view === "codex") return renderCatalogue(options);
     if (target.view === "paths") return renderPicker(options);
+    if (target.view === "guide") return renderGuide(options);
     if (target.view === "section") {
       const node = state.site.groups.get(target.slug);
       return node ? renderSection(node, options) : renderNotFound();
@@ -491,6 +493,7 @@ function renderRail() {
   const tree = state.site.tree;
   byId("railNav").innerHTML = `
     <a class="rail-link" href="/" data-link data-route="/"><em aria-hidden="true">◆</em><span>The Gate</span></a>
+    <a class="rail-link" href="/guide" data-link data-route="/guide"><em aria-hidden="true">✦</em><span>Guide to the Order</span></a>
     ${tree.length ? `<p class="rail-label">Vaults</p>${tree.map(railNode).join("")}` : ""}
     <p class="rail-label">Records</p>
     <a class="rail-link" href="/codex" data-link data-route="/codex"><em aria-hidden="true">✦</em><span>The Catalogue</span><small>${state.site.files.length}</small></a>
@@ -510,6 +513,7 @@ function markActiveRail(target) {
   if (target.view === "section") active = `/s/${target.slug}`;
   if (target.view === "codex") active = "/codex";
   if (target.view === "paths") active = "/paths";
+  if (target.view === "guide") active = "/guide";
   document.querySelectorAll(".rail-link[data-route]").forEach((link) => {
     if (link.dataset.route === active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   });
@@ -727,6 +731,7 @@ function renderGate(options) {
           <input type="search" placeholder="search every vault and record" autocomplete="off" spellcheck="false" aria-label="Query the archive" />
           <kbd aria-hidden="true">/</kbd>
         </form>
+        <div class="gate-ctas"><a href="/guide" data-link>New to the Order? Walk the guide <span aria-hidden="true">→</span></a><a href="/paths" data-link>Find your path <span aria-hidden="true">→</span></a></div>
       </div>
     </section>
 
@@ -1506,6 +1511,256 @@ function ppInfo() {
   byId("ppInfoClose").addEventListener("click", () => { const id = picker.info; picker.info = null; ppExplore(); ppInfo(); byId(`ppx_${id}`).focus(); });
 }
 
+/* ───────── The Guide to the Order (/guide) ─────────
+ * A walk through the Order from the outside in: what it is, the low ranks, the three doors
+ * to Acolyte, the Warrior Trial, the pathways and spheres, the Lords and the throne, and
+ * where to go next. One chapter shows at a time beside an ascent of every chapter; "Where
+ * do you stand?" jumps to the reader's rank and marks it. Requirements can be ticked off,
+ * and the ticks, the chosen rank and the last chapter are remembered in this browser.
+ * The wording comes from the Order's own Google Site pages (each chapter links its vault),
+ * so update it here when those pages change. */
+const GUIDE_KEY = "tso-guide-v1";
+const GUIDE_LINKS = {
+  roblox: "https://www.roblox.com/groups/16285251/The-Sith-rder#!/about",
+  discord: "https://discord.gg/sithorder",
+  doctrine: "https://law-portal.koolgos106.workers.dev/",
+  dhgAcademy: "https://discord.gg/8mBAXjpUDS",
+  srStore: "https://trello.com/b/L3ZVbnSw/sith-reputation-store-re-imagined",
+  holocrons: "https://sith-hall-of-records.koolgos106.workers.dev/"
+};
+const GUIDE_RANKS = [
+  ["outsider", "Not in the Order yet", "order"],
+  ["minion", "Minion", "low"], ["hopeful", "Hopeful", "low"], ["initiate", "Initiate", "low"], ["adept", "Adept", "low"],
+  ["acolyte", "Acolyte", "acolyte"], ["guard", "Dark Honor Guard", "acolyte"], ["apprentice", "Apprentice", "apprentice"],
+  ["warrior", "Warrior", "warrior"], ["pathway", "Juggernaut · Sorcerer · Assassin", "paths"],
+  ["advanced", "Marauder · Alchemist · Eradicator", "lords"], ["overseer", "Overseer", "lords"], ["lord", "Sith Lord or above", "throne"]
+];
+const guideReq = (id, text) => ({ id, text });
+const GUIDE = [
+  { id: "order", title: "The Order", kicker: "Begin here",
+    quote: "Peace is a lie, there is only passion.",
+    lead: "The Sith Order is an anti-peace-keeping organisation that seeks to assert domination over the galaxy through any means necessary. Where the Jedi use the Force in moderation to help those weaker than themselves, the Sith see it as a tool to gain power over them, and the two are kept in constant war.",
+    body: ["The Order prizes skill, discipline and reputation above all else. Everything that follows is earned: every rank has a trial, and every trial has someone watching."],
+    reqs: [guideReq("join-group", "Join the Roblox group"), guideReq("join-server", "Join the communication server"), guideReq("read-doctrine", "Read the Sith Doctrine")],
+    extra: "code",
+    links: [["Roblox group", GUIDE_LINKS.roblox, true], ["Communication server", GUIDE_LINKS.discord, true], ["Sith Doctrine", GUIDE_LINKS.doctrine, true]] },
+  { id: "low", title: "The Low Ranks", kicker: "Minion to Adept",
+    lead: "Minions to Adepts are the lowest of the low: new Force-sensitives who have yet to be trained in the ways of the Sith. Together they are the Low Ranks, and they rise by attending trainings to learn and prove their worth.",
+    ranks: [
+      { key: "minion", name: "Minion", quote: "It is refreshing to see the weakness of inferiors affirmed and exploited for gain.", text: "The first rank. Minions still wear a shock collar, are not yet considered Sith, and are treated as pawns by their superiors.", reqs: [guideReq("t-submission", "Complete the Training of Submission")] },
+      { key: "hopeful", name: "Hopeful", quote: "Others were former Jedi who had been seduced by the dark side.", text: "The collar comes off. Hopefuls are officially members of the Order, though far from true Sith.", reqs: [guideReq("t-strength", "Complete the Training of Strength")] },
+      { key: "initiate", name: "Initiate", quote: "For an initiate, there is nothing more important than gaining strength.", text: "Initiates have proven their value in combat and spilt blood in the name of the Emperor.", reqs: [guideReq("t-knowledge", "Complete the Training of Knowledge")] },
+      { key: "adept", name: "Adept", quote: "Foolish Jedi! These are Sith Adepts!", text: "Adepts begin to taste the true power of the dark side, studying the deeds of the Lords before them.", reqs: [guideReq("t-crystal", "Complete the Crystal Bleeding Ceremony")] }
+    ],
+    links: [["Minion – Adept vault", "/p/sith-progression/minion-adept"]] },
+  { id: "acolyte", title: "Three Doors", kicker: "Becoming an Acolyte",
+    quote: "Watch yourself around those lot. Seen those Sith Acolytes torture people for less.",
+    lead: "Acolytes stand at the precipice of becoming true Sith, marked by the first saber of their own, burning crimson. From here the Doctrine is enforced far more harshly. To rise, an Acolyte walks through one of three doors.",
+    doors: [
+      { name: "Be chosen as an Apprentice", text: "A Warrior or above sees potential in you and takes you on. The traditional road.", href: "/p/sith-progression/acolyte-warrior" },
+      { name: "Enrol in the Sith Academy", text: "The alternative route for Acolytes without a master. Dark Mentors train you; Sith Instructors host Warrior Trials.", href: "/p/pathways/education-and-academics" },
+      { key: "guard", name: "Enter the Guardsmen Academy", text: "Join the Emperor's Dark Honor Guard. The hardest entrance course in the Order.", warn: "You forsake the Sith progression and the chain of command, and may only join divisions linked to the Guard. In return only the Powerbase and the Emperor may command you.", href: "/p/pathways/dark-honor-guard", ext: ["Guardsmen Academy server", GUIDE_LINKS.dhgAcademy] }
+    ],
+    body: ["Divisions open now too. From Acolyte you can try out for the Reavers, the Dread Hosts or the Inquisitors, and apply to the side spheres. Going far within a division later needs its matching pathway."],
+    reqs: [guideReq("door", "Be chosen, enrol in the Academy, or enter the Guardsmen Academy")],
+    links: [["Acolyte – Warrior vault", "/p/sith-progression/acolyte-warrior"], ["Path Picker", "/paths"]] },
+  { id: "apprentice", title: "The Apprentice", kicker: "Earning the Warrior Trial",
+    quote: "It is the apprentice's duty to learn all that he can from the master, and the master's right to refrain from revealing all of his secrets.",
+    lead: "An Apprentice has been chosen by a Warrior or above who sees in them a future pillar of the Order. Your task is to learn from your master and prepare for what is coming.",
+    reqs: [guideReq("trials-apprentice", "Complete the Trials of an Apprentice"), guideReq("two-days", "Spend 2 or more days as an Apprentice"), guideReq("warrior-trial", "Pass the Warrior Trial")],
+    note: "Fail the Warrior Trial and you must wait 24 hours before trying again.",
+    record: "Trials of an Apprentice",
+    links: [["Acolyte – Warrior vault", "/p/sith-progression/acolyte-warrior"]] },
+  { id: "warrior", title: "The Warrior", kicker: "True authority",
+    quote: "A Sith Warrior's skills are unrivaled.",
+    lead: "Many hold that you may only truly call yourself Sith once you pass the Warrior Trial. Warriors are the first to hold real authority: they raise apprentices of their own, and then walk a Pathway that suits them.",
+    reqs: [guideReq("three-days", "Spend at least 3 days as a Warrior"), guideReq("apprentice-passed", "Have an Apprentice pass their Warrior Trial"), guideReq("five-events", "Host at least 5 events"), guideReq("pathway-trial", "Choose a Pathway and complete its trial")],
+    sr: true,
+    links: [["Acolyte – Warrior vault", "/p/sith-progression/acolyte-warrior"], ["Sith Reputation vault", "/p/sith-progression/sith-reputation"]] },
+  { id: "paths", title: "Paths of Power", kicker: "Pathways and spheres",
+    quote: "To follow down a path of power is to walk in the path of the ancients.",
+    lead: "Every Warrior is expected to walk a Path of Power, and all progression after that follows it. Each Pathway belongs to a Sphere led by a Dark Councillor. You hold one main sphere, joining both its pathway and its division, and may take a side sphere alongside it.",
+    spheres: true,
+    links: [["Pathway Ranks vault", "/p/sith-progression/pathway-ranks"], ["Pathways", "/s/pathways"], ["Divisions", "/s/divisions"]] },
+  { id: "lords", title: "Overseers and Lords", kicker: "The Lesser Councils",
+    quote: "You are what Sith Lords scrape off their boots.",
+    lead: "Reach your pathway's advanced rank and a Lord may raise you to Overseer for your relentless commitment. Overseers help their pathway's Lesser Council run it, set the example for every other Sith, and are expected to help in the Sith Academy unless their role belongs to a division.",
+    reqs: [guideReq("advanced", "Reach Marauder, Alchemist or Eradicator"), guideReq("overseer", "Be selected as Overseer"), guideReq("lesser-council", "Be selected into a Lesser Council to become a Sith Lord")],
+    councils: [["Council of Conquest", "Juggernauts"], ["Council of Dread", "Sorcerers · the Dread Masters"], ["Council of Shadow", "Assassins"], ["Council of Masters", "The Sith Academy"], ["Council of Influence", "Galactic Influence"], ["Council of Justice", "Courts and Appeals"]],
+    body: ["The Lesser Councils are turbulent and ever-changing: every Lord is fighting for reputation and the notice of the Dark Council and the Emperor."],
+    links: [["Overseer + vault", "/p/sith-progression/overseer"], ["The Sith Lords vault", "/p/sith-leadership/the-sith-lords"]] },
+  { id: "throne", title: "The Throne", kicker: "Who rules the Order",
+    quote: "Answerable only to the Force.",
+    lead: "Above the Lords sits the Dark Council: one Councillor for each sphere, together able to change any part of the Order except the Powerbase. The Council is led by the Emperor's Voice. Above it is the Emperor's Powerbase, the true ruling body, chosen by the Emperor himself.",
+    pyramid: true,
+    links: [["Emperor's Powerbase vault", "/p/sith-leadership/emperors-powerbase"], ["The Dark Council vault", "/p/sith-leadership/the-dark-council"]] },
+  { id: "beyond", title: "Beyond the Ranks", kicker: "Where to go next",
+    lead: "The Archives hold more than ranks. These are the places every Sith should know.",
+    places: [
+      ["Find your path", "Seven questions to match you to a sphere, a pathway and a division.", "/paths"],
+      ["The Holocron Network", "The Order's lore and legacy, kept by the Sphere of Ancient Knowledge.", "/p/holocron-network"],
+      ["Valley of the Dark Lords", "Every former Emperor, Councillor and member of the Powerbase, remembered.", "/p/valley-of-the-dark-lords"],
+      ["The Catalogue", "Every handbook and record on file, A to Z.", "/codex"],
+      ["Report a member", "Concerned about someone? Contact the Grand or Lord Inquisitor. Cases about a Sith Lord or above go to the Dark Council.", "/p/divisions/inquisitors"],
+      ["Appeal a punishment", "Blacklists, rank-locks and SR deductions for Warriors and above are reviewed by Courts and Appeals.", "/p/pathways/courts-and-appeals"]
+    ] }
+];
+const GUIDE_SPHERES = [
+  { name: "Imperial Conquest", ladder: ["Juggernaut", "Marauder", "Siege Lord"], division: "Reavers", path: "juggernaut", div: "reavers", note: "Masters of the saber, first through the gate." },
+  { name: "Ancient Knowledge", ladder: ["Sorcerer", "Alchemist", "Sorcerer Lord"], division: "Dread Hosts", path: "sorcerer", div: "dread-hosts", note: "Keepers of lore, relics and the Order's events." },
+  { name: "Imperial Judgement", ladder: ["Assassin", "Eradicator", "Decimator"], division: "Inquisitors", path: "assassin", div: "inquisitors", note: "Unseen hunters, and the enforcers of Doctrine." }
+];
+const GUIDE_THRONE = [
+  { tier: "The Emperor", items: ["Darth Azazel"], href: "/p/sith-leadership/emperors-powerbase" },
+  { tier: "The Emperor's Powerbase", items: ["Dark Regent", "Shield", "Wrath", "Voice", "Hand"], href: "/p/sith-leadership/emperors-powerbase" },
+  { tier: "The Dark Council", items: ["Conquest", "Knowledge", "Judgement", "Education", "Influence", "Courts"], href: "/p/sith-leadership/the-dark-council" },
+  { tier: "The Lesser Councils", items: ["Sith Lords of every pathway"], href: "/p/sith-leadership/the-sith-lords" },
+  { tier: "Overseers", items: ["Siege Lord", "Sorcerer Lord", "Decimator"], href: "/p/sith-progression/overseer" },
+  { tier: "Warriors and the pathways", items: ["Juggernaut", "Sorcerer", "Assassin"], href: "/p/sith-progression/pathway-ranks" },
+  { tier: "Acolytes and Apprentices", items: ["The first true Sith"], href: "/p/sith-progression/acolyte-warrior" },
+  { tier: "The Low Ranks", items: ["Minion", "Hopeful", "Initiate", "Adept"], href: "/p/sith-progression/minion-adept" }
+];
+const guide = { at: 0 };
+function guideStore() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(GUIDE_KEY) || "{}") || {}; } catch {}
+  return { done: new Set(saved.done || []), rank: saved.rank || "", at: Number.isInteger(saved.at) ? saved.at : 0 };
+}
+function guideSave(store) {
+  try { localStorage.setItem(GUIDE_KEY, JSON.stringify({ done: [...store.done], rank: store.rank, at: guide.at })); } catch {}
+}
+const guideReqs = (ch) => [...(ch.reqs || []), ...(ch.ranks || []).flatMap((r) => r.reqs)];
+function guideCheck(req, store) {
+  return `<label class="gd-check"><input type="checkbox" data-req="${req.id}"${store.done.has(req.id) ? " checked" : ""} /><span class="gd-box" aria-hidden="true"></span><span>${esc(req.text)}</span></label>`;
+}
+
+function renderGuide(options = {}) {
+  document.title = "Guide to the Order — TSO Central Archives";
+  const store = guideStore();
+  const hash = options.hash || location.hash;
+  const fromHash = hash ? GUIDE.findIndex((ch) => `#${ch.id}` === hash) : -1;
+  guide.at = fromHash >= 0 ? fromHash : Math.min(GUIDE.length - 1, Math.max(0, store.at));
+  app.innerHTML = `<div class="page guide-page">
+    <header class="chamber-head">
+      <span class="chamber-numeral" aria-hidden="true">✦</span>
+      ${crumbs([{ href: "/", label: "The Gate" }, { label: "Guide to the Order" }])}
+      <p class="eyebrow">New to the Order? Start here</p>
+      <h1 data-decrypt>Guide to the Order</h1>
+      <p class="pp-lede">Everything a new member needs, one step at a time: how to join, how to rise from Minion to Warrior, which path to walk, and who leads the Order. Pick your rank to jump to your next step, and tick off each requirement as you earn it.</p>
+      <div class="gd-stand">
+        <label for="gdRank">Where do you stand?</label>
+        <select id="gdRank"><option value="">Choose your rank</option>${GUIDE_RANKS.map(([key, label]) => `<option value="${key}"${store.rank === key ? " selected" : ""}>${esc(label)}</option>`).join("")}</select>
+      </div>
+    </header>
+    <div class="gd-layout">
+      <nav class="gd-ascent" id="gdAscent" aria-label="Chapters"></nav>
+      <section class="gd-chapter" id="gdChapter" aria-live="polite"></section>
+    </div>
+  </div>`;
+  byId("gdRank").addEventListener("change", (event) => {
+    const s = guideStore(); s.rank = event.target.value;
+    const rank = GUIDE_RANKS.find(([key]) => key === s.rank);
+    if (rank) guide.at = GUIDE.findIndex((ch) => ch.id === rank[2]);
+    guideSave(s); guideShow(true);
+    if (rank) droidReact(rank[0] === "outsider" ? "An outsider. Start at the beginning." : `${rank[1].split(" · ")[0]}. Here is your next step.`);
+  });
+  guideShow(false);
+  afterRender({ ...options, hash: "" });
+}
+function guideAscent(store) {
+  byId("gdAscent").innerHTML = `<ol>${GUIDE.map((ch, i) => {
+    const reqs = guideReqs(ch), done = reqs.filter((r) => store.done.has(r.id)).length;
+    const rank = GUIDE_RANKS.find(([key]) => key === store.rank);
+    return `<li><button type="button" class="gd-step${i === guide.at ? " here" : ""}${i < guide.at ? " passed" : ""}${rank && rank[2] === ch.id ? " is-you" : ""}" data-at="${i}"${i === guide.at ? ' aria-current="step"' : ""}>
+      <em>${roman(i + 1)}</em><span><b>${esc(ch.title)}</b><small>${esc(ch.kicker)}</small></span>
+      ${rank && rank[2] === ch.id ? `<i class="gd-you">You</i>` : reqs.length ? `<i class="gd-tally${done === reqs.length ? " full" : ""}">${done}/${reqs.length}</i>` : ""}
+    </button></li>`;
+  }).join("")}</ol>`;
+  byId("gdAscent").querySelectorAll("[data-at]").forEach((button) => button.addEventListener("click", () => { guide.at = Number(button.dataset.at); guideShow(true); }));
+}
+function guideRecordLink(title) {
+  const file = state.site.files.find((item) => fileTitle(item).toLowerCase() === title.toLowerCase());
+  return file ? `<a class="gd-record" href="${fileHref(file)}" data-link>${kindIcon(file.kind)}<span>Read “${esc(fileTitle(file))}”</span></a>` : "";
+}
+/* The reader's rank belongs to this chapter but has no card of its own here: say so up top. */
+function guideHere(ch, you) {
+  const rank = GUIDE_RANKS.find(([key]) => key === you);
+  if (!rank || rank[2] !== ch.id || ch.ranks?.some((r) => r.key === you) || ch.doors?.some((d) => d.key === you)) return "";
+  return `<p class="gd-here"><i class="gd-you">You are here</i> ${esc(rank[1])}</p>`;
+}
+function guideChapterHtml(ch, store) {
+  const you = store.rank;
+  const link = ([label, href, external]) => `<a class="pp-link" href="${esc(href)}"${external ? ' target="_blank" rel="noopener"' : " data-link"}>${esc(label)} ${external ? "↗" : "→"}</a>`;
+  let html = `<header class="gd-head"><span class="gd-num" aria-hidden="true">${roman(guide.at + 1)}</span><div><p class="pp-qnum">Chapter ${guide.at + 1} of ${GUIDE.length} · ${esc(ch.kicker)}</p><h2>${esc(ch.title)}</h2></div></header>
+    ${guideHere(ch, you)}
+    ${ch.quote ? `<blockquote class="gd-quote">${esc(ch.quote)}</blockquote>` : ""}
+    <p class="gd-lead">${esc(ch.lead)}</p>`;
+  if (ch.extra === "code") html += `<div class="gd-code"><p>Peace is a lie, there is only passion. Through passion, I gain strength. Through strength, I gain power. Through power, I gain victory. Through victory, my chains are broken. The Force shall free me.</p><button type="button" class="btn" id="gdCode">Hear the Code spoken</button></div>`;
+  if (ch.ranks) html += `<ol class="gd-ranks">${ch.ranks.map((r) => `<li class="gd-rank${r.key === you ? " is-you" : ""}">
+      <span class="gd-node" aria-hidden="true"></span>
+      <div><h3>${esc(r.name)}${r.key === you ? ` <i class="gd-you">You are here</i>` : ""}</h3><p class="gd-rq">“${esc(r.quote)}”</p><p>${esc(r.text)}</p>${r.reqs.map((q) => guideCheck(q, store)).join("")}</div>
+    </li>`).join("")}</ol>`;
+  if (ch.doors) html += `<div class="gd-doors">${ch.doors.map((d, i) => `<article class="gd-door${d.key && d.key === you ? " is-you" : ""}">
+      <span class="gd-door-num" aria-hidden="true">${roman(i + 1)}</span>
+      <h3>${esc(d.name)}${d.key && d.key === you ? ` <i class="gd-you">You</i>` : ""}</h3><p>${esc(d.text)}</p>
+      ${d.warn ? `<p class="pp-flag">${esc(d.warn)}</p>` : ""}
+      ${link(["Read the vault", d.href])}${d.ext ? link([...d.ext, true]) : ""}
+    </article>`).join("")}</div>`;
+  if (ch.spheres) html += `<div class="gd-spheres">${GUIDE_SPHERES.map((s) => `<article class="gd-sphere">
+      <h3>${esc(s.name)}</h3><p>${esc(s.note)}</p>
+      <ol class="gd-ladder">${s.ladder.map((rank, i) => `<li${i === 0 ? ' class="entry"' : ""}><span>${esc(rank)}</span><small>${["Pathway", "Advanced", "Overseer"][i]}</small></li>`).join("")}</ol>
+      <p class="pp-meta">Division: <a href="/p/divisions/${s.div}" data-link>${esc(s.division)}</a> · open from Acolyte</p>
+      ${link([`The ${s.ladder[0]} vault`, `/p/pathways/${s.path}`])}
+    </article>`).join("")}</div>
+    <div class="gd-side"><p><b>Dark Honor Guard</b> stands apart: the Emperor's own detachment, with its own progression and no division.</p>
+      <p><b>Side spheres</b> (Galactic Influence, Courts and Appeals, Education and Academics) are joined by application, alongside your main sphere.</p></div>
+    <a class="gd-cta" href="/paths" data-link><span class="gd-cta-sigil" aria-hidden="true">✠</span><span><b>Not sure which path is yours?</b><small>Take the Path Picker: seven questions, one reading.</small></span><span aria-hidden="true">→</span></a>`;
+  if (ch.councils) html += `<div class="gd-councils">${ch.councils.map(([name, rules]) => `<div><b>${esc(name)}</b><small>${esc(rules)}</small></div>`).join("")}</div>`;
+  if (ch.pyramid) html += `<ol class="gd-pyramid">${GUIDE_THRONE.map((t, i) => `<li style="--i:${i}"><a href="${t.href}" data-link><b>${esc(t.tier)}</b><small>${t.items.map(esc).join(" · ")}</small></a></li>`).join("")}</ol>`;
+  if (ch.places) html += `<div class="gd-places">${ch.places.map(([title, text, href]) => `<a class="gd-place" href="${href}" data-link><b>${esc(title)}</b><span>${esc(text)}</span></a>`).join("")}</div>`;
+  for (const para of ch.body || []) html += `<p>${esc(para)}</p>`;
+  if (ch.reqs) html += `<div class="gd-reqs"><p class="pp-kind">${ch.id === "order" ? "First steps" : "To rise"}</p>${ch.reqs.map((q) => guideCheck(q, store)).join("")}${ch.note ? `<p class="pp-flag">${esc(ch.note)}</p>` : ""}</div>`;
+  if (ch.record) html += guideRecordLink(ch.record);
+  if (ch.sr) html += `<div class="gd-sr"><p class="pp-kind">Sith Reputation</p><p>From Warrior you earn <b>Sith Reputation</b>, the currency of the Order: points for hosting events, training apprentices and pathway tasks. You need it to be promoted from Warrior to Overseer, and can spend it on privileges in the SR store. Co-hosting or supervising a training earns none.</p>${link(["SR store", GUIDE_LINKS.srStore, true])}</div>`;
+  if (ch.links?.length) html += `<div class="gd-links">${ch.links.map(link).join("")}</div>`;
+  const last = guide.at === GUIDE.length - 1;
+  html += `<div class="pp-nav">
+      <button type="button" class="btn" id="gdPrev"${guide.at === 0 ? " disabled" : ""}>← ${guide.at ? esc(GUIDE[guide.at - 1].title) : "Back"}</button>
+      <button type="button" class="btn pp-next" id="gdNext">${last ? "Back to the beginning" : `${esc(GUIDE[guide.at + 1].title)} →`}</button>
+    </div>`;
+  return html;
+}
+function guideShow(scroll) {
+  const box = byId("gdChapter");
+  if (!box) return;
+  const store = guideStore();
+  const ch = GUIDE[guide.at];
+  box.innerHTML = guideChapterHtml(ch, store);
+  box.classList.remove("turn"); void box.offsetWidth; box.classList.add("turn");
+  guideAscent(store); guideSave(store);
+  history.replaceState(history.state, "", `/guide#${ch.id}`);
+  box.querySelectorAll("[data-req]").forEach((input) => input.addEventListener("change", () => {
+    const s = guideStore();
+    if (input.checked) s.done.add(input.dataset.req); else s.done.delete(input.dataset.req);
+    guideSave(s); guideAscent(s);
+    const reqs = guideReqs(ch);
+    if (input.checked && reqs.every((r) => s.done.has(r.id))) droidReact(ch.id === "order" ? "Welcome to the Order." : `${ch.title}: complete. Onward.`);
+  }));
+  byId("gdCode")?.addEventListener("click", () => reciteCode());
+  byId("gdPrev").addEventListener("click", () => { guide.at = Math.max(0, guide.at - 1); guideShow(true); });
+  byId("gdNext").addEventListener("click", () => {
+    if (guide.at === GUIDE.length - 1) { guide.at = 0; } else guide.at += 1;
+    if (guide.at === GUIDE.length - 1) droidReact("You have walked the whole path. Now go and earn it.");
+    guideShow(true);
+  });
+  if (scroll) byId("gdChapter").scrollIntoView({ block: "start", behavior: reducedMotion.matches ? "auto" : "smooth" });
+}
+document.addEventListener("keydown", (event) => {
+  if (parseRoute().view !== "guide" || !byId("gdChapter") || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key === "ArrowRight" && guide.at < GUIDE.length - 1) { guide.at += 1; guideShow(false); }
+  if (event.key === "ArrowLeft" && guide.at > 0) { guide.at -= 1; guideShow(false); }
+});
+
 /* ───────── Chapter scrubber ─────────
  * Long pages get a scrubber along the bottom instead of a contents column: one notch per
  * chapter at its true position in the page, a blade that fills as you read, and the current
@@ -1576,7 +1831,8 @@ function searchItems() {
   const pages = state.site.pages.map((page) => ({ tag: page.path ? "VAULT" : "GATE", title: page.path ? page.title : `${state.site.name}`, text: page.text, href: pageHref(page), where: page.path ? `Vault ${vaultNumeral(page)}${ancestors(page).length ? ` · ${ancestors(page).map(nodeTitle).join(" › ")}` : ""}` : "The gate", ref: page.path ? `VAULT ${vaultNumeral(page)}` : "GATE" }));
   const files = state.site.files.map((file) => ({ tag: (KIND[file.kind]?.short || "File").toUpperCase(), file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), where: [KIND[file.kind]?.label, fileVault(file) && trail(fileVault(file))].filter(Boolean).join(" · "), ref: fileRefNo(file) }));
   const pathPicker = { tag: "PATHS", title: "Path Picker", text: "Which pathway, division and sphere suits you? Juggernaut Sorcerer Assassin Dark Honor Guard Inquisitors Reavers Dread Hosts Galactic Influence Courts and Appeals Education and Academics", href: "/paths", where: "Find your place in the Order", ref: "✠" };
-  return [...files, ...pages, pathPicker];
+  const guidePage = { tag: "GUIDE", title: "Guide to the Order", text: "New here? How to rise: Minion Hopeful Initiate Adept Acolyte Apprentice Warrior Trial pathway Overseer Sith Lord Dark Council Emperor's Powerbase Sith Reputation", href: "/guide", where: "A walk through the Order, from Minion to the throne", ref: "✦" };
+  return [...files, ...pages, guidePage, pathPicker];
 }
 function openSearch(prefill) {
   closeMenus();
