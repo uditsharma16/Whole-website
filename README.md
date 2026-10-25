@@ -24,6 +24,13 @@ Source site: https://sites.google.com/view/tso-central-archives/home
 Links between pages and documents are rewritten to the archive's own routes, so the whole site,
 documents included, reads as one place.
 
+The **Path Picker** at `/paths` (under Records in the rail, and in the archive's search) is
+written for the archive rather than read from the Google Site. It asks seven questions and gives
+each visitor a main sphere, which means joining both its pathway and its division, and a side
+sphere, with a live match board as they answer. The questions, the pathway and division
+descriptions, and the trait weights are in the Path Picker block of `src/client/app.js`. Update
+them there if the Order's pathways change.
+
 Documents must be shared as **Anyone with the link can view** (or published to the web). A
 document that isn't is shown as a sealed record with a link to the original.
 

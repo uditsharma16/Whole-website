@@ -296,6 +296,7 @@ function parseRoute(path = currentPath()) {
   if (!parts.length) return { view: "home" };
   if (parts[0] === "p") return { view: "page", path: parts.slice(1).join("/") };
   if (parts[0] === "codex" || parts[0] === "catalogue") return { view: "codex" };
+  if (parts[0] === "paths" || parts[0] === "path-picker") return { view: "paths" };
   if (parts[0] === "s" && parts[1]) return { view: "section", slug: parts[1] };
   const kind = P.ROUTE_KIND[parts[0]];
   if (kind) {
@@ -315,6 +316,7 @@ function route(options = {}) {
     markActiveRail(target);
     if (target.view === "home") return renderGate(options);
     if (target.view === "codex") return renderCatalogue(options);
+    if (target.view === "paths") return renderPicker(options);
     if (target.view === "section") {
       const node = state.site.groups.get(target.slug);
       return node ? renderSection(node, options) : renderNotFound();
@@ -492,8 +494,7 @@ function renderRail() {
     ${tree.length ? `<p class="rail-label">Vaults</p>${tree.map(railNode).join("")}` : ""}
     <p class="rail-label">Records</p>
     <a class="rail-link" href="/codex" data-link data-route="/codex"><em aria-hidden="true">✦</em><span>The Catalogue</span><small>${state.site.files.length}</small></a>
-    <button type="button" class="rail-link" id="randomButton"><em aria-hidden="true">⟳</em><span>Random record</span></button>`;
-  byId("randomButton").addEventListener("click", jumpToRandomRecord);
+    <a class="rail-link" href="/paths" data-link data-route="/paths"><em aria-hidden="true">✠</em><span>Path Picker</span></a>`;
   byId("footerSource").href = state.site.source || SITE_URL;
   markActiveRail(parseRoute());
 }
@@ -508,6 +509,7 @@ function markActiveRail(target) {
   if (target.view === "file") { const file = fileByKey(P.fileKey(target)); const vault = file && fileVault(file); active = vault ? pageHref(vault) : "/codex"; }
   if (target.view === "section") active = `/s/${target.slug}`;
   if (target.view === "codex") active = "/codex";
+  if (target.view === "paths") active = "/paths";
   document.querySelectorAll(".rail-link[data-route]").forEach((link) => {
     if (link.dataset.route === active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   });
@@ -838,14 +840,6 @@ function startGateLog() {
     step();
   };
   type();
-}
-function jumpToRandomRecord() {
-  const files = state.site.files;
-  if (!files.length) { droidReact("The holocron vault is empty. For now."); return; }
-  let pick = files[Math.floor(Math.random() * files.length)];
-  for (let guard = 0; guard < 8 && files.length > 1 && fileHref(pick) === currentPath() + location.search; guard += 1) pick = files[Math.floor(Math.random() * files.length)];
-  droidReact("Retrieving a record at random.");
-  navigate(fileHref(pick));
 }
 
 /* ───────── A section (a dropdown tab of the Google Site's menu) ─────────
@@ -1198,6 +1192,320 @@ function renderNotFound() {
   afterRender();
 }
 
+/* ───────── The Path Picker (/paths) ─────────
+ * A short reading of what draws someone to the dark side. Every answer adds weight to a
+ * set of traits; each pathway and division carries its own trait profile, and the match is
+ * the cosine similarity between the two, stretched so a strong fit reads in the 80s–90s.
+ * A main sphere (one per member, joined as both its pathway and its division) is scored on
+ * its members together; side spheres are scored alone. The board beside the questions
+ * updates with every answer. Answers live in memory, so leaving and coming back keeps them. */
+const PP_TRAITS = {
+  combat: "Front-line combat", stealth: "Stealth & infiltration", lore: "Lore & world-building",
+  events: "Running events", community: "Community & diplomacy", law: "Law & judgement",
+  teaching: "Teaching & mentoring", guard: "Protection & loyalty", enforce: "Enforcing doctrine", lead: "Command"
+};
+const PP_PATHS = [
+  { id: "juggernaut", kind: "pathway", name: "Juggernaut", sphere: "Imperial Conquest",
+    blurb: "Masters of the lightsaber and the most combat-oriented pathway. First deployed when a raid is announced, holding back every enemy they face.",
+    entry: "Trial of Courage, from Warrior", minRank: 2, t: { combat: 3, lead: 1, guard: 1 } },
+  { id: "sorcerer", kind: "pathway", name: "Sorcerer", sphere: "Ancient Knowledge",
+    blurb: "Keepers of the Order's history, lore and mysteries. They build world-building events, relics and archive records, often with the Dread Hosts.",
+    entry: "See the SoAK guidelines", t: { lore: 3, events: 2, teaching: 1, community: 1 } },
+  { id: "assassin", kind: "pathway", name: "Assassin", sphere: "Imperial Judgement",
+    blurb: "Trained to move unseen, infiltrate, gather intelligence and eliminate targets through contracts. Held as the most disciplined of the Order.",
+    entry: "See the POA guidelines", t: { stealth: 3, combat: 2, enforce: 1 } },
+  { id: "dark-honor-guard", kind: "pathway", name: "Dark Honor Guard", sphere: "The Emperor's detachment",
+    blurb: "Personal protectors of the Emperor. They lock down spawn points and strongholds, and answer only to the Powerbase and the Emperor.",
+    entry: "Guardsmen Academy, as Acolyte (rarely Warrior)", minRank: 1, maxRank: 2,
+    warn: "Joining means leaving the main Sith progression. You can only join divisions linked to the Guard.",
+    t: { guard: 3, combat: 2, enforce: 1 } },
+  { id: "galactic-influence", kind: "pathway", name: "Galactic Influence", sphere: "Galactic Influence",
+    blurb: "Diplomacy with the Jedi Order, propaganda, community events, game nights and moderation. Keeps the whole Order active.",
+    entry: "Application, Acolyte+", minRank: 1, t: { community: 3, events: 2, lead: 1 } },
+  { id: "courts-and-appeals", kind: "pathway", name: "Courts and Appeals", sphere: "Courts and Appeals",
+    blurb: "The final arbiter on appeals against blacklists, rank-locks and SR deductions. Imperial Accusers prosecute; Imperial Advocates defend.",
+    entry: "Application, Warrior+", minRank: 2, t: { law: 3, enforce: 1, lead: 1 } },
+  { id: "education-and-academics", kind: "pathway", name: "Education and Academics", sphere: "Education & Academics",
+    blurb: "The Sith Academy: an alternative route for Acolytes without a master. Dark Mentors run training; Sith Instructors host Warrior Trials.",
+    entry: "Application: Acolyte, Dark Honor Guard or Warrior+", minRank: 1, t: { teaching: 3, lead: 1, community: 1 } },
+  { id: "inquisitors", kind: "division", name: "Inquisitors", sphere: "Imperial Judgement",
+    blurb: "Enforcers of Sith Doctrine who root out heresy and weakness, and take reports against members of the Order.",
+    entry: "Tryout, from Acolyte · led by the Grand Inquisitor", minRank: 1, t: { enforce: 3, stealth: 1, law: 1, guard: 1 } },
+  { id: "reavers", kind: "division", name: "Reavers", sphere: "Imperial Conquest",
+    blurb: "Specialised Juggernauts, the elite of the elite. Berserkers used for crowd control, drawing in and cutting down as many enemies as they can.",
+    entry: "Tryout, from Acolyte · led by The Overlord", minRank: 1, t: { combat: 3, enforce: 1 } },
+  { id: "dread-hosts", kind: "division", name: "Dread Hosts", sphere: "Ancient Knowledge",
+    blurb: "Event architects under the Dread Masters. Every gathering they run is a deliberate show of the Empire's power.",
+    entry: "Tryout, from Acolyte · led by the Harbinger of Fear", minRank: 1, t: { events: 3, lore: 1, enforce: 1 } }
+];
+const PP_MAIN = [
+  { id: "conquest", name: "Imperial Conquest", members: ["juggernaut", "reavers"] },
+  { id: "knowledge", name: "Ancient Knowledge", members: ["sorcerer", "dread-hosts"] },
+  { id: "judgement", name: "Imperial Judgement", members: ["assassin", "inquisitors"] },
+  { id: "guard", name: "Dark Honor Guard", members: ["dark-honor-guard"] }
+];
+const PP_SIDE = ["galactic-influence", "courts-and-appeals", "education-and-academics"];
+const PP_STEPS = [
+  { type: "multi", title: "What interests you?", hint: "Pick everything that catches your eye.",
+    opts: [
+      ["Lightsaber duels", { combat: 2 }],
+      ["Leading raids and battles", { combat: 1, lead: 2 }],
+      ["Striking unseen", { stealth: 2 }],
+      ["Hunting contract targets", { stealth: 1, enforce: 1 }],
+      ["Sith lore and holocrons", { lore: 2 }],
+      ["Writing stories and world-building", { lore: 2, events: 1 }],
+      ["Hosting events and game nights", { events: 2, community: 1 }],
+      ["Diplomacy with the Jedi Order", { community: 2 }],
+      ["Keeping the community active", { community: 2 }],
+      ["Law, evidence and debate", { law: 2 }],
+      ["Teaching and mentoring", { teaching: 2 }],
+      ["Guarding the Emperor", { guard: 2 }],
+      ["Holding a spawn point", { guard: 1, combat: 1 }],
+      ["Rooting out traitors", { enforce: 2 }]
+    ] },
+  { type: "single", title: "A raid on the Jedi is announced. Where are you?",
+    opts: [
+      ["First through the gate, saber lit.", { combat: 2 }],
+      ["Behind their lines, waiting for their commander to turn his back.", { stealth: 2, combat: 1 }],
+      ["Holding the spawn point so no one gets through.", { guard: 2 }],
+      ["Calling formations and telling everyone where to go.", { lead: 2, combat: 1 }]
+    ] },
+  { type: "single", title: "Pick your ideal night in the Order.",
+    opts: [
+      ["A dueling tournament.", { combat: 2 }],
+      ["A story campaign where we uncover a lost Sith vault.", { lore: 2, events: 1 }],
+      ["A game night I host for everyone.", { events: 2, community: 1 }],
+      ["A hearing where I argue an appeal.", { law: 2 }]
+    ] },
+  { type: "single", title: "A Sith breaks the rules. What do you do?",
+    opts: [
+      ["Hunt them down and make an example of them.", { enforce: 2, stealth: 1 }],
+      ["Gather the evidence and build the case.", { law: 2 }],
+      ["Take them aside and teach them better.", { teaching: 2 }],
+      ["Report it. My duty is to the Emperor's safety.", { guard: 2 }]
+    ] },
+  { type: "single", title: "What reward would mean the most?",
+    opts: [
+      ["Ranking up by passing combat trials.", { combat: 2, lead: 1 }],
+      ["Unique armour and duties no other Sith receives.", { guard: 2 }],
+      ["Seeing my story become canon in the Archives.", { lore: 2 }],
+      ["Watching someone I trained pass their Warrior Trials.", { teaching: 2 }],
+      ["Being the reason everyone shows up to an event.", { events: 1, community: 2 }]
+    ] },
+  { type: "single", creed: true, title: "Which creed sounds like you?",
+    opts: [
+      ["We are the Emperor's guard. We protect him. Kill for him. Die for him.", { guard: 3 }],
+      ["By the decrees of the law, we bend the ambitious.", { law: 3 }],
+      ["Through manipulation, mass deception and diplomacy, we shall rule the galaxy.", { community: 3 }],
+      ["We do not merely teach you to survive the dark side; we teach you to command it.", { teaching: 3 }],
+      ["Their combative prowess matches an army easily.", { combat: 3 }],
+      ["Ultimate power allows no room for weakness.", { enforce: 3 }],
+      ["Every gathering is a deliberate exertion of power.", { events: 3 }]
+    ] },
+  { type: "single", rank: true, title: "What rank are you now?", hint: "Used only to flag what you can join today.",
+    opts: [["Not in the Order yet", 0], ["Acolyte", 1], ["Warrior", 2], ["Above Warrior", 3]] }
+];
+const picker = { step: 0, answers: PP_STEPS.map((s) => (s.type === "multi" ? new Set() : null)), info: null };
+const ppById = Object.fromEntries(PP_PATHS.map((p) => [p.id, p]));
+const ppHref = (p) => `/p/${p.kind === "division" ? "divisions" : "pathways"}/${p.id}`;
+
+function ppVector() {
+  const v = Object.fromEntries(Object.keys(PP_TRAITS).map((k) => [k, 0]));
+  PP_STEPS.forEach((s, i) => {
+    if (s.rank) return;
+    const a = picker.answers[i];
+    const picks = s.type === "multi" ? [...a] : a == null ? [] : [a];
+    picks.forEach((j) => { for (const [k, w] of Object.entries(s.opts[j][1])) v[k] += w; });
+  });
+  return v;
+}
+function ppMatch(u, t) {
+  let dot = 0, nu = 0, nt = 0;
+  for (const k in PP_TRAITS) { const a = u[k] || 0, b = t[k] || 0; dot += a * b; nu += a * a; nt += b * b; }
+  if (!nu) return 0;
+  return Math.round(Math.max(0, Math.min(1, (dot / Math.sqrt(nu * nt) - .05) / .92)) * 100);
+}
+function ppReasons(u, t) {
+  return Object.keys(PP_TRAITS).filter((k) => u[k] > 0 && (t[k] || 0) > 0).sort((a, b) => u[b] * t[b] - u[a] * t[a]).slice(0, 3).map((k) => PP_TRAITS[k]);
+}
+function ppScores() {
+  const u = ppVector();
+  const scored = Object.fromEntries(PP_PATHS.map((p) => [p.id, { ...p, pct: ppMatch(u, p.t) }]));
+  const main = PP_MAIN.map((m) => {
+    const t = {};
+    m.members.forEach((id) => { for (const [k, w] of Object.entries(scored[id].t)) t[k] = (t[k] || 0) + w; });
+    return { ...m, members: m.members.map((id) => scored[id]), pct: ppMatch(u, t), why: ppReasons(u, t) };
+  }).sort((a, b) => b.pct - a.pct);
+  const side = PP_SIDE.map((id) => ({ ...scored[id], why: ppReasons(u, scored[id].t) })).sort((a, b) => b.pct - a.pct);
+  return { main, side };
+}
+function ppRank() { const last = PP_STEPS.length - 1, r = picker.answers[last]; return r == null ? null : PP_STEPS[last].opts[r][1]; }
+function ppEligibility(p) {
+  const r = ppRank();
+  if (r == null || p.minRank == null) return null;
+  if (p.maxRank != null && r > p.maxRank) return { ok: false, text: "Only open to Acolytes and Warriors" };
+  if (r >= p.minRank) return { ok: true, text: "Open to you at your rank" };
+  return { ok: false, text: p.minRank === 2 ? "Unlocks at Warrior" : "Unlocks once you reach Acolyte" };
+}
+
+function renderPicker(options) {
+  document.title = "Path Picker — TSO Central Archives";
+  app.innerHTML = `<div class="page picker-page">
+    <header class="chamber-head">
+      <span class="chamber-numeral" aria-hidden="true">✠</span>
+      ${crumbs([{ href: "/", label: "The Gate" }, { label: "Path Picker" }])}
+      <p class="eyebrow">Find your place in the Order</p>
+      <h1 data-decrypt>The Path Picker</h1>
+      <p class="pp-lede">Tell the Archives what draws you to the dark side. You will be given one main sphere, where you join both its pathway and its division, and a side sphere to take on alongside it. Every answer moves the readings on the board.</p>
+    </header>
+    ${SABER_RULE("Explore the spheres")}
+    <section class="pp-explore" aria-label="Explore the spheres">
+      <p class="pp-exhead">Press any one to learn what it does</p>
+      <div class="pp-groups" id="ppGroups"></div>
+      <div class="pp-info" id="ppInfo" hidden></div>
+    </section>
+    ${SABER_RULE("The reading")}
+    <div class="pp-grid">
+      <section class="pp-quiz" id="ppQuiz" aria-live="polite"></section>
+      <aside class="pp-readout" aria-label="Live match readout">
+        <div class="pp-board"><h3><span>Main spheres · pick one</span><span>Match</span></h3><div id="ppMain"></div></div>
+        <div class="pp-board"><h3><span>Side spheres</span><span>Match</span></h3><div id="ppSide"></div></div>
+      </aside>
+    </div>
+  </div>`;
+  ppExplore(); ppBoard(); ppStep();
+  afterRender(options);
+}
+function ppBoard() {
+  const { main, side } = ppScores();
+  const any = main.some((p) => p.pct > 0) || side.some((p) => p.pct > 0);
+  const row = (p, i, sub) => `<div class="pp-row${any && i === 0 && p.pct > 0 ? " top" : ""}">
+      <span class="pp-nm">${esc(p.name)}</span><span class="pp-pc">${any ? `${p.pct}%` : "—"}</span>
+      ${sub ? `<span class="pp-sub">${esc(sub)}</span>` : ""}
+      <span class="pp-bar"><i style="width:${p.pct}%"></i></span>
+    </div>`;
+  byId("ppMain").innerHTML = main.map((m, i) => row(m, i, m.members.length > 1 ? m.members.map((p) => p.name).join(" + ") : "Stands apart · no division")).join("");
+  byId("ppSide").innerHTML = side.map((p, i) => row(p, i)).join("");
+}
+function ppCanAdvance() {
+  const a = picker.answers[picker.step];
+  return PP_STEPS[picker.step].type === "multi" ? a.size > 0 : a != null;
+}
+function ppStep() {
+  const q = byId("ppQuiz");
+  if (!q) return;
+  const total = PP_STEPS.length, step = picker.step;
+  const progress = `<div class="pp-progress" aria-hidden="true">${PP_STEPS.map((_, i) => `<span class="${i < step || step >= total ? "done" : i === step ? "here" : ""}"></span>`).join("")}</div>`;
+  if (step >= total) return ppResult(q, progress);
+  const s = PP_STEPS[step], a = picker.answers[step];
+  const body = s.type === "multi"
+    ? `<div class="pp-chips">${s.opts.map((o, j) => `<button type="button" class="pp-chip" id="pp${step}_${j}" data-j="${j}" aria-pressed="${a.has(j)}">${esc(o[0])}</button>`).join("")}</div>`
+    : `<div class="pp-opts${s.creed ? " creeds" : ""}">${s.opts.map((o, j) => `<button type="button" class="pp-opt" id="pp${step}_${j}" data-j="${j}" aria-pressed="${a === j}"><span class="pp-mark" aria-hidden="true"></span><span>${esc(o[0])}</span></button>`).join("")}</div>`;
+  q.innerHTML = `${progress}
+    <div class="pp-qhead"><p class="pp-qnum">Question ${step + 1} of ${total}</p><h2>${esc(s.title)}</h2>${s.hint ? `<p class="pp-hint">${esc(s.hint)}</p>` : ""}</div>
+    ${body}
+    <div class="pp-nav">
+      <button type="button" class="btn" id="ppBack"${step === 0 ? " disabled" : ""}>Back</button>
+      ${s.type === "multi" ? `<span class="pp-count">${a.size} picked</span>` : ""}
+      <button type="button" class="btn pp-next" id="ppNext"${ppCanAdvance() ? "" : " disabled"}>${step === total - 1 ? "Reveal my path" : "Next"}</button>
+    </div>`;
+  q.querySelectorAll("[data-j]").forEach((button) => button.addEventListener("click", () => {
+    const j = Number(button.dataset.j);
+    if (s.type === "multi") { if (a.has(j)) a.delete(j); else a.add(j); } else picker.answers[step] = j;
+    ppBoard(); ppStep();
+    byId(button.id)?.focus();
+  }));
+  byId("ppBack").addEventListener("click", () => { picker.step -= 1; ppStep(); });
+  byId("ppNext").addEventListener("click", () => {
+    picker.step += 1; ppStep();
+    q.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
+    if (picker.step >= total) ppRevealFx();
+  });
+}
+/* The reveal: the reading card ignites, the sky flashes and the droid announces the sphere. */
+function ppRevealFx() {
+  const { main } = ppScores();
+  skyFlash(.5);
+  droidReact(`The Archives have read you. ${main[0].name} awaits.`);
+  const card = app.querySelector(".pp-card.wide");
+  if (!card || reducedMotion.matches || perf.lite) return;
+  const box = card.getBoundingClientRect();
+  for (let i = 0; i < 3; i += 1) setTimeout(() => strike(box.left + box.width * (.2 + Math.random() * .6), -10, box.left + box.width * (.15 + Math.random() * .7), box.top + 8, { width: 1.8, decay: .07 }), i * 110);
+}
+function ppMember(p, bare) {
+  const el = ppEligibility(p);
+  return `<div class="pp-member">
+    ${bare ? "" : `<p class="pp-kind">${p.kind === "pathway" ? "Pathway" : "Division"}</p><h4>${esc(p.name)}</h4>`}
+    <p>${esc(p.blurb)}</p>
+    <p class="pp-meta">Entry: ${esc(p.entry)}</p>
+    ${el ? `<p class="pp-flag${el.ok ? " ok" : ""}">${esc(el.text)}</p>` : ""}
+    ${p.warn ? `<p class="pp-flag">${esc(p.warn)}</p>` : ""}
+    <a class="pp-link" href="${ppHref(p)}" data-link>Read the ${esc(p.name)} vault →</a>
+  </div>`;
+}
+const ppTags = (why) => (why.length ? `<div class="pp-tags">${why.map((w) => `<span>${esc(w)}</span>`).join("")}</div>` : "");
+function ppResult(q, progress) {
+  const { main, side } = ppScores();
+  const top = main[0], runner = main[1], sideTop = side[0];
+  const sideAlso = side.slice(1).filter((p) => p.pct >= 50);
+  const joinNote = top.members.length > 1
+    ? `In this sphere you join both: the ${top.members[0].name} pathway and the ${top.members[1].name} division.`
+    : "The Guard has no division of its own. It stands apart from the other spheres and answers only to the Powerbase and the Emperor.";
+  q.innerHTML = `${progress}
+    <div class="pp-result">
+      <div class="pp-qhead"><p class="pp-qnum">Your reading</p><h2>Your main sphere is ${esc(top.name)}</h2></div>
+      <article class="pp-card wide">
+        <p class="pp-kind">Main sphere · you can hold only one</p>
+        <div class="pp-big"><b>${esc(top.name)}</b><span>${top.pct}%</span></div>
+        <p>${esc(joinNote)}</p>
+        ${ppTags(top.why)}
+        <div class="pp-duo">${top.members.map((p) => ppMember(p)).join("")}</div>
+      </article>
+      <article class="pp-card side">
+        <p class="pp-kind">Side sphere · joined alongside your main</p>
+        <div class="pp-big"><b>${esc(sideTop.name)}</b><span>${sideTop.pct}%</span></div>
+        ${ppTags(sideTop.why)}
+        ${sideTop.pct < 40 ? `<p class="pp-also">None of the side spheres stood out for you. This is the closest, and side spheres are optional.</p>` : ""}
+        ${ppMember(sideTop, true)}
+        ${sideAlso.length ? `<p class="pp-also">Also a good fit: ${sideAlso.map((p) => `${esc(p.name)} (${p.pct}%)`).join(", ")}.</p>` : ""}
+      </article>
+      <p class="pp-combo"><b>Runner-up main sphere: ${esc(runner.name)}</b> (${runner.pct}%). Main spheres can't be combined, so this is the one you would give up.</p>
+      <div class="pp-nav">
+        <button type="button" class="btn" id="ppBack">Change last answer</button>
+        <button type="button" class="btn pp-next" id="ppAgain">Start over</button>
+      </div>
+    </div>`;
+  byId("ppBack").addEventListener("click", () => { picker.step = PP_STEPS.length - 1; ppStep(); });
+  byId("ppAgain").addEventListener("click", () => {
+    PP_STEPS.forEach((s, i) => { picker.answers[i] = s.type === "multi" ? new Set() : null; });
+    picker.step = 0; ppBoard(); ppStep();
+    byId("ppQuiz").scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
+  });
+}
+function ppExplore() {
+  const pill = (id) => `<button type="button" class="pp-pill" id="ppx_${id}" data-id="${id}" aria-expanded="${picker.info === id}" aria-controls="ppInfo">${esc(ppById[id].name)}${ppById[id].kind === "division" ? "<small>division</small>" : ""}</button>`;
+  byId("ppGroups").innerHTML = PP_MAIN.map((m) => `<div class="pp-group"><span>${esc(m.name)}</span><div>${m.members.map(pill).join("")}</div></div>`).join("")
+    + `<div class="pp-group side"><span>Side spheres</span><div>${PP_SIDE.map(pill).join("")}</div></div>`;
+  byId("ppGroups").querySelectorAll(".pp-pill").forEach((button) => button.addEventListener("click", () => {
+    picker.info = picker.info === button.dataset.id ? null : button.dataset.id;
+    ppExplore(); ppInfo();
+    byId(button.id).focus();
+  }));
+}
+function ppInfo() {
+  const box = byId("ppInfo");
+  if (!picker.info) { box.hidden = true; return; }
+  const p = ppById[picker.info];
+  const main = PP_MAIN.find((m) => m.members.includes(p.id));
+  box.hidden = false;
+  box.innerHTML = `<div class="pp-info-top"><p class="pp-kind">${main ? `${p.kind === "division" ? "Division" : "Pathway"} of the ${esc(main.name)} main sphere` : "Side sphere"}</p><button type="button" class="pp-x" id="ppInfoClose" aria-label="Close">×</button></div>
+    <h3>${esc(p.name)}</h3><p>${esc(p.blurb)}</p>
+    <p class="pp-meta">Entry: ${esc(p.entry)}</p>
+    ${p.warn ? `<p class="pp-flag">${esc(p.warn)}</p>` : ""}
+    <a class="pp-link" href="${ppHref(p)}" data-link>Open the ${esc(p.name)} vault →</a>`;
+  byId("ppInfoClose").addEventListener("click", () => { const id = picker.info; picker.info = null; ppExplore(); ppInfo(); byId(`ppx_${id}`).focus(); });
+}
+
 /* ───────── Chapter scrubber ─────────
  * Long pages get a scrubber along the bottom instead of a contents column: one notch per
  * chapter at its true position in the page, a blade that fills as you read, and the current
@@ -1267,7 +1575,8 @@ async function indexDocuments() {
 function searchItems() {
   const pages = state.site.pages.map((page) => ({ tag: page.path ? "VAULT" : "GATE", title: page.path ? page.title : `${state.site.name}`, text: page.text, href: pageHref(page), where: page.path ? `Vault ${vaultNumeral(page)}${ancestors(page).length ? ` · ${ancestors(page).map(nodeTitle).join(" › ")}` : ""}` : "The gate", ref: page.path ? `VAULT ${vaultNumeral(page)}` : "GATE" }));
   const files = state.site.files.map((file) => ({ tag: (KIND[file.kind]?.short || "File").toUpperCase(), file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), where: [KIND[file.kind]?.label, fileVault(file) && trail(fileVault(file))].filter(Boolean).join(" · "), ref: fileRefNo(file) }));
-  return [...files, ...pages];
+  const pathPicker = { tag: "PATHS", title: "Path Picker", text: "Which pathway, division and sphere suits you? Juggernaut Sorcerer Assassin Dark Honor Guard Inquisitors Reavers Dread Hosts Galactic Influence Courts and Appeals Education and Academics", href: "/paths", where: "Find your place in the Order", ref: "✠" };
+  return [...files, ...pages, pathPicker];
 }
 function openSearch(prefill) {
   closeMenus();
