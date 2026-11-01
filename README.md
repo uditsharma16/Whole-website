@@ -96,8 +96,11 @@ Regent of the Sith, sheathes his sword as the enemies of the Sith fall. Type `kn
 Darth Soteris, the Emperor's Voice, wakes an ancient Sith temple and the Emperor's spirit
 rises behind him. Type `dhg` and the Dark Honor Guard holds the Emperor's
 gate.
-Type `rage` (`wrath` outside the Halloween hunt) and Darth Aeravix, the Emperor's Wrath, burns the enemy's banners and plants the Sith's in their
-place while a war map of the galaxy falls world by world. Type `hand` and Darth Astarion, the Emperor's Hand, steps out of the shadows and snaps. Everyone starts on full effects; devices that
+Type `rage` (`wrath` outside the Halloween hunt) and Darth Astarion, the Emperor's Wrath, burns the enemy's
+banners and plants the Sith's in their place while a war map of the galaxy falls world by world. Type `hand` and
+Darth Maleagant, the Emperor's Hand, steps out of the shadows and snaps. Type `shield` and Darth
+Rex'Aegis, the Shield of the Emperor, drops before the throne. His blue knight's shield breaks a barrage and a
+great beam, then bursts outward, and the Dark Honor Guard ignite around him. Everyone starts on full effects; devices that
 render the atmosphere slowly switch to a lighter mode automatically, and the footer switch
 (or `?fx=lite` / `?fx=full`) chooses either one by hand.
 

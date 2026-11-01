@@ -1869,10 +1869,11 @@ function renderSearch(query) {
   if (letters.length >= 5 && (CODE_WORDS.startsWith(letters) || letters.startsWith(CODE_WORDS))) matches.unshift({ recite: true, tag: "CODE", title: "Recite the Code of the Sith", where: "Peace is a lie, there is only passion…", ref: "◆", href: "#code" });
   // Someone searching "emperor" may want the Emperor's pages, so he waits just behind the best match.
   if (letters.length >= 3 && (letters === GUARD_WORD || (letters.length >= 5 && "darkhonorguard".startsWith(letters)))) matches.splice(Math.min(1, matches.length), 0, { summon: "guard", tag: "DHG", title: "Summon the Dark Honor Guard", where: "The Emperor's Shield. None shall pass.", ref: "◆", href: "#dhg" });
-  if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "Darth Astarion, the Emperor's Hand", ref: "◆", href: "#hand" });
-  if (letters.length >= Math.min(5, WRATH_WORD.length) && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Aeravix, the Emperor's Wrath", ref: "◆", href: "#wrath" });
+  if (letters === HAND_WORD) matches.splice(Math.min(1, matches.length), 0, { summon: "hand", tag: "HAND", title: "Summon the Emperor's Hand", where: "Darth Maleagant, the Emperor's Hand", ref: "◆", href: "#hand" });
+  if (letters.length >= Math.min(5, WRATH_WORD.length) && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Astarion, the Emperor's Wrath", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "Darth Soteris, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Darth Zephros, Dark Regent of the Sith", ref: "◆", href: "#regent" });
+  if ((letters.length >= 5 && SHIELD_WORD.startsWith(letters)) || letters === "aegis" || (letters.length >= 6 && ("rexaegis".startsWith(letters) || "darthrexaegis".startsWith(letters)))) matches.splice(Math.min(1, matches.length), 0, { summon: "shield", tag: "SHIELD", title: "Summon the Shield of the Emperor", where: "Darth Rex'Aegis, Lord of the Dark Honor Guard", ref: "◆", href: "#shield" });
   if (letters === DBZ_WORD || (letters.length >= 5 && "kamehameha".startsWith(letters))) matches.splice(Math.min(1, matches.length), 0, { summon: "dbz", tag: "DBZ", title: "Kamehameha", where: "Darth Azazel charges a blast of pure energy", ref: "◆", href: "#dbz" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
@@ -2128,6 +2129,7 @@ document.addEventListener("keydown", (event) => {
   else if (typed.endsWith(HAND_WORD)) { typed = ""; summon("hand"); }
   else if (typed.endsWith(GUARD_WORD)) { typed = ""; summon("guard"); }
   else if (typed.endsWith(DBZ_WORD)) { typed = ""; summon("dbz"); }
+  else if (typed.endsWith(SHIELD_WORD)) { typed = ""; summon("shield"); }
 });
 
 /* ───────── The Halloween hunt (temporary) ─────────
@@ -2506,6 +2508,242 @@ async function summonKame() {
   later(9200, () => { overlay.classList.add("leaving"); kame.auraTarget = 0; });
   later(9900, finish);
 }
+/* ───────── The Shield of the Emperor ─────────
+ * Typing "shield" (or "aegis") summons Darth Rex'Aegis, the Shield of the Emperor, who leads the
+ * Dark Honor Guard. The scene is set in the throne room. The Emperor sits on his throne,
+ * enemy fire streaks in from every side, and Darth Rex'Aegis drops from above and lands in
+ * front of the throne. His golden eyes ignite and a great knight's shield of translucent blue
+ * light forms before him, crowned, covering the throne. The barrage breaks on it: every hit
+ * flares a facet, ripples and throws sparks, and the bolt glances away. Then a vast beam slams
+ * into the shield; the facets there glow red-hot and crack. He answers: the shield bursts
+ * outward into shards, and the beam is cut. In the calm the Dark Honor Guard ignite their sabers on
+ * either side, the sigil lights beneath him, and his name and title appear.
+ * Everything is laid out on a 1600×900 stage (scaled to fit like the Voice's temple);
+ * bolts use the Web Animations API, sparks a canvas on the stage. */
+const SHIELD_WORD = "shield";
+const aegis = { running: false, timers: [], built: false, hexes: [], frame: 0, sparks: [], anims: [] };
+const AEGIS = { cx: 800, cy: 470, hex: 34, path: "M400 86Q800 26 1200 86V420C1200 650 1050 810 800 892C550 810 400 650 400 420Z", fig: { left: 622, top: 300, h: 540, w: 357 }, eyes: [[768, 417], [813, 415]], emperorEyes: [[784, 129], [806, 130]] };
+function fitAegis() {
+  const scale = Math.max(innerWidth / 1600, Math.min(innerHeight / 900, innerWidth / 700));
+  byId("aegisStage").style.setProperty("--vt-scale", scale.toFixed(4));
+}
+function buildAegis() {
+  if (aegis.built) return;
+  aegis.built = true;
+  const { cx, cy, hex: R } = AEGIS;
+  // The shield's facets: pointy-top hexagons on a honeycomb, kept where their centre falls inside
+  // the shield (clipped to its outline in the SVG). They are the shards it breaks into.
+  const w = Math.sqrt(3) * R, rows = [];
+  aegis.hexes = [];
+  for (let row = -14; row <= 14; row += 1) for (let col = -14; col <= 14; col += 1) {
+    const x = cx + col * w + (row % 2 ? w / 2 : 0), y = cy + row * R * 1.5;
+    if (!aegisInside(x, y, R * .6)) continue;
+    const d = Math.min(1, Math.hypot((x - cx) / 400, (y - cy) / 420)); // 0 at his centre, 1 at the rim
+    const pts = Array.from({ length: 6 }, (_, k) => { const a = Math.PI / 180 * (60 * k - 30); return `${(x + R * .94 * Math.cos(a)).toFixed(1)},${(y + R * .94 * Math.sin(a)).toFixed(1)}`; }).join(" ");
+    const out = 260 + seededRandom(`hx${row}:${col}`) * 360, ang = Math.atan2(y - cy, x - cx);
+    aegis.hexes.push({ x, y });
+    rows.push(`<polygon class="ae-hex" points="${pts}" style="--d:${(d * .55).toFixed(3)}s;--rim:${Math.min(1, d * d).toFixed(2)};--ox:${(Math.cos(ang) * out).toFixed(0)}px;--oy:${(Math.sin(ang) * out).toFixed(0)}px;--spin:${((seededRandom(`hs${row}:${col}`) - .5) * 220).toFixed(0)}deg"/>`);
+  }
+  const P = GUARD_POSE, place = (gx, feet, tall) => { const gw = tall * P.w / P.h; return { left: gx - gw / 2, top: feet - P.feet * tall, w: gw }; };
+  const guards = [[300, 820, 420], [1300, 820, 420], [470, 640, 300], [1130, 640, 300], [580, 520, 220], [1020, 520, 220]].map(([gx, feet, tall], i) => {
+    const { left, top, w: gw } = place(gx, feet, tall), blade = tall * .42, flip = gx > 800 ? " flip" : "";
+    const hx = gx > 800 ? left + (1 - P.hilt[0]) * gw : left + P.hilt[0] * gw;
+    return `<img class="ae-guard${flip}" src="/dhg-saber.webp" alt="" style="left:${left.toFixed(0)}px;top:${top.toFixed(0)}px;height:${tall}px;--i:${i}">
+      <i class="ae-guard-blade${flip}" style="left:${hx.toFixed(0)}px;top:${(top + P.hilt[1] * tall - blade).toFixed(0)}px;height:${blade.toFixed(0)}px;--i:${i}"></i>
+      <i class="ae-guard-visor" style="left:${(left + P.visor[0] * gw).toFixed(0)}px;top:${(top + P.visor[1] * tall).toFixed(0)}px;width:${(tall * .05).toFixed(1)}px;--i:${i}"></i>`;
+  }).join("");
+  const f = AEGIS.fig;
+  const cracks = Array.from({ length: 7 }, (_, i) => `<path class="ae-crack" style="--i:${i}" d=""/>`).join("");
+  byId("aegisStage").innerHTML = `
+    <svg class="vt-abs ae-hall" viewBox="0 0 1600 900">
+      <defs>
+        <linearGradient id="aeWall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d0709"/><stop offset="1" stop-color="#1a0b0e"/></linearGradient>
+        <linearGradient id="aeFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#150a0c"/><stop offset="1" stop-color="#050203"/></linearGradient>
+        <linearGradient id="aeShieldFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd4ff" stop-opacity=".26"/><stop offset=".55" stop-color="#4a9dff" stop-opacity=".13"/><stop offset="1" stop-color="#2a6dff" stop-opacity=".22"/></linearGradient>
+        <linearGradient id="aeShieldSheen" x1="0" y1="0" x2="1" y2="1"><stop offset=".25" stop-color="#fff" stop-opacity="0"/><stop offset=".4" stop-color="#e8f6ff" stop-opacity=".22"/><stop offset=".48" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <clipPath id="aeShieldClip"><path d="${AEGIS.path}"/></clipPath>
+      </defs>
+      <rect width="1600" height="500" fill="url(#aeWall)"/>
+      <path class="ae-arch" d="M560 470V170Q800 -10 1040 170V470"/>
+      <g class="ae-pillar"><rect x="110" y="0" width="90" height="560"/><rect x="330" y="0" width="70" height="500"/><rect x="1200" y="0" width="70" height="500"/><rect x="1400" y="0" width="90" height="560"/></g>
+      <path class="ae-banner" d="M250 40H310V330L280 305L250 330Z"/><path class="ae-banner" d="M1290 40H1350V330L1320 305L1290 330Z"/>
+      <path class="ae-banner-emb" d="M280 140l18 10v20l-18 10-18-10v-20Z"/><path class="ae-banner-emb" d="M1320 140l18 10v20l-18 10-18-10v-20Z"/>
+      <path d="M0 470H1600V900H0Z" fill="url(#aeFloor)"/>
+      <path class="ae-floor-lines" d="M800 470L-400 900M800 470L100 900M800 470L500 900M800 470L1100 900M800 470L1500 900M800 470L2000 900M0 560H1600M0 680H1600M0 820H1600"/>
+      <path class="ae-dais" d="M600 470H1000L1040 500H560Z"/><path class="ae-dais" d="M560 500H1040L1080 530H520Z"/>
+      <path class="ae-throne" d="M680 470V120Q680 50 800 30Q920 50 920 120V470Z"/><path class="ae-throne-trim" d="M700 460V128Q702 75 800 52Q898 75 900 128V460"/>
+      <g class="ae-floor-cracks"><path d="M800 842 L700 860 L610 852 L520 878"/><path d="M800 842 L880 866 L990 858 L1080 884"/><path d="M800 842 L760 880 L700 900"/><path d="M800 842 L850 884 L905 905"/><path d="M800 842 L640 836 L560 828"/><path d="M800 842 L965 834 L1050 826"/></g>
+      <g class="ae-sigil" transform="translate(800 842) scale(1 .3)"><path d="M0 -150 130 -75V75L0 150 -130 75V-75Z"/><path d="M0 -88 50 0 0 88 -50 0Z"/></g>
+    </svg>
+    <div class="ae-throne-light"></div>
+    <img class="ae-emperor" src="/emperor.webp" alt="" style="left:701px;top:70px;height:250px">
+    ${AEGIS.emperorEyes.map(([x, y]) => `<i class="ae-emperor-eye" style="left:${x}px;top:${y}px"></i>`).join("")}
+    <div class="ae-guards">${guards}</div>
+    <div class="ae-drop"><div class="ae-figure" style="left:${f.left}px;top:${f.top}px;width:${f.w}px;height:${f.h}px"><img src="/aegis.webp" alt=""></div>
+      ${AEGIS.eyes.map(([x, y]) => `<i class="ae-eye" style="left:${x}px;top:${y}px"></i>`).join("")}</div>
+    <div class="ae-dust"></div><div class="ae-shock"><i></i><i></i></div>
+    <svg class="vt-abs ae-shield" viewBox="0 0 1600 900">
+      <path class="ae-dome-fill" d="${AEGIS.path}" fill="url(#aeShieldFill)"/>
+      <g class="ae-hexes" clip-path="url(#aeShieldClip)">${rows.join("")}<path class="ae-sheen" d="${AEGIS.path}" fill="url(#aeShieldSheen)"/></g>
+      <path class="ae-rim" d="${AEGIS.path}"/>
+      <g transform="translate(800 470) scale(.93) translate(-800 -470)"><path class="ae-rim inner" d="${AEGIS.path}"/></g>
+      <g class="ae-crest"><path d="M742 64V22L770 44L800 6L830 44L858 22V64Q800 50 742 64Z"/><circle cx="800" cy="4" r="6"/><circle cx="742" cy="18" r="4.5"/><circle cx="858" cy="18" r="4.5"/></g>
+      <g class="ae-emblem"><path d="M800 680 854 711V773L800 804 746 773V711Z"/><path d="m800 706 21 36-21 36-21-36Z"/></g>
+      <g class="ae-cracks">${cracks}</g>
+    </svg>
+    <div class="ae-fx" id="aegisFx"></div>
+    <canvas class="ae-canvas" id="aegisCanvas" width="1600" height="900"></canvas>
+    <div class="ae-beam" id="aegisBeam"><i></i></div>
+    <div class="ae-flash"></div>`;
+}
+/* Is a point on the shield? (Its outline as a Path2D, tested on a scratch canvas.) */
+function aegisInside(x, y, inset = 0) {
+  if (!aegis.probe) { aegis.probe = document.createElement("canvas").getContext("2d"); aegis.shape = new Path2D(AEGIS.path); }
+  if (!inset) return aegis.probe.isPointInPath(aegis.shape, x, y);
+  return [[0, 0], [inset, 0], [-inset, 0], [0, inset], [0, -inset]].every(([ox, oy]) => aegis.probe.isPointInPath(aegis.shape, x + ox, y + oy));
+}
+/* Where a straight path from (sx, sy) towards (tx, ty) first meets the shield. */
+function aegisMeet(sx, sy, tx, ty) {
+  let lo = 0, hi = 1;
+  for (let i = 1; i <= 120; i += 1) { const t = i / 120; if (aegisInside(sx + (tx - sx) * t, sy + (ty - sy) * t)) { hi = t; lo = (i - 1) / 120; break; } }
+  for (let i = 0; i < 12; i += 1) { const t = (lo + hi) / 2; if (aegisInside(sx + (tx - sx) * t, sy + (ty - sy) * t)) hi = t; else lo = t; }
+  return [sx + (tx - sx) * hi, sy + (ty - sy) * hi];
+}
+function aegisHit(x, y, big = false) {
+  // The nearest hex flares; a ripple spreads from the point; sparks scatter.
+  let best = null, bestD = Infinity;
+  aegis.hexes.forEach((h, i) => { const d = (h.x - x) ** 2 + (h.y - y) ** 2; if (d < bestD) { bestD = d; best = i; } });
+  const poly = byId("aegisStage").querySelectorAll(".ae-hex")[best];
+  if (poly) { poly.classList.remove("hit"); void poly.getBoundingClientRect(); poly.classList.add("hit"); }
+  const ring = document.createElement("i");
+  ring.className = `ae-ripple${big ? " big" : ""}`; ring.style.left = `${x}px`; ring.style.top = `${y}px`;
+  byId("aegisFx").appendChild(ring);
+  setTimeout(() => ring.remove(), 900);
+  if (!perf.lite) for (let i = 0; i < (big ? 6 : 14); i += 1) {
+    const a = Math.atan2(y - AEGIS.cy, x - AEGIS.cx) + (Math.random() - .5) * 2.2, v = 2 + Math.random() * 7;
+    aegis.sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, life: 0, max: 22 + Math.random() * 26, hot: Math.random() < .4 });
+  }
+}
+function aegisBolt(sx, sy, tx, ty, flight) {
+  const [ix, iy] = aegisMeet(sx, sy, tx, ty);
+  const angle = Math.atan2(iy - sy, ix - sx) * 180 / Math.PI;
+  const bolt = document.createElement("i");
+  bolt.className = "ae-bolt";
+  byId("aegisFx").appendChild(bolt);
+  const go = bolt.animate([{ transform: `translate(${sx}px, ${sy}px) rotate(${angle}deg)` }, { transform: `translate(${ix}px, ${iy}px) rotate(${angle}deg)` }], { duration: flight, easing: "linear", fill: "forwards" });
+  aegis.anims.push(go);
+  go.onfinish = () => {
+    if (!aegis.running) return bolt.remove();
+    aegisHit(ix, iy);
+    // Glance off: reflect the path about the shield's face at the point of impact (taken as
+    // facing out from its centre, which reads right for a curved shield).
+    let nx = ix - AEGIS.cx, ny = iy - AEGIS.cy; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+    let dx = ix - sx, dy = iy - sy; const dl = Math.hypot(dx, dy); dx /= dl; dy /= dl;
+    const dot = dx * nx + dy * ny, rxd = dx - 2 * dot * nx, ryd = dy - 2 * dot * ny;
+    const out = bolt.animate([{ transform: `translate(${ix}px, ${iy}px) rotate(${Math.atan2(ryd, rxd) * 180 / Math.PI}deg)`, opacity: 1 }, { transform: `translate(${ix + rxd * 700}px, ${iy + ryd * 700}px) rotate(${Math.atan2(ryd, rxd) * 180 / Math.PI}deg)`, opacity: 0 }], { duration: 520, easing: "ease-out", fill: "forwards" });
+    aegis.anims.push(out);
+    out.onfinish = () => bolt.remove();
+  };
+}
+function aegisVolley(count, spread, flightMin = 600) {
+  for (let i = 0; i < count; i += 1) {
+    aegis.timers.push(setTimeout(() => {
+      if (!aegis.running) return;
+      const side = Math.random();
+      const [sx, sy] = side < .38 ? [-160, 120 + Math.random() * 600] : side < .76 ? [1760, 120 + Math.random() * 600] : [200 + Math.random() * 1200, -160];
+      const [tx, ty] = Math.random() < .7 ? [800 + (Math.random() - .5) * 60, 120 + Math.random() * 50] : [800 + (Math.random() - .5) * 120, 420 + Math.random() * 120];
+      aegisBolt(sx, sy, tx, ty, flightMin + Math.random() * 260);
+    }, (i / count) * spread + Math.random() * 60));
+  }
+}
+function startAegisCanvas() {
+  const g = byId("aegisCanvas").getContext("2d");
+  const tick = () => {
+    aegis.frame = requestAnimationFrame(tick);
+    g.clearRect(0, 0, 1600, 900);
+    if (!aegis.sparks.length) return;
+    g.globalCompositeOperation = "lighter";
+    aegis.sparks = aegis.sparks.filter((s) => {
+      s.life += 1; if (s.life > s.max) return false;
+      const px = s.x, py = s.y;
+      s.x += s.vx; s.y += s.vy; s.vy += .28; s.vx *= .97;
+      const t = 1 - s.life / s.max;
+      g.strokeStyle = s.hot ? `rgba(240,250,255,${t})` : `rgba(${110 + Math.round(90 * t)},${190 + Math.round(50 * t)},255,${t})`;
+      g.lineWidth = s.hot ? 2.4 : 1.6;
+      g.beginPath(); g.moveTo(px, py); g.lineTo(s.x, s.y); g.stroke();
+      return true;
+    });
+    g.globalCompositeOperation = "source-over";
+  };
+  aegis.frame = requestAnimationFrame(tick);
+}
+/* The great beam: from the upper right into the crown of the dome, held while the hexes
+ * round the point of contact strain red and crack. */
+function aegisBeam() {
+  const sx = 1700, sy = -140, [ix, iy] = aegisMeet(sx, sy, AEGIS.cx, AEGIS.cy);
+  const beam = byId("aegisBeam");
+  const length = Math.hypot(ix - sx, iy - sy);
+  beam.style.cssText = `left:${sx}px;top:${sy}px;width:${length}px;rotate:${Math.atan2(iy - sy, ix - sx)}rad`;
+  byId("aegisStage").style.setProperty("--hx", `${ix}px`); byId("aegisStage").style.setProperty("--hy", `${iy}px`);
+  const stage = byId("aegisStage");
+  stage.querySelectorAll(".ae-hex").forEach((poly, i) => { const h = aegis.hexes[i]; poly.classList.toggle("strain", Math.hypot(h.x - ix, h.y - iy) < 230); });
+  // Cracks: jagged lines running from the point of contact down across the dome.
+  stage.querySelectorAll(".ae-crack").forEach((path, k) => {
+    let x = ix, y = iy, a = Math.atan2(AEGIS.cy - iy, AEGIS.cx - ix) + (k - 3) * .42, d = `M${x.toFixed(0)} ${y.toFixed(0)}`;
+    for (let s = 0; s < 6; s += 1) { a += (Math.random() - .5) * .7; const step = 30 + Math.random() * 40; x += Math.cos(a) * step; y += Math.sin(a) * step; d += `L${x.toFixed(0)} ${y.toFixed(0)}`; }
+    path.setAttribute("d", d);
+  });
+  const shower = setInterval(() => { if (aegis.running) aegisHit(ix + (Math.random() - .5) * 40, iy + (Math.random() - .5) * 30, true); }, perf.lite ? 220 : 90);
+  aegis.timers.push(shower);
+  aegis.timers.push(setTimeout(() => clearInterval(shower), 1700));
+}
+async function summonAegis() {
+  if (riteBusy()) return;
+  aegis.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  buildAegis();
+  const overlay = byId("aegisRite");
+  const still = reducedMotion.matches;
+  await Promise.all([...byId("aegisStage").querySelectorAll("img")].map((img) => img.decode().catch(() => {})));
+  fitAegis();
+  addEventListener("resize", fitAegis);
+  overlay.className = `aegis-rite${still ? " still" : ""}`;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => aegis.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    aegis.timers.forEach((t) => { clearTimeout(t); clearInterval(t); }); aegis.timers = [];
+    aegis.anims.forEach((a) => a.cancel()); aegis.anims = [];
+    cancelAnimationFrame(aegis.frame); aegis.frame = 0; aegis.sparks = [];
+    byId("aegisFx").replaceChildren();
+    byId("aegisStage").querySelectorAll(".ae-hex").forEach((poly) => poly.classList.remove("hit", "strain"));
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip); removeEventListener("resize", fitAegis);
+    overlay.hidden = true; overlay.className = "aegis-rite";
+    document.body.style.overflow = "";
+    aegis.running = false;
+    toast("The Emperor is safe. The Shield stands.");
+    setTimeout(() => droidReact("Shield integrity: one hundred percent."), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (aegis.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  const stage = (n) => overlay.classList.add(`a${n}`);
+  const jolt = () => { const s = byId("aegisStage"); s.classList.remove("jolt"); void s.offsetWidth; s.classList.add("jolt"); };
+  if (still) { [1, 2, 3, 7].forEach(stage); later(5600, finish); return; }
+  if (!perf.lite) startAegisCanvas();
+  void overlay.offsetWidth;
+  stage(1);                                        // the throne room; the Emperor; the alarm
+  later(1000, () => aegisVolley(5, 250, 700));     // the first shots, aimed at the throne
+  later(1250, () => stage(2));                     // he drops from above
+  later(1550, () => { stage(3); jolt(); });        // lands: dust, the shield snaps open, eyes ignite
+  later(1900, () => aegisVolley(perf.lite ? 14 : 34, 2700));
+  later(2900, () => stage(4));                     // "None shall touch the Emperor."
+  later(4700, () => { stage(5); aegisBeam(); jolt(); });
+  later(5600, () => overlay.classList.add("a5b"));  // "The Shield holds."
+  later(6450, () => { stage(6); jolt(); skyFlash(1); });  // he bursts the shield outward
+  later(7100, () => stage(7));                     // the Guard ignite; his name
+  later(12000, () => overlay.classList.add("leaving"));
+  later(12700, finish);
+}
 /* ───────── The Dark Regent ─────────
  * Typing "regent" (or summoning him from the terminal) brings Darth Zephros, Dark Regent of the
  * Sith and its second in command, before the enemies of the Sith. He has already struck:
@@ -2601,8 +2839,8 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => { if (!riteBusy() && who !== "dbz") huntFound(who); return ({ dbz: summonKame, regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)(); };
-const riteBusy = () => recital.running || rite.running || kame.running || regent.running || voice.running || wrath.running || hand.running || guard.running;
+const summon = (who) => { if (!riteBusy() && who !== "dbz" && who !== "shield") huntFound(who); return ({ dbz: summonKame, shield: summonAegis, regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)(); };
+const riteBusy = () => recital.running || rite.running || kame.running || aegis.running || regent.running || voice.running || wrath.running || hand.running || guard.running;
 
 /* ───────── The Dark Honor Guard ─────────
  * Typing "dhg" (or summoning them from the terminal) brings the Dark Honor Guard to the
@@ -2701,8 +2939,8 @@ async function summonGuard() {
 }
 
 /* ───────── The Emperor's Hand ─────────
- * Typing "hand" (or summoning him from the terminal) brings the Emperor's Hand out of the
- * shadows: black mist pours in and wraps a dark shape like a cloak, then billows away from him
+ * Typing "hand" (or summoning him from the terminal) brings the Emperor's Hand, Darth
+ * Maleagant, out of the shadows: black mist pours in and wraps a dark shape like a cloak, then billows away from him
  * as he takes form. The Emperor commands: six crystals gather round his fist. The
  * Hand enforces: he snaps, and half the enemies standing in the mist crumble into dust. The
  * mist and the dust are drawn on two canvases, one behind him and one in front. */
@@ -2751,7 +2989,7 @@ async function summonHand() {
   hand.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("handRite"), img = byId("handImage");
-  if (!img.getAttribute("src")) img.src = "/hand.webp";
+  if (!img.getAttribute("src")) img.src = "/maleagant.webp";
   await img.decode().catch(() => {});
   const still = reducedMotion.matches;
   overlay.className = `hand-rite${still ? " still" : ""}`;
@@ -2922,7 +3160,7 @@ async function summonWrath() {
   closeSearch(); closeLightbox(); closeMenus();
   buildWrath();
   const overlay = byId("wrathRite"), img = byId("wrathImage"), stage = byId("wrathStage");
-  if (!img.getAttribute("src")) img.src = "/wrath.webp";
+  if (!img.getAttribute("src")) img.src = "/astarion.webp";
   await img.decode().catch(() => {});
   const still = reducedMotion.matches;
   overlay.className = `wrath-rite${still ? " still" : ""}`;

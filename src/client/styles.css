@@ -832,6 +832,137 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 @keyframes rite-slam { 0% { opacity: 0; transform: scale(1.8); filter: blur(10px); } 60% { opacity: 1; filter: none; } 100% { opacity: 1; transform: none; } }
 @keyframes rite-leave { to { opacity: 0; } }
 
+/* ───────── The Shield of the Emperor ─────────
+ * Stages are classes on the overlay, a1 to a7, added over time by summonAegis() in app.js:
+ * the throne room under attack, his drop, the landing and the shield, the barrage, the great
+ * beam, the burst, and the Guard with his name. */
+.aegis-rite { position: fixed; inset: 0; z-index: 84; overflow: hidden; cursor: pointer; background: #030102; animation: veil-in .5s ease both; }
+.aegis-rite[hidden] { display: none; }
+.ae-hall { filter: brightness(.12); transition: filter 1.6s ease; }
+.aegis-rite.a1 .ae-hall { filter: brightness(.6) saturate(.9); }
+.aegis-rite.a7 .ae-hall { filter: brightness(.9); }
+.ae-arch { fill: #0a0406; stroke: #3a1418; stroke-width: 4; }
+.ae-pillar rect { fill: #0b0507; stroke: #241012; stroke-width: 2; }
+.ae-banner { fill: #6e0c16; stroke: #2a0508; stroke-width: 2; } .ae-banner-emb { fill: none; stroke: #d8a040; stroke-width: 3; opacity: .75; }
+.ae-floor-lines { fill: none; stroke: rgba(255,90,80,.07); stroke-width: 2; }
+.ae-dais { fill: #1a0b0e; stroke: #3a1a1e; stroke-width: 2; }
+.ae-throne { fill: #090304; stroke: #5a1a20; stroke-width: 3; }
+.ae-throne-trim { fill: none; stroke: #b0182a; stroke-width: 3; filter: drop-shadow(0 0 6px #ff2a3a); }
+.ae-sigil path { fill: none; stroke: #ffbf5a; stroke-width: 7; opacity: 0; transition: opacity 1.2s ease .3s; }
+.aegis-rite.a7 .ae-sigil path { opacity: .9; filter: drop-shadow(0 0 10px #ffb040) drop-shadow(0 0 26px rgba(255,150,40,.6)); }
+.ae-throne-light { position: absolute; left: 800px; top: 200px; width: 760px; height: 760px; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, rgba(220,30,45,.35), rgba(150,10,25,.12) 40%, transparent 66%); opacity: 0; transition: opacity 1.4s ease; }
+.aegis-rite.a1 .ae-throne-light { opacity: 1; animation: ae-alarm-light 1.1s ease-in-out infinite alternate; }
+.aegis-rite.a6 .ae-throne-light { animation: none; background: radial-gradient(circle, rgba(255,190,90,.3), rgba(200,80,30,.1) 40%, transparent 66%); }
+.ae-emperor { position: absolute; opacity: 0; filter: brightness(.42) saturate(.8) drop-shadow(0 0 2px rgba(255,90,90,.6)) drop-shadow(0 0 14px rgba(255,40,50,.35)); transition: opacity 1.2s ease .2s, filter 1.2s ease; }
+.aegis-rite.a1 .ae-emperor { opacity: 1; }
+.aegis-rite.a7 .ae-emperor { filter: brightness(.7) drop-shadow(0 0 2px rgba(255,200,140,.7)) drop-shadow(0 0 16px rgba(255,150,60,.35)); }
+
+.ae-guard { position: absolute; opacity: 0; filter: brightness(.42) saturate(.8) contrast(1.05) drop-shadow(0 0 1px rgba(255,140,90,.35)); transition: opacity .9s ease calc(var(--i) * .14s); }
+.ae-guard.flip { transform: scaleX(-1); }
+.aegis-rite.a7 .ae-guard { opacity: 1; }
+.ae-guard-blade { position: absolute; width: 5px; translate: -50% 0; rotate: 4deg; border-radius: 3px; background: linear-gradient(0deg, #fff, #ffdada 70%, #fff); box-shadow: 0 0 6px #ff2a2a, 0 0 16px #ff2a2a, 0 0 32px rgba(255,30,40,.6); transform: scaleY(0); transform-origin: 50% 100%; transition: transform .25s cubic-bezier(.2,.9,.3,1) calc(.7s + var(--i) * .14s); }
+.ae-guard-blade.flip { rotate: -4deg; }
+.aegis-rite.a7 .ae-guard-blade { transform: none; }
+.ae-guard-visor { position: absolute; height: 2px; translate: -50% -50%; border-radius: 40%; background: #ff3a3a; box-shadow: 0 0 8px #ff2a2a, 0 0 18px #ff2a2a; opacity: 0; transition: opacity .3s calc(.5s + var(--i) * .14s); }
+.aegis-rite.a7 .ae-guard-visor { opacity: 1; }
+
+.ae-drop { position: absolute; inset: 0; transform: translateY(-1150px); }
+.aegis-rite.a2 .ae-drop { transform: none; transition: transform .3s cubic-bezier(.55,0,1,.45); }
+.ae-figure { position: absolute; }
+.ae-figure img { display: block; width: 100%; height: 100%; filter: brightness(.9) drop-shadow(0 0 1px rgba(255,220,160,.6)); transition: filter 1s ease; }
+.aegis-rite.a3 .ae-figure img { filter: brightness(1) drop-shadow(0 0 1px rgba(255,230,180,.9)) drop-shadow(0 0 12px rgba(255,170,60,.45)); }
+.aegis-rite.a5 .ae-figure img { filter: brightness(1.08) drop-shadow(0 0 2px rgba(255,240,200,1)) drop-shadow(0 0 22px rgba(255,170,60,.7)); }
+.ae-eye { position: absolute; width: 30px; height: 11px; translate: -50% -50%; border-radius: 50%; background: radial-gradient(ellipse, #fff 0 22%, #ffd34a 50%, rgba(255,170,30,0) 74%); box-shadow: 0 0 14px #ffb21a, 0 0 34px rgba(255,170,30,.8); opacity: 0; transition: opacity .25s ease .25s, transform .3s ease; }
+.aegis-rite.a3 .ae-eye { opacity: 1; animation: ae-eye 1.6s ease-in-out .5s infinite; }
+.aegis-rite.a5 .ae-eye { transform: scale(1.5, 1.3); }
+.ae-dust { position: absolute; left: 800px; top: 842px; width: 1200px; height: 200px; translate: -50% -50%; border-radius: 50%; background: radial-gradient(ellipse, rgba(120,90,80,.5), rgba(70,40,40,.25) 40%, transparent 68%); opacity: 0; transform: scale(.2); }
+.aegis-rite.a3 .ae-dust { animation: ae-dust 1.4s ease-out forwards; }
+
+.ae-shield { opacity: 0; transition: opacity .15s; }
+.aegis-rite.a3 .ae-shield { opacity: 1; }
+.ae-dome-fill { opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .5s ease .15s, transform .8s cubic-bezier(.2,.7,.3,1); }
+.ae-sheen { opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .8s ease .5s; } .aegis-rite.a3 .ae-sheen { opacity: 1; animation: ae-sheen 3.2s ease-in-out 1s infinite; }
+.aegis-rite.a3 .ae-dome-fill { opacity: 1; }
+.aegis-rite.a5 .ae-dome-fill { opacity: 1; filter: brightness(1.4); }
+.ae-hex { fill: rgba(140,200,255,calc(.02 + var(--rim) * .05)); stroke: rgba(180,225,255,calc(.1 + var(--rim) * .28)); stroke-width: 1.6; stroke-linejoin: round; transform-box: fill-box; transform-origin: center; transform: scale(0); }
+.aegis-rite.a3 .ae-hex { transform: none; transition: transform .42s cubic-bezier(.2,1.5,.4,1) var(--d), fill .5s ease, stroke .5s ease; animation: ae-shimmer 2.6s ease-in-out calc(var(--d) + .6s) infinite; }
+.aegis-rite.a3 .ae-hex.hit { animation: ae-hex-hit .55s ease-out; }
+.aegis-rite.a5 .ae-hex.strain { fill: rgba(255,80,40,.32); stroke: #ffd2a0; animation: ae-strain .14s steps(2) infinite; }
+.aegis-rite.a6 .ae-hex { opacity: 0; transform: translate(var(--ox), var(--oy)) rotate(var(--spin)) scale(.5); transition: transform 1s cubic-bezier(.15,.7,.3,1), opacity 1s ease .1s; animation: none; }
+.ae-rim { fill: none; stroke: #e6f6ff; stroke-width: 5; stroke-linejoin: round; stroke-dasharray: 3400; stroke-dashoffset: 3400; opacity: 0; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 6px #6ab8ff) drop-shadow(0 0 20px rgba(60,140,255,.8)); }
+.ae-rim.inner { stroke-width: 2; stroke: rgba(200,235,255,.7); filter: drop-shadow(0 0 5px #4a9dff); }
+.ae-crest path, .ae-crest circle { fill: rgba(150,210,255,.3); stroke: #e6f6ff; stroke-width: 3; stroke-linejoin: round; }
+.ae-crest { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; transform: scale(.4) translateY(30px); filter: drop-shadow(0 0 6px #6ab8ff) drop-shadow(0 0 18px rgba(60,140,255,.8)); }
+.aegis-rite.a3 .ae-crest { opacity: 1; transform: none; transition: transform .5s cubic-bezier(.2,1.6,.4,1) .35s, opacity .3s ease .35s; }
+.ae-emblem path { fill: none; stroke: rgba(200,235,255,.45); stroke-width: 4; stroke-linejoin: round; }
+.ae-emblem { opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .8s ease .6s; filter: drop-shadow(0 0 8px rgba(80,160,255,.8)); }
+.aegis-rite.a3 .ae-emblem { opacity: 1; }
+.aegis-rite.a6 .ae-crest, .aegis-rite.a6 .ae-emblem, .aegis-rite.a6 .ae-sheen { opacity: 0; transform: scale(1.6); transition: transform .7s cubic-bezier(.2,.7,.3,1), opacity .6s ease; animation: none; }
+.aegis-rite.a3 .ae-rim { opacity: 1; stroke-dashoffset: 0; transition: stroke-dashoffset .4s cubic-bezier(.3,.7,.3,1), opacity .1s; }
+.aegis-rite.a6 .ae-rim, .aegis-rite.a6 .ae-dome-fill { opacity: 0; transform: scale(1.5); transition: transform .7s cubic-bezier(.2,.7,.3,1), opacity .7s ease; }
+.ae-crack { fill: none; stroke: #fff6e0; stroke-width: 2.6; stroke-linejoin: round; stroke-dasharray: 600; stroke-dashoffset: 600; filter: drop-shadow(0 0 4px #ffb84a) drop-shadow(0 0 10px #ff6a2a); }
+.aegis-rite.a5 .ae-crack { stroke-dashoffset: 0; transition: stroke-dashoffset .8s ease-out calc(.35s + var(--i) * .1s); }
+.aegis-rite.a6 .ae-crack { opacity: 0; transition: opacity .2s; }
+
+.ae-fx { position: absolute; inset: 0; }
+.ae-emperor-eye { position: absolute; width: 9px; height: 4px; translate: -50% -50%; border-radius: 50%; background: #ff4a4a; box-shadow: 0 0 6px #ff2a2a, 0 0 14px rgba(255,30,40,.8); opacity: 0; transition: opacity .6s ease .8s; }
+.aegis-rite.a1 .ae-emperor-eye { opacity: .55; }
+.aegis-rite.a7 .ae-emperor-eye { opacity: 1; transition-delay: 1.6s; }
+.ae-shock { position: absolute; left: 800px; top: 842px; width: 0; height: 0; }
+.ae-shock i { position: absolute; left: 0; top: 0; width: 1500px; height: 230px; translate: -50% -50%; border-radius: 50%; border: 3px solid rgba(255,214,160,.8); box-shadow: 0 0 18px rgba(255,160,60,.8), inset 0 0 18px rgba(255,160,60,.5); opacity: 0; scale: .05; }
+.aegis-rite.a3 .ae-shock i { animation: ae-shock .75s cubic-bezier(.1,.7,.3,1) forwards; }
+.aegis-rite.a3 .ae-shock i + i { animation-delay: .12s; }
+.ae-floor-cracks path { fill: none; stroke: #ffb35a; stroke-width: 3; stroke-linejoin: round; stroke-dasharray: 300; stroke-dashoffset: 300; opacity: .85; filter: drop-shadow(0 0 5px #ff7a2a); }
+.aegis-rite.a3 .ae-floor-cracks path { stroke-dashoffset: 0; transition: stroke-dashoffset .35s ease-out; }
+.aegis-rite.a7 .ae-floor-cracks path { opacity: .4; transition: opacity 1.5s; }
+.ae-bolt { position: absolute; left: -120px; top: -3px; width: 120px; height: 6px; border-radius: 3px; transform-origin: 100% 50%; background: linear-gradient(90deg, transparent, rgba(255,140,60,.55) 40%, #ffe6c8 85%, #fff); box-shadow: 0 0 10px #ff7a2a, 0 0 22px rgba(255,90,30,.7); }
+.ae-ripple { position: absolute; width: 0; height: 0; }
+.ae-ripple::before { content: ""; position: absolute; left: 0; top: 0; width: 150px; height: 110px; translate: -50% -50%; border-radius: 50%; border: 2px solid rgba(220,242,255,.95); box-shadow: 0 0 14px rgba(80,170,255,.9), inset 0 0 12px rgba(120,190,255,.6); animation: ae-ripple .7s ease-out forwards; }
+.ae-ripple.big::before { width: 260px; height: 190px; border-color: rgba(255,240,220,.9); box-shadow: 0 0 16px rgba(255,150,60,.8), inset 0 0 14px rgba(255,170,80,.6); }
+.ae-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ae-beam { position: absolute; height: 150px; margin-top: -75px; transform-origin: 0 50%; transform: scaleX(0); opacity: 0; background: linear-gradient(180deg, transparent, rgba(255,90,30,.45) 22%, #ffd2a8 42%, #fff 50%, #ffd2a8 58%, rgba(255,90,30,.45) 78%, transparent); filter: drop-shadow(0 0 18px rgba(255,110,40,.9)); }
+.ae-beam i { position: absolute; right: -140px; top: 50%; width: 280px; height: 280px; translate: 0 -50%; border-radius: 50%; background: radial-gradient(circle, #fff 0 18%, #ffe2c4 32%, rgba(255,110,40,.5) 52%, transparent 70%); }
+.aegis-rite.a5 .ae-beam { opacity: 1; transform: none; transition: transform .22s ease-in; animation: ae-beam-hum .09s linear infinite; }
+.aegis-rite.a6 .ae-beam { opacity: 0; transition: opacity .25s ease; animation: none; }
+.ae-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 52%, #f6fcff, rgba(170,220,255,.85) 45%, rgba(70,150,255,.35) 75%); opacity: 0; }
+.aegis-rite.a6 .ae-flash { animation: ae-flash .9s ease-out forwards; }
+
+.ae-alarm { position: absolute; z-index: 2; left: 50%; top: 7%; translate: -50% 0; display: flex; align-items: center; gap: .7rem; margin: 0; color: #ff5a5f; font: 400 clamp(.7rem, 1.4vw, .9rem) var(--mono); letter-spacing: .4em; text-transform: uppercase; white-space: nowrap; text-shadow: 0 0 .8rem rgba(255,40,50,.8); opacity: 0; transition: opacity .4s ease; }
+.ae-alarm i { width: .6rem; height: .6rem; border-radius: 50%; background: #ff3a3a; box-shadow: 0 0 .6rem #ff2a2a; }
+.aegis-rite.a1 .ae-alarm { opacity: 1; animation: ae-blink .55s steps(2) infinite; }
+.aegis-rite.a3 .ae-alarm { opacity: 0; animation: none; }
+.ae-words { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(6% + env(safe-area-inset-bottom, 0px)); display: grid; justify-items: center; gap: .4rem; text-align: center; pointer-events: none; }
+.ae-words::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(56rem, 120vw); height: 220%; translate: -50% -50%; background: radial-gradient(ellipse closest-side, rgba(3,1,2,.78), rgba(3,1,2,.4) 60%, transparent); opacity: 0; transition: opacity .5s ease; }
+.aegis-rite.a4 .ae-words::before { opacity: 1; } .aegis-rite.a6 .ae-words::before { opacity: 0; }
+.ae-words p { margin: 0; color: #fff3dc; font: italic 600 clamp(1.4rem, 3.6vw, 2.6rem) var(--serif); text-shadow: 0 0 .5rem rgba(255,190,90,.8), 0 0 1.6rem rgba(255,140,40,.55); opacity: 0; transform: translateY(.6rem); transition: opacity .6s ease, transform .6s var(--ease); }
+.ae-words .ae-holds { font: 700 clamp(1.7rem, 4.4vw, 3.2rem) var(--display); font-style: normal; letter-spacing: .04em; }
+.aegis-rite.a4 .ae-vow, .aegis-rite.a5b .ae-holds { opacity: 1; transform: none; }
+.aegis-rite.a6 .ae-words p { opacity: 0; transition: opacity .3s ease; }
+.ae-title { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(5% + env(safe-area-inset-bottom, 0px)); display: grid; justify-items: center; gap: .25rem; text-align: center; opacity: 0; pointer-events: none; }
+.ae-title::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(60rem, 120vw); height: 260%; translate: -50% -50%; background: radial-gradient(ellipse closest-side, rgba(3,1,2,.82), rgba(3,1,2,.5) 55%, transparent); }
+.ae-title h2 { margin: 0; color: #fff; font: 700 clamp(2.8rem, 9vw, 6.6rem)/1 var(--display); letter-spacing: .03em; text-shadow: 0 0 .25rem #fff, 0 0 .9rem #ffd27a, 0 0 2.2rem #ff9a2a, 0 0 4.5rem rgba(255,120,30,.6); }
+.ae-rank { margin: 0; color: #ffcf7a; font: 400 clamp(.62rem, 1.3vw, .78rem) var(--mono); letter-spacing: .45em; text-transform: uppercase; text-shadow: 0 0 .8rem rgba(255,160,40,.8); }
+.ae-sub { margin: 0; color: #ffe8c4; font: italic 500 clamp(1.05rem, 2.4vw, 1.6rem) var(--serif); letter-spacing: .14em; }
+.ae-title .code-skip { margin-top: .7rem; }
+.aegis-rite.a7 .ae-title { animation: rite-slam .7s .55s cubic-bezier(.2,1.4,.4,1) forwards; }
+.aegis-rite.leaving { animation: rite-leave .7s ease forwards; }
+.aegis-rite.still, .aegis-rite.still * { animation: none !important; transition: none !important; }
+.aegis-rite.still .ae-title { opacity: 1; }
+.fx-lite .ae-beam, .fx-lite .ae-crack, .fx-lite .ae-rim, .fx-lite .aegis-rite.a3 .ae-figure img { filter: none; }
+
+@keyframes ae-alarm-light { from { opacity: .55; } to { opacity: 1; } }
+@keyframes ae-blink { 50% { opacity: .35; } }
+@keyframes ae-eye { 0%, 100% { opacity: 1; } 50% { opacity: .75; } }
+@keyframes ae-shock { 0% { opacity: 1; scale: .05; } 100% { opacity: 0; scale: 1; } }
+@keyframes ae-dust { 0% { opacity: .9; transform: scale(.2); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes ae-shimmer { 0%, 100% { opacity: 1; } 50% { opacity: .72; } }
+@keyframes ae-hex-hit { 0% { fill: rgba(235,248,255,.9); stroke: #fff; } 100% { fill: rgba(140,200,255,.05); } }
+@keyframes ae-strain { 50% { fill: rgba(255,140,60,.5); } }
+@keyframes ae-ripple { from { opacity: 1; scale: .2; } to { opacity: 0; scale: 1.7; } }
+@keyframes ae-beam-hum { 0%, 100% { scale: 1 1; } 50% { scale: 1 .82; } }
+@keyframes ae-sheen { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@keyframes ae-flash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+
 /* ───────── The Emperor's Kamehameha ─────────
  * Phases are classes on the overlay, added over time by summonKame() in app.js: rising,
  * charging, fired, aftermath, leaving. --bx/--by is where the ball sits; --charge grows 0–1. */
@@ -976,7 +1107,7 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .wrath-glory { margin-top: .6rem; color: #f0d39a; font: italic 500 clamp(1rem, 2.4vw, 1.6rem)/1.3 var(--serif); letter-spacing: .06em; text-shadow: 0 0 1rem rgba(216,176,106,.5); }
 .wrath-stage { position: relative; z-index: 1; width: 100%; min-height: 0; display: grid; place-items: end center; }
 .wrath-stage.jolt { animation: regent-jolt .25s ease-out; }
-.wrath-rig { position: relative; z-index: 1; height: min(50vh, 32rem, 150vw); aspect-ratio: 288 / 524; opacity: 0; transform: translateY(6%) scale(.96); transition: opacity .9s ease, transform 1.2s cubic-bezier(.2,.8,.2,1); }
+.wrath-rig { position: relative; z-index: 1; height: min(50vh, 32rem, 76vw); aspect-ratio: 474 / 574; opacity: 0; transform: translateY(6%) scale(.96); transition: opacity .9s ease, transform 1.2s cubic-bezier(.2,.8,.2,1); }
 .wrath-rig::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2%; height: 6%; z-index: -1; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.9), transparent 70%); }
 .wrath-rig img { display: block; width: 100%; height: 100%; filter: brightness(1.2) drop-shadow(0 0 1px rgba(255,240,236,.8)) drop-shadow(0 0 1rem rgba(227,38,47,.5)); }
 .wrath-banners { position: absolute; inset: 0; pointer-events: none; }
