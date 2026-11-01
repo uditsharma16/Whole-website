@@ -109,15 +109,15 @@ and keeps count. Set `HUNT.on` to `false` to return to `regent`, `voice` and `wr
 
 ### The Halloween theme (seasonal)
 
-Until `HALLOWEEN.until` (2 November 2026) the archive wears a Nightsister Halloween theme, on by
-default:
+Until `HALLOWEEN.until` (2 November 2026) visitors can switch on a Nightsister Halloween theme
+from the rail. It is off by default and remembered per visitor:
 - **Colours.** The crimson turns green with pumpkin-orange accents, and the default holocrons glow green.
 - **Effects.** The embers become green spirit-fire, Force lightning crackles green, and the sky flashes green.
 - **Background layer.** A sickly moon, a cobweb with a spider, bats, hooded Sith spectres, green fog, blinking eyes and a graveyard of Sith tombstones (one of them the Jedi's).
 - **The droid.** It wears a witch's hat.
 - **The pumpkin patch.** Pressing the jack-o'-lanterns at the foot of the stage releases a swarm of bats.
 
-Visitors can switch the theme off from the rail, and that choice is remembered. Lite mode and
+Lite mode and
 reduced motion hold the scene still. The `<head>` script in `index.html` carries the same end date
 so the theme applies before the first paint. Keep both dates in step, or set
 `HALLOWEEN.enabled = false` to retire the theme early.

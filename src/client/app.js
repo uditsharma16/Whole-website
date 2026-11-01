@@ -3212,8 +3212,8 @@ function watchFrameRate() {
  * the dark, a graveyard of Sith tombstones in green fog, eyes that blink from the shadows
  * and a patch of jack-o'-lanterns (press them: trick or treat). The droid wears a
  * Nightsister's hat. Page content is never covered except by the small pumpkin patch.
- * Lite mode and reduced motion hold the same scene still. On by default for the season,
- * switchable from the rail (remembered). The <head> script in index.html applies the
+ * Lite mode and reduced motion hold the same scene still. Off by default: visitors can
+ * switch it on from the rail for the season (remembered). The <head> script in index.html applies the
  * class before first paint and carries the same end date: keep both in step.
  * Site-wide off: HALLOWEEN.enabled = false (and drop the class from that script). */
 const HALLOWEEN = { enabled: true, until: "2026-11-02" };
@@ -3330,7 +3330,7 @@ function initHalloween() {
   byId("hwToggle").hidden = false;
   let pref = null;
   try { pref = localStorage.getItem(HW_PREF); } catch {}
-  setHalloween(pref !== "off");
+  setHalloween(pref === "on");
   if (halloween.on) DROID_QUIPS.push(...HW_QUIPS);
   if (!halloween.on) return;
   try {

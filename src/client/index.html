@@ -19,10 +19,10 @@
         else mode = localStorage.getItem("tso-fx-pref") || sessionStorage.getItem("tso-fx");
       } catch (e) {}
       if (mode === "lite") document.documentElement.classList.add("fx-lite");
-      /* The Halloween theme, on by default until the date in HALLOWEEN.until (app.js),
-         unless this visitor switched it off. */
-      var halloween = Date.now() < new Date("2026-11-02T00:00:00").getTime();
-      try { if (localStorage.getItem("tso-halloween") === "off") halloween = false; } catch (e) {}
+      /* The Halloween theme: off by default, on only for a visitor who switched it on,
+         and only until the date in HALLOWEEN.until (app.js). */
+      var halloween = false;
+      try { halloween = localStorage.getItem("tso-halloween") === "on" && Date.now() < new Date("2026-11-02T00:00:00").getTime(); } catch (e) {}
       if (halloween) document.documentElement.classList.add("theme-halloween");
     })();
   </script>
