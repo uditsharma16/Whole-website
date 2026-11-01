@@ -1045,12 +1045,12 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .hand-words span { display: block; color: #fff; font: 700 clamp(1.5rem, 4.6vw, 3.4rem)/1.08 var(--display); text-shadow: 0 0 1.2rem rgba(227,38,47,.8), 0 0 .2rem #fff; opacity: 0; }
 .hand-words span:last-child { color: var(--red-light); }
 .hand-stage { position: relative; z-index: 1; width: 100%; min-height: 0; display: grid; place-items: end center; }
-.hand-rig { height: min(52vh, 32rem, 118vw); aspect-ratio: 474 / 574; }
+.hand-rig { height: min(52vh, 32rem, 118vw); aspect-ratio: 468 / 570; }
 .hand-rig img { display: block; width: 100%; height: 100%; opacity: 0; filter: brightness(0) blur(6px); transform: scale(.94); transition: opacity 1s ease, filter 1.5s ease, transform 1.6s cubic-bezier(.2,.8,.2,1); }
 /* The snap happens in his own chained fist: the six crystals circle it and close in (.raised),
  * then collapse into it as it flares, and the shockwave rolls out from it (.snapped). */
 .hand-rig { position: relative; }
-.hand-fist { position: absolute; left: 86%; top: 53%; width: 0; height: 0; z-index: 2; pointer-events: none; }
+.hand-fist { position: absolute; left: 14%; top: 30%; width: 0; height: 0; z-index: 2; pointer-events: none; }
 .fist-glow { position: absolute; left: 0; top: 0; width: min(9rem, 22vw); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: radial-gradient(circle, rgba(255,90,80,.75), rgba(227,38,47,.3) 40%, transparent 70%); mix-blend-mode: screen; opacity: 0; transform: scale(.4); transition: opacity .8s ease, transform 1.4s ease; }
 .fist-orbit { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; transform: scale(2.6); }
 .fist-gems { position: absolute; left: 0; top: 0; width: 0; height: 0; }

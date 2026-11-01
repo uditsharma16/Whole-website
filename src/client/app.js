@@ -2138,7 +2138,7 @@ document.addEventListener("keydown", (event) => {
  * tapped, and now and then on its own. Secrets found are remembered in this browser, their
  * riddles retire, and the droid keeps count. Set HUNT.on to false to put everything back. */
 const HUNT = {
-  on: true,
+  on: false,
   key: "tso-hunt-found-v1",
   clues: [
     ["power", "Unlimited… what? Say the word the old Emperor screamed, and the sky will answer."],
@@ -3483,6 +3483,8 @@ const DROID_QUIPS = [
   "Type “wrath”. Plant a banner.",
   "Type “hand”. Then hear the snap.",
   "Type “dhg”. The gate is guarded.",
+  "Type “shield”. The throne is protected.",
+  "Type “dbz”. Feel the power level rise.",
 ];
 let droidBubbleTimer;
 const droidMotion = { x: 0, y: 0, pointerId: null, offsetX: 0, offsetY: 0, startX: 0, startY: 0, dragged: false, suppressClick: false, patrolIndex: 0, patrolTimer: 0, resumeTimer: 0 };
