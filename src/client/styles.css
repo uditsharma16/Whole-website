@@ -884,13 +884,19 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .ae-sheen { opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .8s ease .5s; } .aegis-rite.a3 .ae-sheen { opacity: 1; animation: ae-sheen 3.2s ease-in-out 1s infinite; }
 .aegis-rite.a3 .ae-dome-fill { opacity: 1; }
 .aegis-rite.a5 .ae-dome-fill { opacity: 1; filter: brightness(1.4); }
-.ae-hex { fill: rgba(140,200,255,calc(.02 + var(--rim) * .05)); stroke: rgba(180,225,255,calc(.1 + var(--rim) * .28)); stroke-width: 1.6; stroke-linejoin: round; transform-box: fill-box; transform-origin: center; transform: scale(0); }
+.ae-hex { fill: rgba(150,210,255,.015); stroke: rgba(215,240,255,calc(.025 + var(--rim) * .045)); stroke-width: 1.6; stroke-linejoin: round; transform-box: fill-box; transform-origin: center; transform: scale(0); }
 .aegis-rite.a3 .ae-hex { transform: none; transition: transform .42s cubic-bezier(.2,1.5,.4,1) var(--d), fill .5s ease, stroke .5s ease; animation: ae-shimmer 2.6s ease-in-out calc(var(--d) + .6s) infinite; }
 .aegis-rite.a3 .ae-hex.hit { animation: ae-hex-hit .55s ease-out; }
-.aegis-rite.a5 .ae-hex.strain { fill: rgba(255,80,40,.32); stroke: #ffd2a0; animation: ae-strain .14s steps(2) infinite; }
+.aegis-rite.a5 .ae-hex.strain { fill: rgba(255,90,40,.3); stroke: #ffd2a0; animation: ae-strain .14s steps(2) infinite; }
 .aegis-rite.a6 .ae-hex { opacity: 0; transform: translate(var(--ox), var(--oy)) rotate(var(--spin)) scale(.5); transition: transform 1s cubic-bezier(.15,.7,.3,1), opacity 1s ease .1s; animation: none; }
-.ae-rim { fill: none; stroke: #e6f6ff; stroke-width: 5; stroke-linejoin: round; stroke-dasharray: 3400; stroke-dashoffset: 3400; opacity: 0; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 6px #6ab8ff) drop-shadow(0 0 20px rgba(60,140,255,.8)); }
-.ae-rim.inner { stroke-width: 2; stroke: rgba(200,235,255,.7); filter: drop-shadow(0 0 5px #4a9dff); }
+.ae-rim { fill: none; stroke: url(#aeRimGrad); stroke-width: 15; stroke-linejoin: round; stroke-dasharray: 3400; stroke-dashoffset: 3400; opacity: 0; transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 0 6px #6ab8ff) drop-shadow(0 0 20px rgba(60,140,255,.8)); }
+.ae-rim.inner { stroke-width: 2.5; stroke: rgba(215,240,255,.75); filter: drop-shadow(0 0 5px #4a9dff); }
+.ae-rim.bevel { stroke-width: 26; stroke: rgba(70,140,255,.22); filter: none; }
+.ae-body { opacity: 0; transition: opacity .5s ease .2s; } .aegis-rite.a3 .ae-body { opacity: 1; }
+.ae-half { fill: rgba(220,240,255,.07); }
+.ae-studs circle { fill: #eaf7ff; stroke: #3b7cff; stroke-width: 2; opacity: 0; filter: drop-shadow(0 0 4px #6ab8ff); transition: opacity .2s ease calc(.25s + var(--i) * .012s); }
+.aegis-rite.a3 .ae-studs circle { opacity: 1; }
+.aegis-rite.a6 .ae-studs circle, .aegis-rite.a6 .ae-body { opacity: 0; transition: opacity .35s ease; }
 .ae-crest path, .ae-crest circle { fill: rgba(150,210,255,.3); stroke: #e6f6ff; stroke-width: 3; stroke-linejoin: round; }
 .ae-crest { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; transform: scale(.4) translateY(30px); filter: drop-shadow(0 0 6px #6ab8ff) drop-shadow(0 0 18px rgba(60,140,255,.8)); }
 .aegis-rite.a3 .ae-crest { opacity: 1; transform: none; transition: transform .5s cubic-bezier(.2,1.6,.4,1) .35s, opacity .3s ease .35s; }
@@ -941,7 +947,6 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .ae-title { position: absolute; z-index: 2; left: 0; right: 0; bottom: calc(5% + env(safe-area-inset-bottom, 0px)); display: grid; justify-items: center; gap: .25rem; text-align: center; opacity: 0; pointer-events: none; }
 .ae-title::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(60rem, 120vw); height: 260%; translate: -50% -50%; background: radial-gradient(ellipse closest-side, rgba(3,1,2,.82), rgba(3,1,2,.5) 55%, transparent); }
 .ae-title h2 { margin: 0; color: #fff; font: 700 clamp(2.8rem, 9vw, 6.6rem)/1 var(--display); letter-spacing: .03em; text-shadow: 0 0 .25rem #fff, 0 0 .9rem #ffd27a, 0 0 2.2rem #ff9a2a, 0 0 4.5rem rgba(255,120,30,.6); }
-.ae-rank { margin: 0; color: #ffcf7a; font: 400 clamp(.62rem, 1.3vw, .78rem) var(--mono); letter-spacing: .45em; text-transform: uppercase; text-shadow: 0 0 .8rem rgba(255,160,40,.8); }
 .ae-sub { margin: 0; color: #ffe8c4; font: italic 500 clamp(1.05rem, 2.4vw, 1.6rem) var(--serif); letter-spacing: .14em; }
 .ae-title .code-skip { margin-top: .7rem; }
 .aegis-rite.a7 .ae-title { animation: rite-slam .7s .55s cubic-bezier(.2,1.4,.4,1) forwards; }
@@ -956,7 +961,7 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 @keyframes ae-shock { 0% { opacity: 1; scale: .05; } 100% { opacity: 0; scale: 1; } }
 @keyframes ae-dust { 0% { opacity: .9; transform: scale(.2); } 100% { opacity: 0; transform: scale(1.4); } }
 @keyframes ae-shimmer { 0%, 100% { opacity: 1; } 50% { opacity: .72; } }
-@keyframes ae-hex-hit { 0% { fill: rgba(235,248,255,.9); stroke: #fff; } 100% { fill: rgba(140,200,255,.05); } }
+@keyframes ae-hex-hit { 0% { fill: rgba(235,248,255,.85); stroke: #fff; } 60% { fill: rgba(170,220,255,.25); stroke: rgba(230,246,255,.8); } 100% { fill: rgba(150,210,255,.015); } }
 @keyframes ae-strain { 50% { fill: rgba(255,140,60,.5); } }
 @keyframes ae-ripple { from { opacity: 1; scale: .2; } to { opacity: 0; scale: 1.7; } }
 @keyframes ae-beam-hum { 0%, 100% { scale: 1 1; } 50% { scale: 1 .82; } }

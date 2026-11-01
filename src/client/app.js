@@ -1873,7 +1873,7 @@ function renderSearch(query) {
   if (letters.length >= Math.min(5, WRATH_WORD.length) && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Astarion, the Emperor's Wrath", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "Darth Soteris, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Darth Zephros, Dark Regent of the Sith", ref: "◆", href: "#regent" });
-  if ((letters.length >= 5 && SHIELD_WORD.startsWith(letters)) || letters === "aegis" || (letters.length >= 6 && ("rexaegis".startsWith(letters) || "darthrexaegis".startsWith(letters)))) matches.splice(Math.min(1, matches.length), 0, { summon: "shield", tag: "SHIELD", title: "Summon the Shield of the Emperor", where: "Darth Rex'Aegis, Lord of the Dark Honor Guard", ref: "◆", href: "#shield" });
+  if ((letters.length >= 5 && SHIELD_WORD.startsWith(letters)) || letters === "aegis" || (letters.length >= 6 && ("rexaegis".startsWith(letters) || "darthrexaegis".startsWith(letters)))) matches.splice(Math.min(1, matches.length), 0, { summon: "shield", tag: "SHIELD", title: "Summon the Shield of the Emperor", where: "Darth Rex'Aegis, the Shield of the Emperor", ref: "◆", href: "#shield" });
   if (letters === DBZ_WORD || (letters.length >= 5 && "kamehameha".startsWith(letters))) matches.splice(Math.min(1, matches.length), 0, { summon: "dbz", tag: "DBZ", title: "Kamehameha", where: "Darth Azazel charges a blast of pure energy", ref: "◆", href: "#dbz" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
@@ -2509,8 +2509,7 @@ async function summonKame() {
   later(9900, finish);
 }
 /* ───────── The Shield of the Emperor ─────────
- * Typing "shield" (or "aegis") summons Darth Rex'Aegis, the Shield of the Emperor, who leads the
- * Dark Honor Guard. The scene is set in the throne room. The Emperor sits on his throne,
+ * Typing "shield" (or "aegis") summons Darth Rex'Aegis, the Shield of the Emperor. The scene is set in the throne room. The Emperor sits on his throne,
  * enemy fire streaks in from every side, and Darth Rex'Aegis drops from above and lands in
  * front of the throne. His golden eyes ignite and a great knight's shield of translucent blue
  * light forms before him, crowned, covering the throne. The barrage breaks on it: every hit
@@ -2530,19 +2529,28 @@ function fitAegis() {
 function buildAegis() {
   if (aegis.built) return;
   aegis.built = true;
-  const { cx, cy, hex: R } = AEGIS;
-  // The shield's facets: pointy-top hexagons on a honeycomb, kept where their centre falls inside
-  // the shield (clipped to its outline in the SVG). They are the shards it breaks into.
-  const w = Math.sqrt(3) * R, rows = [];
+  const { cx, cy } = AEGIS;
+  // The glass of the shield: a jittered mesh of triangular shards, kept where their centre falls
+  // inside the shield (and clipped to its outline in the SVG). Nearly invisible at rest, they
+  // catch the light where a shot lands, and they are the pieces it shatters into.
+  const S = 66, cols = 14, lines = 15, x0 = cx - cols / 2 * S, y0 = -10, rows = [];
+  const vert = (i, j) => {
+    const edge = i === 0 || j === 0 || i === cols || j === lines;
+    const jx = edge ? 0 : (seededRandom(`sx${i}:${j}`) - .5) * S * .6, jy = edge ? 0 : (seededRandom(`sy${i}:${j}`) - .5) * S * .6;
+    return [x0 + i * S + jx, y0 + j * S + jy];
+  };
   aegis.hexes = [];
-  for (let row = -14; row <= 14; row += 1) for (let col = -14; col <= 14; col += 1) {
-    const x = cx + col * w + (row % 2 ? w / 2 : 0), y = cy + row * R * 1.5;
-    if (!aegisInside(x, y, R * .6)) continue;
-    const d = Math.min(1, Math.hypot((x - cx) / 400, (y - cy) / 420)); // 0 at his centre, 1 at the rim
-    const pts = Array.from({ length: 6 }, (_, k) => { const a = Math.PI / 180 * (60 * k - 30); return `${(x + R * .94 * Math.cos(a)).toFixed(1)},${(y + R * .94 * Math.sin(a)).toFixed(1)}`; }).join(" ");
-    const out = 260 + seededRandom(`hx${row}:${col}`) * 360, ang = Math.atan2(y - cy, x - cx);
-    aegis.hexes.push({ x, y });
-    rows.push(`<polygon class="ae-hex" points="${pts}" style="--d:${(d * .55).toFixed(3)}s;--rim:${Math.min(1, d * d).toFixed(2)};--ox:${(Math.cos(ang) * out).toFixed(0)}px;--oy:${(Math.sin(ang) * out).toFixed(0)}px;--spin:${((seededRandom(`hs${row}:${col}`) - .5) * 220).toFixed(0)}deg"/>`);
+  for (let j = 0; j < lines; j += 1) for (let i = 0; i < cols; i += 1) {
+    const a = vert(i, j), b = vert(i + 1, j), c = vert(i + 1, j + 1), d4 = vert(i, j + 1);
+    const tris = (i + j) % 2 ? [[a, b, c], [a, c, d4]] : [[a, b, d4], [b, c, d4]];
+    tris.forEach((tri, k) => {
+      const x = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, y = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+      if (!aegisInside(x, y)) return;
+      const d = Math.min(1, Math.hypot((x - cx) / 400, (y - cy) / 420)); // 0 at his centre, 1 at the rim
+      const out = 260 + seededRandom(`so${i}:${j}:${k}`) * 380, ang = Math.atan2(y - cy, x - cx);
+      aegis.hexes.push({ x, y });
+      rows.push(`<polygon class="ae-hex" points="${tri.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(" ")}" style="--d:${(d * .5).toFixed(3)}s;--rim:${Math.min(1, d * d).toFixed(2)};--ox:${(Math.cos(ang) * out).toFixed(0)}px;--oy:${(Math.sin(ang) * out).toFixed(0)}px;--spin:${((seededRandom(`ss${i}:${j}:${k}`) - .5) * 300).toFixed(0)}deg"/>`);
+    });
   }
   const P = GUARD_POSE, place = (gx, feet, tall) => { const gw = tall * P.w / P.h; return { left: gx - gw / 2, top: feet - P.feet * tall, w: gw }; };
   const guards = [[300, 820, 420], [1300, 820, 420], [470, 640, 300], [1130, 640, 300], [580, 520, 220], [1020, 520, 220]].map(([gx, feet, tall], i) => {
@@ -2561,6 +2569,8 @@ function buildAegis() {
         <linearGradient id="aeFloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#150a0c"/><stop offset="1" stop-color="#050203"/></linearGradient>
         <linearGradient id="aeShieldFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd4ff" stop-opacity=".26"/><stop offset=".55" stop-color="#4a9dff" stop-opacity=".13"/><stop offset="1" stop-color="#2a6dff" stop-opacity=".22"/></linearGradient>
         <linearGradient id="aeShieldSheen" x1="0" y1="0" x2="1" y2="1"><stop offset=".25" stop-color="#fff" stop-opacity="0"/><stop offset=".4" stop-color="#e8f6ff" stop-opacity=".22"/><stop offset=".48" stop-color="#fff" stop-opacity="0"/></linearGradient>
+        <linearGradient id="aeRimGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2fbff"/><stop offset=".45" stop-color="#8fcbff"/><stop offset="1" stop-color="#3b7cff"/></linearGradient>
+        <linearGradient id="aePale" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#bfe4ff" stop-opacity="0"/><stop offset=".5" stop-color="#d9f0ff" stop-opacity=".18"/><stop offset="1" stop-color="#bfe4ff" stop-opacity="0"/></linearGradient>
         <clipPath id="aeShieldClip"><path d="${AEGIS.path}"/></clipPath>
       </defs>
       <rect width="1600" height="500" fill="url(#aeWall)"/>
@@ -2584,9 +2594,12 @@ function buildAegis() {
     <div class="ae-dust"></div><div class="ae-shock"><i></i><i></i></div>
     <svg class="vt-abs ae-shield" viewBox="0 0 1600 900">
       <path class="ae-dome-fill" d="${AEGIS.path}" fill="url(#aeShieldFill)"/>
+      <g class="ae-body" clip-path="url(#aeShieldClip)"><rect class="ae-half" x="380" y="0" width="420" height="900"/><rect x="752" y="0" width="96" height="900" fill="url(#aePale)"/></g>
       <g class="ae-hexes" clip-path="url(#aeShieldClip)">${rows.join("")}<path class="ae-sheen" d="${AEGIS.path}" fill="url(#aeShieldSheen)"/></g>
+      <g transform="translate(800 470) scale(.955) translate(-800 -470)"><path class="ae-rim bevel" d="${AEGIS.path}"/></g>
       <path class="ae-rim" d="${AEGIS.path}"/>
-      <g transform="translate(800 470) scale(.93) translate(-800 -470)"><path class="ae-rim inner" d="${AEGIS.path}"/></g>
+      <g transform="translate(800 470) scale(.91) translate(-800 -470)"><path class="ae-rim inner" d="${AEGIS.path}"/></g>
+      <g class="ae-studs" id="aegisStuds"></g>
       <g class="ae-crest"><path d="M742 64V22L770 44L800 6L830 44L858 22V64Q800 50 742 64Z"/><circle cx="800" cy="4" r="6"/><circle cx="742" cy="18" r="4.5"/><circle cx="858" cy="18" r="4.5"/></g>
       <g class="ae-emblem"><path d="M800 680 854 711V773L800 804 746 773V711Z"/><path d="m800 706 21 36-21 36-21-36Z"/></g>
       <g class="ae-cracks">${cracks}</g>
@@ -2595,6 +2608,12 @@ function buildAegis() {
     <canvas class="ae-canvas" id="aegisCanvas" width="1600" height="900"></canvas>
     <div class="ae-beam" id="aegisBeam"><i></i></div>
     <div class="ae-flash"></div>`;
+  // Studs round the border: points along the outline, drawn in a little onto the rim band.
+  const rim = byId("aegisStage").querySelector(".ae-rim:not(.bevel):not(.inner)"), length = rim.getTotalLength();
+  byId("aegisStuds").innerHTML = Array.from({ length: 28 }, (_, i) => {
+    const pt = rim.getPointAtLength((i + .5) / 28 * length), x = cx + (pt.x - cx) * .978, y = cy + (pt.y - cy) * .978;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" style="--i:${i}"/>`;
+  }).join("");
 }
 /* Is a point on the shield? (Its outline as a Path2D, tested on a scratch canvas.) */
 function aegisInside(x, y, inset = 0) {
@@ -2989,7 +3008,7 @@ async function summonHand() {
   hand.running = true;
   closeSearch(); closeLightbox(); closeMenus();
   const overlay = byId("handRite"), img = byId("handImage");
-  if (!img.getAttribute("src")) img.src = "/maleagant.webp";
+  if (!img.getAttribute("src")) { img.addEventListener("error", () => { img.style.visibility = "hidden"; }, { once: true }); img.src = "/maleagant.webp"; }
   await img.decode().catch(() => {});
   const still = reducedMotion.matches;
   overlay.className = `hand-rite${still ? " still" : ""}`;
