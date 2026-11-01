@@ -1873,6 +1873,7 @@ function renderSearch(query) {
   if (letters.length >= Math.min(5, WRATH_WORD.length) && WRATH_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "wrath", tag: "WRATH", title: "Summon the Emperor's Wrath", where: "Darth Aeravix, the Emperor's Wrath", ref: "◆", href: "#wrath" });
   if (letters.length >= 5 && VOICE_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "voice", tag: "VOICE", title: "Summon the Emperor's Voice", where: "Darth Soteris, the Emperor's Voice", ref: "◆", href: "#voice" });
   if (letters.length >= 5 && REGENT_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "regent", tag: "REGENT", title: "Summon the Dark Regent", where: "Darth Zephros, Dark Regent of the Sith", ref: "◆", href: "#regent" });
+  if (letters === DBZ_WORD || (letters.length >= 5 && "kamehameha".startsWith(letters))) matches.splice(Math.min(1, matches.length), 0, { summon: "dbz", tag: "DBZ", title: "Kamehameha", where: "Darth Azazel charges a blast of pure energy", ref: "◆", href: "#dbz" });
   if (letters.length >= 5 && EMPEROR_WORD.startsWith(letters)) matches.splice(Math.min(1, matches.length), 0, { summon: "emperor", tag: "EMPEROR", title: "Summon the Emperor", where: "Darth Azazel, the Sith Emperor", ref: "◆", href: "#emperor" });
   state.searchMatches = matches; state.searchIndex = 0;
   byId("searchCount").textContent = value ? `${matches.length} ${matches.length === 1 ? "match" : "matches"}` : `${items.length} ${items.length === 1 ? "entry" : "entries"} on file`;
@@ -2126,6 +2127,7 @@ document.addEventListener("keydown", (event) => {
   else if (typed.endsWith(WRATH_WORD)) { typed = ""; summon("wrath"); }
   else if (typed.endsWith(HAND_WORD)) { typed = ""; summon("hand"); }
   else if (typed.endsWith(GUARD_WORD)) { typed = ""; summon("guard"); }
+  else if (typed.endsWith(DBZ_WORD)) { typed = ""; summon("dbz"); }
 });
 
 /* ───────── The Halloween hunt (temporary) ─────────
@@ -2315,6 +2317,195 @@ async function summonEmperor() {
   later(7800, () => { overlay.classList.add("leaving"); rite.target = 0; });
   later(8500, finish);
 }
+/* ───────── The Emperor's Kamehameha ─────────
+ * Typing "dbz" (or "kamehameha" in the terminal) brings Darth Azazel out for a Dragon Ball Z
+ * style blast. Speed lines burst behind him and a blue aura boils off his silhouette.
+ * Light streams into a ball of energy cupped in front of him and rocks lift off the ground,
+ * while the chant builds: KA… ME… HA… ME… On "HA!" the ball erupts towards the viewer.
+ * The beam floods the screen, the rocks are blown away and the light fades on him still
+ * standing, smoking. The aura, the gathering light, the ball and the outward streaks are
+ * drawn on a canvas; the speed lines, words, rocks, beam and flash are elements. */
+const DBZ_WORD = "dbz";
+const kame = { running: false, timers: [], frame: 0, particles: [], sparks: [], streaks: [], charge: 0, target: 0, aura: 0, auraTarget: 0, fired: 0, built: false, sprites: null };
+const KAME_SYLLABLES = ["KA", "ME", "HA", "ME"];
+function kameSprites() {
+  if (kame.sprites) return kame.sprites;
+  const sprite = (stops) => {
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d"), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    stops.forEach(([at, color]) => grad.addColorStop(at, color));
+    g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+    return c;
+  };
+  kame.sprites = {
+    hot: sprite([[0, "rgba(255,255,255,1)"], [.3, "rgba(210,245,255,.9)"], [.6, "rgba(90,190,255,.45)"], [1, "rgba(20,80,255,0)"]]),
+    blue: sprite([[0, "rgba(160,225,255,.9)"], [.45, "rgba(60,150,255,.5)"], [1, "rgba(10,40,200,0)"]])
+  };
+  return kame.sprites;
+}
+function buildKame() {
+  if (kame.built) return;
+  kame.built = true;
+  // Rocks scattered along the ground at his feet: each lifts on the charge and is blown out on the blast.
+  byId("kameRocks").innerHTML = Array.from({ length: 12 }, (_, i) => {
+    const side = i % 2 ? 1 : -1, spread = 12 + seededRandom(`rock${i}`) * 34;
+    const size = 10 + seededRandom(`rock${i}s`) * 26, lift = 18 + seededRandom(`rock${i}l`) * 34;
+    return `<i style="--x:${(50 + side * spread).toFixed(1)}%;--s:${size.toFixed(0)}px;--lift:${lift.toFixed(0)}vh;--d:${(seededRandom(`rock${i}d`) * 1.4).toFixed(2)}s;--r:${((seededRandom(`rock${i}r`) - .5) * 260).toFixed(0)}deg;--out:${(side * (40 + seededRandom(`rock${i}o`) * 50)).toFixed(0)}vw;--shape:${i % 3}"></i>`;
+  }).join("");
+}
+/* Where the ball sits: cupped in front of him, at his waist. */
+function kameBall() {
+  const box = byId("kameEmperor").getBoundingClientRect();
+  return { x: box.left + box.width * .5, y: box.top + box.height * .6, scale: box.height / 429, box };
+}
+function startKameCanvas() {
+  const canvas = byId("kameCanvas"), g = canvas.getContext("2d");
+  const ratio = Math.min(devicePixelRatio || 1, perf.lite ? 1 : 1.5);
+  canvas.width = innerWidth * ratio; canvas.height = innerHeight * ratio;
+  g.setTransform(ratio, 0, 0, ratio, 0, 0);
+  const { hot, blue } = kameSprites();
+  const tick = (now) => {
+    kame.frame = requestAnimationFrame(tick);
+    kame.charge += (kame.target - kame.charge) * .07;
+    kame.aura += (kame.auraTarget - kame.aura) * .06;
+    const { x: bx, y: by, scale, box } = kameBall();
+    g.globalCompositeOperation = "source-over";
+    g.clearRect(0, 0, innerWidth, innerHeight);
+    g.globalCompositeOperation = "lighter";
+    // The aura: blue flame rising off the edge of his silhouette.
+    const spawn = Math.round(kame.aura * (perf.lite ? 6 : 15));
+    for (let i = 0; i < spawn && rite.edges?.length; i += 1) {
+      const e = rite.edges[Math.floor(Math.random() * rite.edges.length)];
+      kame.particles.push({ x: box.left + e.x * box.width, y: box.top + e.y * box.height, vx: e.nx * (.4 + Math.random()) * scale, vy: (-1.8 - Math.random() * 3.4 + e.ny * .6) * scale, life: 0, max: 24 + Math.random() * 28, size: (8 + Math.random() * 16) * scale, stretch: 1.8 + Math.random() * 1.2 });
+    }
+    kame.particles = kame.particles.filter((p) => {
+      p.life += 1; if (p.life > p.max) return false;
+      p.x += p.vx + Math.sin((p.life + p.y) * .15) * .5; p.y += p.vy; p.vy *= .985;
+      const t = p.life / p.max, fade = Math.sin(Math.PI * Math.min(1, t * 1.15)) * Math.min(1, kame.aura + .1);
+      const w = p.size * (1 - t * .5), h = w * p.stretch;
+      g.globalAlpha = fade * .5; g.drawImage(blue, p.x - w, p.y - h, w * 2, h * 2);
+      if (t < .4) { g.globalAlpha = fade * (.4 - t) * 1.6; g.drawImage(hot, p.x - w * .6, p.y - h * .6, w * 1.2, h * 1.2); }
+      return true;
+    });
+    // Light streaming in to the ball while it charges.
+    if (kame.target > 0 && !kame.fired) {
+      for (let i = 0; i < (perf.lite ? 2 : 5); i += 1) {
+        const a = Math.random() * Math.PI * 2, r = (140 + Math.random() * 320) * Math.max(.6, scale);
+        kame.sparks.push({ x: bx + Math.cos(a) * r, y: by + Math.sin(a) * r, life: 0 });
+      }
+    }
+    g.lineCap = "round";
+    kame.sparks = kame.sparks.filter((s) => {
+      s.life += 1;
+      const dx = bx - s.x, dy = by - s.y, d = Math.hypot(dx, dy);
+      if (d < 10 || s.life > 60 || kame.fired) return false;
+      const step = Math.min(d, 6 + s.life * 1.1);
+      const px = s.x, py = s.y;
+      s.x += (dx / d) * step; s.y += (dy / d) * step;
+      g.globalAlpha = Math.min(1, s.life / 8) * .8;
+      g.strokeStyle = "rgba(170,230,255,1)"; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(px - (dx / d) * step * 2, py - (dy / d) * step * 2); g.lineTo(s.x, s.y); g.stroke();
+      return true;
+    });
+    // The ball: a white-hot core in a blue glow that throbs, with arcs of energy crackling round it.
+    if (kame.charge > .02) {
+      const r = (14 + kame.charge * 70) * Math.max(.7, scale) * (1 + Math.sin(now / 45) * .06);
+      g.globalAlpha = 1;
+      const glow = g.createRadialGradient(bx, by, 0, bx, by, r * 2.6);
+      glow.addColorStop(0, "rgba(255,255,255,1)"); glow.addColorStop(.18, "rgba(200,245,255,.95)");
+      glow.addColorStop(.38, "rgba(70,170,255,.6)"); glow.addColorStop(1, "rgba(10,50,220,0)");
+      g.fillStyle = glow; g.beginPath(); g.arc(bx, by, r * 2.6, 0, Math.PI * 2); g.fill();
+      if (!perf.lite) {
+        g.strokeStyle = "rgba(210,245,255,.9)"; g.lineWidth = 1.4;
+        for (let i = 0; i < 3; i += 1) {
+          let a = Math.random() * Math.PI * 2, rr = r * (.9 + Math.random() * .3);
+          g.beginPath(); g.moveTo(bx + Math.cos(a) * rr, by + Math.sin(a) * rr);
+          for (let k = 0; k < 5; k += 1) { a += .25 + Math.random() * .3; rr = r * (1 + Math.random() * .9); g.lineTo(bx + Math.cos(a) * rr, by + Math.sin(a) * rr); }
+          g.globalAlpha = .5 + Math.random() * .5; g.stroke();
+        }
+      }
+    }
+    // The blast: streaks of light thrown outward from the ball to the edges of the screen.
+    if (kame.fired) {
+      const age = now - kame.fired;
+      if (age < 2200) for (let i = 0; i < (perf.lite ? 4 : 10); i += 1) kame.streaks.push({ a: Math.random() * Math.PI * 2, d: 20 + Math.random() * 60, v: 30 + Math.random() * 40, w: 1 + Math.random() * 3.5, life: 0 });
+      kame.streaks = kame.streaks.filter((s) => {
+        s.life += 1; s.d += s.v;
+        if (s.d > Math.hypot(innerWidth, innerHeight)) return false;
+        const len = 80 + s.v * 4;
+        g.globalAlpha = Math.max(0, 1 - s.life / 40) * .9;
+        g.strokeStyle = s.w > 3 ? "rgba(255,255,255,1)" : "rgba(150,220,255,1)"; g.lineWidth = s.w;
+        g.beginPath(); g.moveTo(bx + Math.cos(s.a) * s.d, by + Math.sin(s.a) * s.d); g.lineTo(bx + Math.cos(s.a) * (s.d + len), by + Math.sin(s.a) * (s.d + len)); g.stroke();
+        return true;
+      });
+    }
+    g.globalAlpha = 1;
+  };
+  kame.frame = requestAnimationFrame(tick);
+}
+async function summonKame() {
+  if (riteBusy()) return;
+  kame.running = true;
+  closeSearch(); closeLightbox(); closeMenus();
+  buildKame();
+  await emperorImage(); // also reads the outline of his silhouette for the aura
+  const img = byId("kameEmperor");
+  if (!img.getAttribute("src")) img.src = "/emperor.webp";
+  await img.decode().catch(() => {});
+  const overlay = byId("kameRite");
+  const still = reducedMotion.matches;
+  overlay.className = `kame-rite${still ? " still" : ""}`;
+  byId("kameWords").innerHTML = "";
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  const later = (ms, fn) => kame.timers.push(setTimeout(fn, ms));
+  const finish = () => {
+    kame.timers.forEach(clearTimeout); kame.timers = [];
+    cancelAnimationFrame(kame.frame); kame.frame = 0;
+    kame.particles = []; kame.sparks = []; kame.streaks = []; kame.charge = kame.target = kame.aura = kame.auraTarget = 0; kame.fired = 0;
+    removeEventListener("keydown", skip, true); overlay.removeEventListener("click", skip);
+    overlay.hidden = true; overlay.className = "kame-rite";
+    document.body.style.overflow = "";
+    kame.running = false;
+    toast("The Emperor's power level is over nine thousand.");
+    setTimeout(() => droidReact("It's over nine thousand!"), 700);
+  };
+  const skip = (event) => { if (event.type === "keydown") { event.preventDefault(); event.stopPropagation(); } finish(); };
+  setTimeout(() => { if (kame.running) { addEventListener("keydown", skip, true); overlay.addEventListener("click", skip); } }, 400);
+  const word = (text, at, big) => {
+    const el = document.createElement("span");
+    el.className = `kame-word${big ? " final" : ""}`; el.textContent = text;
+    el.style.setProperty("--at", at);
+    byId("kameWords").appendChild(el);
+  };
+  const place = () => { const { x, y } = kameBall(); overlay.style.setProperty("--bx", `${x}px`); overlay.style.setProperty("--by", `${y}px`); };
+  if (still) {
+    overlay.classList.add("rising", "charging", "aftermath");
+    word("KAMEHAMEHA!", 0, true);
+    place();
+    later(5200, finish);
+    return;
+  }
+  startKameCanvas();
+  void overlay.offsetWidth;
+  overlay.classList.add("rising");
+  later(800, () => { overlay.classList.add("charging"); kame.auraTarget = .5; place(); });
+  KAME_SYLLABLES.forEach((syllable, i) => later(1000 + i * 620, () => {
+    word(`${syllable}…`, i, false);
+    kame.target = .25 + i * .18; kame.auraTarget = .5 + i * .15; place();
+    overlay.style.setProperty("--charge", (i + 1) / 4);
+  }));
+  later(3700, () => {
+    place();
+    word("HA!", 4, true);
+    overlay.classList.add("fired");
+    kame.fired = performance.now(); kame.target = 0; kame.charge = 0; kame.auraTarget = 1.2;
+    skyFlash(1);
+  });
+  later(5500, () => { overlay.classList.add("aftermath"); kame.auraTarget = .3; });
+  later(9200, () => { overlay.classList.add("leaving"); kame.auraTarget = 0; });
+  later(9900, finish);
+}
 /* ───────── The Dark Regent ─────────
  * Typing "regent" (or summoning him from the terminal) brings Darth Zephros, Dark Regent of the
  * Sith and its second in command, before the enemies of the Sith. He has already struck:
@@ -2410,8 +2601,8 @@ async function summonRegent() {
   later(9900, finish);
 }
 
-const summon = (who) => { if (!riteBusy()) huntFound(who); return ({ regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)(); };
-const riteBusy = () => recital.running || rite.running || regent.running || voice.running || wrath.running || hand.running || guard.running;
+const summon = (who) => { if (!riteBusy() && who !== "dbz") huntFound(who); return ({ dbz: summonKame, regent: summonRegent, voice: summonVoice, wrath: summonWrath, hand: summonHand, guard: summonGuard }[who] || summonEmperor)(); };
+const riteBusy = () => recital.running || rite.running || kame.running || regent.running || voice.running || wrath.running || hand.running || guard.running;
 
 /* ───────── The Dark Honor Guard ─────────
  * Typing "dhg" (or summoning them from the terminal) brings the Dark Honor Guard to the

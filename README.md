@@ -90,7 +90,8 @@ Hold the pointer down on any empty part of the page to channel Force lightning, 
 archive core on the home page, or type `power`. Type `peaceisalie` (the start of the Sith
 Code, as one word) or enter it in the terminal to hear the rest of it; the archive stays
 awakened for the visit. Type `emperor` (or pick "Summon the Emperor" in the terminal) and
-Darth Azazel, the Sith Emperor, rises and powers up. Type `sentinel` (`regent` outside the Halloween hunt) and Darth Zephros, Dark
+Darth Azazel, the Sith Emperor, rises and powers up. Type `dbz` (or search "kamehameha") and he
+charges a Dragon Ball Z style Kamehameha: KA… ME… HA… ME… HA! and a blast that floods the screen. Type `sentinel` (`regent` outside the Halloween hunt) and Darth Zephros, Dark
 Regent of the Sith, sheathes his sword as the enemies of the Sith fall. Type `knowledge` (`voice` outside the Halloween hunt) and
 Darth Soteris, the Emperor's Voice, wakes an ancient Sith temple and the Emperor's spirit
 rises behind him. Type `dhg` and the Dark Honor Guard holds the Emperor's
