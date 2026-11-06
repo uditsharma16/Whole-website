@@ -298,6 +298,7 @@ function parseRoute(path = currentPath()) {
   if (parts[0] === "codex" || parts[0] === "catalogue") return { view: "codex" };
   if (parts[0] === "paths" || parts[0] === "path-picker") return { view: "paths" };
   if (parts[0] === "guide") return { view: "guide" };
+  if (parts[0] === "sr-bot" || parts[0] === "bot") return { view: "bot" };
   if (parts[0] === "s" && parts[1]) return { view: "section", slug: parts[1] };
   const kind = P.ROUTE_KIND[parts[0]];
   if (kind) {
@@ -319,6 +320,7 @@ function route(options = {}) {
     if (target.view === "codex") return renderCatalogue(options);
     if (target.view === "paths") return renderPicker(options);
     if (target.view === "guide") return renderGuide(options);
+    if (target.view === "bot") return renderBotGuide(options);
     if (target.view === "section") {
       const node = state.site.groups.get(target.slug);
       return node ? renderSection(node, options) : renderNotFound();
@@ -497,7 +499,8 @@ function renderRail() {
     ${tree.length ? `<p class="rail-label">Vaults</p>${tree.map(railNode).join("")}` : ""}
     <p class="rail-label">Records</p>
     <a class="rail-link" href="/codex" data-link data-route="/codex"><em aria-hidden="true">✦</em><span>The Catalogue</span><small>${state.site.files.length}</small></a>
-    <a class="rail-link" href="/paths" data-link data-route="/paths"><em aria-hidden="true">✠</em><span>Path Picker</span></a>`;
+    <a class="rail-link" href="/paths" data-link data-route="/paths"><em aria-hidden="true">✠</em><span>Path Picker</span></a>
+    <a class="rail-link" href="/sr-bot" data-link data-route="/sr-bot"><em aria-hidden="true">/</em><span>SR Bot Guide</span></a>`;
   byId("footerSource").href = state.site.source || SITE_URL;
   markActiveRail(parseRoute());
 }
@@ -514,6 +517,7 @@ function markActiveRail(target) {
   if (target.view === "codex") active = "/codex";
   if (target.view === "paths") active = "/paths";
   if (target.view === "guide") active = "/guide";
+  if (target.view === "bot") active = "/sr-bot";
   document.querySelectorAll(".rail-link[data-route]").forEach((link) => {
     if (link.dataset.route === active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   });
@@ -1760,6 +1764,153 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "ArrowLeft" && guide.at > 0) { guide.at -= 1; guideShow(false); }
 });
 
+/* ───────── The SR Bot guide (/sr-bot) ─────────
+ * The Order's Discord bot, every command grouped by what it's for, written for the archive
+ * from the SR Bot User Guide (November 2026; its Training of Knowledge commands are left out
+ * on purpose). In notes, `code` and **bold** are the only markup. A filter narrows the
+ * commands as you type, and the page gets the chapter scrubber like any long record. */
+const BOT_SECTIONS = [
+  { id: "events", title: "Events and trainings", lead: "Hosts log their trainings, an approver reviews them, and SR is paid out to the host, guards and approver.",
+    commands: [
+      { name: "/log_event", does: "Post a training for approval.", who: "Event loggers", where: "Any channel",
+        options: [["event_type", "Yes", "The training (see the lists below)"], ["host_instructor_role", "Yes", "Shadow Mentor, Dark Mentor, Sith Instructor, Master Instructor or Head of Education. Sets the host's SR."], ["host", "Yes", "The person who hosted"], ["guards", "Yes", "Tag every guard, e.g. `@A @B`"], ["attendees", "Yes", "Shown on the log only"], ["passed / failed", "Yes", "Shown on the log only"], ["notes", "Yes", "Shown on the log only"], ["image", "Yes", "A proof screenshot"], ["cohost", "No", "Shown on the log only. The co-host gets no SR."]],
+        tables: [{ title: "SR paid to the host", head: ["Host role", "Standard event", "Specialized event"], rows: [["Shadow Mentor", "5 SR", "10 SR"], ["Dark Mentor", "6 SR", "12 SR"], ["Sith Instructor", "7 SR", "14 SR"], ["Master Instructor", "8 SR", "16 SR"], ["Head of Education", "10 SR", "20 SR"]] }],
+        notes: ["**Nobody gets any SR until the log is approved.**", "**Standard events:** Training of Submission, Training of Strength, Trial of Carnage, Trial of Discipline, Trial of Passion.", "**Specialized events:** Training of Knowledge, Warrior Trials, Crystal Bleedings, Sith Doctrine Certification, Dark Philosophy Certification, Combat Mastery Certification, Instructor Certification.", "**Each guard gets 6 SR.**", "If an SR boost is on when you post the log, host and guard SR are multiplied. The boosted amount is locked in, even if the boost is turned off before approval."] },
+      { name: "Approve button", button: true, does: "Approve a posted training and pay out its SR.", who: "Event approvers", where: "On the training log",
+        notes: ["The log is marked **APPROVED** straight away and its buttons are greyed out, so it can't be approved twice.", "**Host:** their SR and +1 Training Hosted. **Each guard:** their SR and +1 Training Guarded. **Approver:** +2 SR and +1 Training Processed.", "Crystal Bleedings gives the approver nothing.", "Anyone not in the SR sheet yet is added as \"Unranked\".", "If a guard's Discord account can't be found, they're listed under **Guards Skipped** and get no SR. Use `/give_sr` for them."],
+        tables: [{ title: "Sheet Status on the log", head: ["Sheet Status", "Meaning"], rows: [["**Saving**", "In progress."], ["**Busy**", "Google is limiting requests. The bot retries by itself for about 10 minutes."], ["**Saved**", "Done."], ["**Not saved**", "Run `/retry_log`."]] }] },
+      { name: "Reject button", button: true, does: "Reject a posted training, with a reason.", who: "Event approvers", where: "On the training log",
+        notes: ["A form asks for the reason. Closing it without sending leaves the log unreviewed.", "The log is marked **REJECTED** with the reason. The host and guards get nothing.", "The rejector gets +2 SR, but no Training Processed. Crystal Bleedings gives nothing."] },
+      { name: "/retry_log", does: "Save every reviewed training that failed to reach the SR sheet.", who: "Event approvers", where: "Any channel",
+        notes: ["The SR goes to the people on the original logs, not to whoever runs the command.", "Each saved log's Sheet Status changes to **Saved**. If saving fails again, nothing changes and the logs stay in the list."] }
+    ] },
+  { id: "members", title: "SR and members", lead: "Check and change people's SR, and manage who is in the SR sheet.",
+    commands: [
+      { name: "/sr", does: "Show someone's total SR.", who: "Everyone", where: "Any channel", options: [["user", "Yes", "The person"]], notes: ["Shows 0 if they aren't in the SR sheet."] },
+      { name: "/give_sr", does: "Add SR to someone.", who: "Admins, Board of Engagement", where: "Any channel", options: [["user", "Yes", "The person"], ["amount", "Yes", "How much SR"], ["reason", "Yes", "Why"]], notes: ["Shows their new total.", "Adds them as \"Unranked\" if they aren't in the sheet yet.", "Boosts never apply."] },
+      { name: "/take_sr", does: "Remove SR from someone.", who: "Admins, Board of Engagement", where: "Any channel", options: [["user", "Yes", "The person"], ["amount", "Yes", "How much SR"], ["reason", "Yes", "Why"]], notes: ["Nothing changes if they have less SR than the amount, or aren't in the sheet."] },
+      { name: "/add_user", does: "Add someone to the SR sheet, or update their role and Roblox details.", who: "Admins, Warrior Trial Certification", where: "Any channel", options: [["user", "Yes", "The person"], ["role", "Yes", "Their rank"], ["roblox_profile", "Yes", "Link to their Roblox profile"], ["roblox_username", "Yes", "Their Roblox username"]], notes: ["New people start with 0 SR, 0 hosted and 0 guarded."] },
+      { name: "/add_all_users", does: "Add everyone with a Discord role to the SR sheet.", who: "Admins", where: "Any channel", options: [["target_role", "Yes", "The Discord role"]], notes: ["New people are added as \"Unranked\" with 0 SR. People already in the sheet aren't touched."] },
+      { name: "/update_user", does: "Change someone's details in the SR sheet.", who: "Admins", where: "Any channel", options: [["user", "Yes", "The person"], ["role", "No", "New rank"], ["server_name", "No", "New server name"], ["training_hosted", "No", "New hosted count"], ["training_guarded", "No", "New guarded count"], ["roblox_profile", "No", "New profile link"], ["roblox_username", "No", "New Roblox username"]], notes: ["Only the fields you fill in change.", "Hosted and guarded counts are **set** to the number you give, not added to.", "They must already be in the sheet. Use `/add_user` first if they aren't."] },
+      { name: "/delete_user", does: "Mark someone as \"Left TSO\".", who: "Admins, Warrior Trial Certification", where: "Any channel", options: [["user", "Yes", "The person"], ["reason", "Yes", "Why they left"]], notes: ["Their SR and history are kept."] }
+    ] },
+  { id: "stats", title: "Stats", lead: "Leaderboards and activity counts. Dates are written as `YYYY-MM-DD`, for example `2026-11-07`.",
+    commands: [
+      { name: "/top_logs", does: "Top 5 hosts and top 5 guards of all time.", who: "Divisional Command", where: "Any channel" },
+      { name: "/top_hosts", does: "Top hosts and guards for a period.", who: "Stats", where: "Any channel", options: [["top", "No", "How many to show, 1–25. Default 5."], ["start_date", "No", "First day"], ["end_date", "No", "Last day"], ["event_type", "No", "Count only one kind of training"]], notes: ["Without dates it covers the past 7 days."] },
+      { name: "/total_events", does: "How many approved events there were, by training type.", who: "Stats", where: "Any channel", options: [["start_date", "No", "First day"], ["end_date", "No", "Last day"]], notes: ["Without dates it covers the past 7 days."] },
+      { name: "/overseer_stats", does: "Trainings processed, hosted and guarded by each OverseerPlus member.", who: "Admins", where: "Any channel", options: [["start_date", "No", "First day"], ["end_date", "No", "Last day"]], notes: ["Most processed first.", "Without dates it covers the past 30 days."] }
+    ] },
+  { id: "boost", title: "SR boost", lead: "Multiply the SR hosts and guards earn from trainings, e.g. for a double-SR weekend.",
+    commands: [
+      { name: "/enable_boost", does: "Turn on an SR boost.", who: "Boost", where: "Any channel", options: [["multiplier", "Yes", "1.1 to 10, e.g. `1.5` or `2`"]], notes: ["Running it again replaces the current boost.", "It only affects host and guard SR on trainings logged while it's on. `/give_sr` and the approver's 2 SR are never boosted.", "The bot's status shows the boost while it's on."] },
+      { name: "/disable_boost", does: "Turn the boost off.", who: "Boost", where: "Any channel", notes: ["Trainings logged while it was on still pay the boosted amount when approved."] },
+      { name: "/boost_status", does: "Show whether a boost is on, its multiplier, and who turned it on and when.", who: "Everyone", where: "Any channel" }
+    ] },
+  { id: "apprentices", title: "Apprentices", lead: "Masters take on apprentices, who train under them until they become Warriors. The bot keeps every pairing, past and present. Logging and dropping are requests: nothing is saved until an apprentice approver presses Approve.",
+    tables: [{ title: "How many apprentices a master can have", head: ["Rank", "Apprentices"], rows: [["Sith Lord", "2"], ["Dark Council", "3"], ["Powerbase", "4"], ["Regent", "4"], ["Emperor, Force", "No limit"], ["Any other rank", "0"]], after: "A master with several ranks gets the highest. Each **apprentice slot role** they've bought adds **1 extra slot**. Limits never block a request: the approver sees a warning and decides." }],
+    commands: [
+      { name: "/log_apprentice", does: "Ask to log someone as a master's apprentice.", who: "Everyone", where: "Apprentice channel", options: [["master_roblox", "Yes", "The master's Roblox username"], ["apprentice", "Yes", "The apprentice's Discord account"], ["apprentice_roblox", "Yes", "The apprentice's Roblox username"], ["master", "No", "The master's Discord account, if it isn't you. Default: you."]], notes: ["Posts a request with Approve and Reject buttons.", "A full master, or an apprentice who already has a master or is in the academy, shows as a **warning** on the request. It never blocks it.", "Once approved, any previous master or academy apprenticeship ends with the reason \"Moved to new master\"."] },
+      { name: "/drop_apprentice", does: "Ask to end an apprenticeship.", who: "Everyone", where: "Apprentice channel", options: [["master_roblox", "Yes", "The master's Roblox username. Use `Academy` for an academy apprentice."], ["apprentice_roblox", "Yes", "The apprentice's Roblox username"], ["reason", "Yes", "Why, in your own words, e.g. `Became Warrior`"]], notes: ["Both names suggest current pairings as you type.", "The names must match a pairing that's currently logged. If the apprentice is under a different master, the bot tells you who.", "Once approved, the apprenticeship is marked inactive with today's date and your reason."] },
+      { name: "Approve / Reject buttons", button: true, does: "Review an apprentice log or drop request.", who: "Apprentice approvers", where: "On the request", notes: ["Approving your own request is allowed.", "**Reject** asks for a reason, which is shown on the request.", "After review, the buttons are greyed out so nobody can click them again."] },
+      { name: "/check_apprentice", does: "Show who someone's apprentices are, now and before.", who: "Everyone", where: "Any channel", options: [["user", "No", "Tag the master"], ["name", "No", "Or their Roblox or Discord name"]], notes: ["Fill in one of the two.", "Shows how many apprentice slots the master has used.", "Type `Academy` as the name to list every academy apprentice."] },
+      { name: "/check_master", does: "Show who someone's master is, now and before.", who: "Everyone", where: "Any channel", options: [["user", "No", "Tag the apprentice"], ["name", "No", "Or their Roblox or Discord name"]], notes: ["Fill in one of the two.", "If none is logged: *The master is not logged, or they are an academy apprentice.*"] }
+    ],
+    after: { title: "Sith Order Academy apprentices", text: "The academy trains apprentices without a master. When the academy **accepts** a \"Student Enrolment\" application, the bot records that person as an academy apprentice automatically. Denied applications are ignored.",
+      notes: ["Someone is **either** an academy apprentice **or** under a master, never both.", "If a master's apprentice joins the academy, that apprenticeship ends that day. The bot posts a notice in the apprentice channel and pings the master.", "If a master logs an academy apprentice, the request warns that they're in the academy. Approving it moves them to the master.", "To end an academy apprenticeship, use `/drop_apprentice` with `Academy` as the master's name."],
+      soon: "**Coming soon:** `/passed_warrior_trial` is planned. Until then, when an apprentice becomes a Warrior, use `/drop_apprentice` with the reason `Became Warrior`." } },
+  { id: "arrests", title: "Arrests and crimes", tag: "INQ and DHG only", lead: "Log arrests and look up anyone's criminal record. Records are built from the arrest, punishment, cuff, warning and warrant logs, including old logs typed by hand.",
+    commands: [
+      { name: "/log_arrest", does: "Post an arrest log, with the person's previous record attached.", who: "**INQ and DHG only**", where: "Arrest log channel", options: [["arrested", "Yes", "Roblox username. Split several people with `,` or `&`."], ["reason", "Yes", "The rule(s) broken, e.g. `A-02 & A-03`"], ["time", "Yes", "How long, e.g. `10 min`"], ["arrested_by", "No", "Who made the arrest, if it wasn't you. Default: you."], ["vouch", "No", "Tag whoever vouches. Default: N/A."], ["proof_link", "No", "A Medal clip or other link"], ["proof_1 to proof_3", "No", "Screenshots or videos. Must fit the upload limit; otherwise use a Medal link."], ["notes", "No", "Anything else, e.g. why there is no clip"]], notes: ["You are tagged as **Logged by**.", "The 10 most recent previous entries for that person are shown under the log."] },
+      { name: "/crimes", does: "Show everything on someone's record.", who: "**INQ and DHG only**", where: "Crimes channel", options: [["username", "Yes", "Roblox username. Names on record are suggested."]], notes: ["Newest first, with the date, reason, length or punishment, who gave it, and a link to the original log.", "Each entry says which log it came from: Arrest, Punishment, Cuff, Warning or Warrant.", "Cuffs aren't always crimes (people are sometimes cuffed to help them move), so they're labelled separately.", "People are matched on their **Roblox username**. A typo or a name change counts as a different person."] }
+    ] }
+];
+const BOT_ROLES = [
+  ["Event loggers", "Shadow Mentor, Dark Mentor, Sith Instructor, Master Instructor, Head of Education, Council of Masters, Dark Council, Dark Council (Academy), Powerbase (Academy), Emperor (Academy), Director of Academics, Director of Admin"],
+  ["Event approvers", "Logging Certification (Academy)"],
+  ["Admins", "Divisional Command, Overseer, Sith Lord, Council Master, Council of Justice, Council of Influence, Council of Shadow, Council of Conquest, Council of Dread, Dark Council, Hand, Wrath, Voice, Powerbase, Regent, Emperor, Force"],
+  ["Stats", "Director of Academics, Director of Admin, Head of Education"],
+  ["Boost", "Powerbase (Academy), Headmaster (Academy), Emperor (Academy), Director of Academics, Director of Admin"],
+  ["Apprentice approvers", "Overseer, Sith Lord, Dark Council, Powerbase, Regent, Emperor, Force"],
+  ["INQ and DHG", "Inquisition and DHG members"]
+];
+const BOT_TROUBLE = [
+  ["**This command only works in #channel**", "Click the channel link in the reply and run it there."],
+  ["**You do not have permission to run this command**", "Your roles don't include it. Check the Who column."],
+  ["Sheet Status says **Busy**", "Wait. The bot keeps retrying for about 10 minutes."],
+  ["Sheet Status says **Not saved**", "Ask an event approver to run `/retry_log`."],
+  ["`/crimes` says older logs may be missing", "The bot has just restarted. Try again in a minute."],
+  ["`/log_arrest` says the proof files are too big", "Upload the video to Medal and use `proof_link`."],
+  ["**This request has already been reviewed**", "Someone else already approved or rejected it."],
+  ["`/drop_apprentice` says they aren't that master's apprentice", "Check with `/check_master`, then use the master the bot names."]
+];
+/* Inline markup in the guide's text: `code`, **bold** and *italic*, everything else escaped. */
+const botText = (text) => esc(text).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\*([^*]+)\*/g, "<i>$1</i>");
+const botId = (name) => `cmd-${name.replace(/^\//, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+function botTable({ title, head, rows, after }) {
+  return `${title ? `<p class="bot-kicker">${esc(title)}</p>` : ""}<div class="bot-table-wrap"><table class="bot-table"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((row) => `<tr>${row.map((cell, i) => `<td data-label="${esc(head[i] || "")}">${botText(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${after ? `<p class="bot-after">${botText(after)}</p>` : ""}`;
+}
+function botCommand(cmd) {
+  const options = cmd.options ? botTable({ title: "Options", head: ["Option", "Required", "What to enter"], rows: cmd.options.map(([o, r, w]) => [`\`${o}\``, r, w]) }) : "";
+  return `<article class="bot-cmd" id="${botId(cmd.name)}" data-bot-cmd data-text="${esc(`${cmd.name} ${cmd.does} ${cmd.who}`.toLowerCase())}">
+    <header><h3>${cmd.button ? esc(cmd.name) : `<code>${esc(cmd.name)}</code>`}</h3><p>${esc(cmd.does)}</p></header>
+    <dl class="bot-meta"><div><dt>Who</dt><dd>${botText(cmd.who)}</dd></div><div><dt>Where</dt><dd>${esc(cmd.where)}</dd></div></dl>
+    ${options}
+    ${(cmd.tables || []).map(botTable).join("")}
+    ${cmd.notes?.length ? `<p class="bot-kicker">Good to know</p><ul class="bot-notes">${cmd.notes.map((n) => `<li>${botText(n)}</li>`).join("")}</ul>` : ""}
+  </article>`;
+}
+function renderBotGuide(options = {}) {
+  document.title = "SR Bot Guide — TSO Central Archives";
+  const glance = BOT_SECTIONS.map((sec) => `<div class="bot-glance-group" data-bot-group>
+      <h3>${esc(sec.title)}${sec.tag ? ` <small>${esc(sec.tag)}</small>` : ""}</h3>
+      <div class="bot-table-wrap"><table class="bot-table"><thead><tr><th>Command</th><th>What it does</th><th>Who</th></tr></thead><tbody>
+      ${sec.commands.map((c) => `<tr data-bot-row data-text="${esc(`${c.name} ${c.does} ${c.who}`.toLowerCase())}"><td data-label="Command"><a href="#${botId(c.name)}" data-scroll>${c.button ? `<b>${esc(c.name)}</b>` : `<code>${esc(c.name)}</code>`}</a></td><td data-label="What it does">${esc(c.does)}</td><td data-label="Who">${botText(c.who)}</td></tr>`).join("")}
+      </tbody></table></div></div>`).join("");
+  const sections = BOT_SECTIONS.map((sec) => `<section class="bot-section" data-bot-section>
+      <h2 class="bot-h2" id="bot-${sec.id}">${esc(sec.title)}${sec.tag ? ` <small>${esc(sec.tag)}</small>` : ""}</h2>
+      <p class="bot-lead">${botText(sec.lead)}</p>
+      ${(sec.tables || []).map(botTable).join("")}
+      <div class="bot-cmds">${sec.commands.map(botCommand).join("")}</div>
+      ${sec.after ? `<div class="bot-extra" data-bot-extra><h3>${esc(sec.after.title)}</h3><p>${botText(sec.after.text)}</p><ul class="bot-notes">${sec.after.notes.map((n) => `<li>${botText(n)}</li>`).join("")}</ul>${sec.after.soon ? `<p class="bot-soon">${botText(sec.after.soon)}</p>` : ""}</div>` : ""}
+    </section>`).join("");
+  app.innerHTML = `<div class="page bot-page">
+    <header class="chamber-head">
+      <span class="chamber-numeral" aria-hidden="true">/</span>
+      ${crumbs([{ href: "/", label: "The Gate" }, { label: "SR Bot Guide" }])}
+      <p class="eyebrow">Every command, grouped by what it's for</p>
+      <h1 data-decrypt>SR Bot Guide</h1>
+      <p class="pp-lede">Type <code>/</code> in Discord and pick a command. If you use a command in the wrong channel, the bot links you to the right one. <b>Who</b> uses the role groups listed at the end of this guide.</p>
+      <div class="bot-tools">
+        <label class="filter"><span aria-hidden="true">›</span><input id="botFilter" type="search" placeholder="find a command" autocomplete="off" spellcheck="false" aria-label="Find a command" /></label>
+        <nav class="bot-jump" aria-label="Sections">${BOT_SECTIONS.map((sec) => `<a href="#bot-${sec.id}" data-scroll>${esc(sec.title)}</a>`).join("")}<a href="#bot-roles" data-scroll>Role groups</a><a href="#bot-trouble" data-scroll>If something goes wrong</a></nav>
+      </div>
+    </header>
+    <h2 class="bot-h2" id="bot-glance">Commands at a glance</h2>
+    <div class="bot-glance">${glance}</div>
+    ${sections}
+    <p class="no-match" id="botEmpty" hidden>No command matches that.</p>
+    <section class="bot-section"><h2 class="bot-h2" id="bot-roles">Role groups</h2>
+      <p class="bot-lead">The <b>Who</b> column uses these groups. The bot owner can use every command.</p>
+      ${botTable({ head: ["Group", "Roles"], rows: BOT_ROLES.map(([g, r]) => [`**${g}**`, r]) })}</section>
+    <section class="bot-section"><h2 class="bot-h2" id="bot-trouble">If something goes wrong</h2>
+      ${botTable({ head: ["What you see", "What to do"], rows: BOT_TROUBLE })}</section>
+  </div>`;
+  byId("botFilter").addEventListener("input", (event) => {
+    const q = event.target.value.trim().toLowerCase();
+    let shown = 0;
+    app.querySelectorAll("[data-bot-cmd]").forEach((el) => { const hit = !q || el.dataset.text.includes(q); el.hidden = !hit; if (hit) shown += 1; });
+    app.querySelectorAll("[data-bot-row]").forEach((el) => { el.hidden = Boolean(q) && !el.dataset.text.includes(q); });
+    app.querySelectorAll("[data-bot-group]").forEach((el) => { el.hidden = !el.querySelector("[data-bot-row]:not([hidden])"); });
+    app.querySelectorAll("[data-bot-section]").forEach((el) => { el.hidden = !el.querySelector("[data-bot-cmd]:not([hidden])"); });
+    app.querySelectorAll("[data-bot-extra]").forEach((el) => { el.hidden = Boolean(q); });
+    byId("botEmpty").hidden = shown > 0;
+  });
+  afterRender(options);
+  setupScrubber([{ id: "bot-glance", text: "At a glance", level: 2 }, ...BOT_SECTIONS.map((sec) => ({ id: `bot-${sec.id}`, text: sec.title, level: 2 })), { id: "bot-roles", text: "Role groups", level: 2 }, { id: "bot-trouble", text: "If something goes wrong", level: 2 }]);
+}
+
 /* ───────── Chapter scrubber ─────────
  * Long pages get a scrubber along the bottom instead of a contents column: one notch per
  * chapter at its true position in the page, a blade that fills as you read, and the current
@@ -1831,7 +1982,8 @@ function searchItems() {
   const files = state.site.files.map((file) => ({ tag: (KIND[file.kind]?.short || "File").toUpperCase(), file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), where: [KIND[file.kind]?.label, fileVault(file) && trail(fileVault(file))].filter(Boolean).join(" · "), ref: fileRefNo(file) }));
   const pathPicker = { tag: "PATHS", title: "Path Picker", text: "Which pathway, division and sphere suits you? Juggernaut Sorcerer Assassin Dark Honor Guard Inquisitors Reavers Dread Hosts Galactic Influence Courts and Appeals Education and Academics", href: "/paths", where: "Find your place in the Order", ref: "✠" };
   const guidePage = { tag: "GUIDE", title: "New Player Guide", text: "New here? How to rise: Minion Hopeful Initiate Adept Acolyte Apprentice Warrior Trial pathway Overseer Sith Lord Dark Council Emperor's Powerbase Sith Reputation", href: "/guide", where: "New to the Order? How to join and rise, step by step", ref: "✦" };
-  return [...files, ...pages, guidePage, pathPicker];
+  const botGuide = { tag: "BOT", title: "SR Bot Guide", text: `Discord bot commands SR Sith Reputation ${BOT_SECTIONS.flatMap((sec) => sec.commands.map((c) => `${c.name} ${c.does}`)).join(" ")}`, href: "/sr-bot", where: "Every SR Bot command, grouped by what it's for", ref: "/" };
+  return [...files, ...pages, guidePage, pathPicker, botGuide];
 }
 function openSearch(prefill) {
   closeMenus();

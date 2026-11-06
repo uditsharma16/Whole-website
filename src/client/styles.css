@@ -1812,6 +1812,61 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 }
 @media (prefers-reduced-motion: reduce) { .gd-chapter.turn > * { animation: none; } }
 
+/* ───────── The SR Bot guide ───────── */
+.bot-page code { padding: .08em .35em; border-radius: 3px; background: rgba(var(--red-rgb), .12); color: var(--red-pale); font: 400 .88em var(--mono); white-space: nowrap; }
+.bot-page .pp-lede code { color: var(--ink); }
+.bot-tools { display: grid; gap: .9rem; margin-top: .6rem; }
+.bot-tools .filter { max-width: 26rem; }
+.bot-jump { display: flex; flex-wrap: wrap; gap: .4rem; }
+.bot-jump a { padding: .4rem .7rem; border: 1px solid var(--soft-line); border-radius: 3px; background: var(--glass); color: var(--muted); font: 400 .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; text-decoration: none; transition: border-color .2s ease, color .2s ease; }
+.bot-jump a:hover { border-color: var(--line); color: #fff; }
+.bot-h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .7rem; margin: clamp(2.6rem, 6vw, 4rem) 0 1rem; padding-bottom: .6rem; border-bottom: 1px solid rgba(var(--red-rgb), .35); color: var(--ink); font: 700 clamp(1.8rem, 3.6vw, 2.6rem)/1.1 var(--display); scroll-margin-top: calc(var(--topbar-h) + 1.4rem); }
+.bot-h2 small, .bot-glance-group h3 small { color: var(--red-light); font: 400 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.bot-lead { max-width: 48rem; margin: 0 0 1.4rem; color: var(--muted); font-size: 1.08rem; }
+.bot-lead code { font-size: .82em; }
+.bot-glance { display: grid; gap: 1.6rem; }
+.bot-glance-group h3 { margin: 0 0 .5rem; color: var(--red-light); font: 700 1.25rem var(--display); }
+.bot-glance td:first-child a { text-decoration: none; }
+.bot-glance td:first-child a:hover code { background: rgba(var(--red-rgb), .3); }
+.bot-table-wrap { overflow-x: auto; margin: 0 0 1rem; border: 1px solid var(--soft-line); border-radius: 3px; }
+.bot-table { width: 100%; border-collapse: collapse; font-size: .98rem; line-height: 1.45; }
+.bot-table th { padding: .55rem .8rem; background: rgba(0,0,0,.45); color: var(--faint); font: 400 .66rem var(--mono); letter-spacing: .14em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.bot-table td { padding: .55rem .8rem; border-top: 1px solid var(--soft-line); color: var(--ink-2); vertical-align: top; }
+.bot-table tbody tr:nth-child(even) td { background: rgba(255,236,226,.025); }
+.bot-table td b { color: var(--ink); }
+.bot-cmds { display: grid; gap: 1rem; }
+.bot-cmd { display: grid; gap: .7rem; padding: 1.1rem 1.2rem 1rem; border: 1px solid var(--soft-line); border-left: 3px solid var(--red); border-radius: 3px; background: var(--panel); scroll-margin-top: calc(var(--topbar-h) + 1.4rem); }
+.bot-cmd:target { border-color: var(--red); box-shadow: 0 0 1.6rem rgba(var(--red-rgb), .25); }
+.bot-cmd header { display: grid; gap: .2rem; }
+.bot-cmd h3 { margin: 0; color: var(--ink); font: 700 1.3rem var(--display); }
+.bot-cmd h3 code { padding: 0; background: none; color: var(--red-light); font-size: 1.05rem; }
+.bot-cmd header p { margin: 0; color: var(--ink-2); }
+.bot-meta { display: flex; flex-wrap: wrap; gap: .4rem 2rem; margin: 0; padding: .5rem .8rem; border-left: 2px solid rgba(var(--red-rgb), .6); background: rgba(0,0,0,.25); }
+.bot-meta div { display: flex; gap: .6rem; align-items: baseline; }
+.bot-meta dt { color: var(--faint); font: 400 .64rem var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.bot-meta dd { margin: 0; color: var(--ink-2); font-size: .98rem; }
+.bot-kicker { margin: .2rem 0 .1rem; color: var(--faint); font: 400 .66rem var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.bot-notes { display: grid; gap: .3rem; margin: 0; padding-left: 1.2rem; color: var(--ink-2); }
+.bot-notes li::marker { color: var(--red); }
+.bot-after { margin: -.3rem 0 1.2rem; color: var(--muted); }
+.bot-extra { display: grid; gap: .6rem; margin-top: 1.4rem; padding: 1.1rem 1.2rem; border: 1px dashed var(--soft-line); border-radius: 3px; }
+.bot-extra h3 { margin: 0; color: var(--ink); font: 700 1.3rem var(--display); }
+.bot-extra p { margin: 0; }
+.bot-soon { padding: .7rem .9rem; border-left: 3px solid var(--gold); background: rgba(216,176,106,.08); color: var(--ink-2); }
+/* Phones: each row becomes a small block, its first cell as the heading and the rest labelled. */
+@media (max-width: 700px) {
+  .bot-table, .bot-table tbody, .bot-table tr, .bot-table td { display: block; }
+  .bot-table thead { display: none; }
+  .bot-table tr { padding: .55rem .75rem; border-top: 1px solid var(--soft-line); }
+  .bot-table tbody tr:first-child { border-top: 0; }
+  .bot-table tbody tr:nth-child(even) td { background: none; }
+  .bot-table tbody tr:nth-child(even) { background: rgba(255,236,226,.025); }
+  .bot-table td { padding: .1rem 0; border: 0; font-size: .95rem; }
+  .bot-table td:first-child { color: var(--ink); font-weight: 600; }
+  .bot-table td + td::before { content: attr(data-label) " "; margin-right: .4rem; color: var(--faint); font: 400 .62rem var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+  .bot-page code { white-space: normal; overflow-wrap: break-word; }
+}
+
 /* ───────── Seasonal wrapper: Halloween ─────────
  * Gated on html.theme-halloween (see the Halloween block in app.js). The crimson becomes
  * Nightsister green with pumpkin-orange accents; the rites keep their own colours. The
