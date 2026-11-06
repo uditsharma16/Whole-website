@@ -298,7 +298,7 @@ function parseRoute(path = currentPath()) {
   if (parts[0] === "codex" || parts[0] === "catalogue") return { view: "codex" };
   if (parts[0] === "paths" || parts[0] === "path-picker") return { view: "paths" };
   if (parts[0] === "guide") return { view: "guide" };
-  if (parts[0] === "sr-bot" || parts[0] === "bot") return { view: "bot" };
+  if (parts[0] === "bot" || parts[0] === "sr-bot") return { view: "bot" };
   if (parts[0] === "s" && parts[1]) return { view: "section", slug: parts[1] };
   const kind = P.ROUTE_KIND[parts[0]];
   if (kind) {
@@ -500,7 +500,7 @@ function renderRail() {
     <p class="rail-label">Records</p>
     <a class="rail-link" href="/codex" data-link data-route="/codex"><em aria-hidden="true">✦</em><span>The Catalogue</span><small>${state.site.files.length}</small></a>
     <a class="rail-link" href="/paths" data-link data-route="/paths"><em aria-hidden="true">✠</em><span>Path Picker</span></a>
-    <a class="rail-link" href="/sr-bot" data-link data-route="/sr-bot"><em aria-hidden="true">/</em><span>SR Bot Guide</span></a>`;
+    <a class="rail-link" href="/bot" data-link data-route="/bot"><em aria-hidden="true">/</em><span>Bot Guide</span></a>`;
   byId("footerSource").href = state.site.source || SITE_URL;
   markActiveRail(parseRoute());
 }
@@ -517,7 +517,7 @@ function markActiveRail(target) {
   if (target.view === "codex") active = "/codex";
   if (target.view === "paths") active = "/paths";
   if (target.view === "guide") active = "/guide";
-  if (target.view === "bot") active = "/sr-bot";
+  if (target.view === "bot") active = "/bot";
   document.querySelectorAll(".rail-link[data-route]").forEach((link) => {
     if (link.dataset.route === active) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   });
@@ -1764,10 +1764,10 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "ArrowLeft" && guide.at > 0) { guide.at -= 1; guideShow(false); }
 });
 
-/* ───────── The SR Bot guide (/sr-bot) ─────────
- * The Order's Discord bot, every command grouped by what it's for, written for the archive
- * from the SR Bot User Guide (November 2026; its Training of Knowledge commands are left out
- * on purpose). In notes, `code` and **bold** are the only markup. A filter narrows the
+/* ───────── The Bot Guide (/bot) ─────────
+ * The Order's Discord bots, each command grouped by what it's for, written for the archive:
+ * the SR Bot from the SR Bot User Guide (November 2026; its Training of Knowledge commands
+ * are left out on purpose) and KoolBot from the KoolBot Command Guide (7 November 2026). In notes, `code` and **bold** are the only markup. A filter narrows the
  * commands as you type, and the page gets the chapter scrubber like any long record. */
 const BOT_SECTIONS = [
   { id: "events", title: "Events and trainings", lead: "Hosts log their trainings, an approver reviews them, and SR is paid out to the host, guards and approver.",
@@ -1851,51 +1851,86 @@ function botTable({ title, head, rows, after }) {
   return `${title ? `<p class="bot-kicker">${esc(title)}</p>` : ""}<div class="bot-table-wrap"><table class="bot-table"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>
     <tbody>${rows.map((row) => `<tr>${row.map((cell, i) => `<td data-label="${esc(head[i] || "")}">${botText(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${after ? `<p class="bot-after">${botText(after)}</p>` : ""}`;
 }
-function botCommand(cmd) {
+const KOOL_SECTIONS = [
+  { id: "kool-start", title: "Getting started", lead: "KoolBot answers questions about the Sith Order, the Code of the Sith, Sith law and Galactic Saga. Most members use it through two slash commands: `/ask` and `/ask_law`.",
+    bullets: ["**Slash commands:** type `/` in a channel and pick a KoolBot command from the list. Discord shows what each option needs.", "**Where they work:** `/ask` and `/ask_law` only work in channels the server owner has switched on. Anywhere else, the bot tells you it isn't enabled there.", "**Who can chat with it:** talking to KoolBot by @mention or DM, and `/summarize`, are reserved for members the owner has cleared. Everyone else gets \"Only those cleared by the Emperor may summon his herald.\"", "**Private replies:** error messages and `/summarize` results are shown only to you. Answers to `/ask` and `/ask_law` are posted in the channel."],
+    commands: [] },
+  { id: "kool-commands", title: "Command reference", lead: "Everything members can use. Questions to `/ask` and `/ask_law` share an hourly limit (see Limits and troubleshooting).",
+    commands: [
+      { name: "/ask", does: "Answers questions about the Sith Order, the Code of the Sith and Galactic Saga.", who: "Everyone, in enabled channels", where: "Channels where it's switched on", options: [["question", "Yes", "Your question, up to 500 characters"]], example: "/ask question: Who is the current Dark Regent?",
+        notes: ["Questions can be up to 500 characters.", "Each answer lists its sources at the bottom with links, so you can check the original.", "Draws on the TSO Central Archives, the docs linked from it, the Code of the Sith, the Sith Doctrine board and the Leadership Records board.", "The sources refresh every 30 minutes, so recent edits to the archives can take up to half an hour to show up."] },
+      { name: "/ask_law", does: "Answers questions on Sith Doctrine: laws, principles, offenses and their punishments.", who: "Everyone, in enabled channels", where: "Channels where it's switched on", options: [["question", "Yes", "Your question, up to 500 characters"]], example: "/ask_law question: What is the punishment for desertion?",
+        notes: ["Questions can be up to 500 characters.", "Each answer lists its sources at the bottom with links, so you can check the original.", "Draws only on the Sith Doctrine and the Order's law notes, and lays out each offense answer the same way.", "The sources refresh every 30 minutes, so recent edits can take up to half an hour to show up."] },
+      { name: "/summarize", does: "Summarizes the last 10 messages in the current channel, visible only to you.", who: "Cleared members", where: "The channel you want summarized", example: "/summarize", notes: ["Only you can see the summary."] },
+      { name: "@KoolBot or a DM", button: true, does: "Open chat with KoolBot: questions, maths, time zones and dates, and reading files you attach.", who: "Cleared members", where: "Any channel, or a DM", example: "@KoolBot what time is 18:00 UTC in EST?",
+        notes: ["Mention @KoolBot in a message, or send it a DM. You can also reply to an earlier message and mention it to ask about that message.", "Attach images, PDFs, or text and code files (up to 8 MB) and tell it what to do with them.", "If KoolBot wants to search the web, it asks first with buttons. No answer within 60 seconds counts as \"no\".", "Lord Commandant Kool, Silas and Darth Zephros can also ask it to remember things and to set, list or cancel reminders."] }
+    ] },
+  { id: "kool-owner", title: "Owner-only commands", lead: "These commands are restricted to the bot owner. They're listed so you know what to ask for. Anyone else who runs one gets \"You do not have permission to run this command.\"",
+    tables: [{ head: ["Command", "What it does"], rows: [["`/ask_enable channel:`", "Turns on `/ask` and `/ask_law` in a channel (the current one if left blank)"], ["`/ask_disable channel:`", "Turns them off in a channel"], ["`/ask_channels`", "Lists the channels where they are on"], ["`/ask_unlimit user:`", "Removes a member's hourly question limit"], ["`/ask_relimit user:`", "Puts the hourly limit back for that member"], ["`/ask_unlimited_list`", "Lists members with no question limit"], ["`/ai_allow user:`", "Clears a member to chat with KoolBot and use `/summarize`"], ["`/ai_disallow user:`", "Removes that clearance"], ["`/ai_access_list`", "Lists cleared members"], ["`/ai_notes`", "Downloads KoolBot's notebook as a text file"], ["`/ai_compress_notes`", "Merges duplicate notes and drops stale ones"]],
+      after: "To get `/ask` switched on in a channel, a higher limit, or chat access, ask the server owner." }],
+    commands: [] },
+  { id: "kool-limits", title: "Limits and troubleshooting", lead: "You get 5 questions per hour, shared between `/ask` and `/ask_law`. Each answer shows how many you have left. A question that fails never counts against you.",
+    tables: [{ head: ["Message you see", "What it means", "What to do"], rows: [["\"`/ask` isn't enabled in this channel.\"", "The command is switched off here", "Use a channel where it's on, or ask the owner"], ["\"You've used your 5 questions for this hour.\"", "You hit the hourly limit", "Wait for the time shown in the message"], ["\"My resources are overloaded right now — I'll post the answer here in a minute or so.\"", "The AI service is busy", "Wait. The answer posts in the same spot within a few minutes"], ["\"I'm overloaded and already have a backlog of questions…\"", "Too many questions are queued", "Try again in a few minutes"], ["\"The archives are out of reach right now…\"", "The source documents couldn't be loaded", "Try again shortly"], ["\"It got flagged by the safety filters.\"", "The AI declined that question", "Rephrase it"], ["\"One at a time — give me a moment.\"", "You messaged KoolBot within 4 seconds of your last message", "Wait a few seconds and send again"], ["\"Only those cleared by the Emperor may summon his herald.\"", "You aren't cleared for chat or `/summarize`", "Use `/ask`, or ask the owner for access"]],
+      after: "If an answer says it couldn't reach a source, the answer used the other sources only. Check the linked originals for anything important." }],
+    commands: [] }
+];
+/* Each bot is a part of the page: an intro, its commands at a glance, its sections, and any
+ * closing reference tables. */
+const BOTS = [
+  { id: "sr", name: "SR Bot", sub: "Trainings, Sith Reputation, apprentices and arrests", intro: "Type `/` in Discord and pick a command. If you use a command in the wrong channel, the bot links you to the right one. **Who** uses the role groups listed at the end of this part.", sections: BOT_SECTIONS,
+    closing: [{ id: "roles", title: "Role groups", lead: "The **Who** column uses these groups. The bot owner can use every command.", table: { head: ["Group", "Roles"], rows: BOT_ROLES.map(([g, r]) => [`**${g}**`, r]) } }, { id: "trouble", title: "If something goes wrong", table: { head: ["What you see", "What to do"], rows: BOT_TROUBLE } }] },
+  { id: "kool", name: "KoolBot", sub: "Questions about the Order, its Code and its law", intro: "Ask KoolBot about the Sith Order, the Code of the Sith, Sith law and Galactic Saga.", sections: KOOL_SECTIONS, closing: [] }
+];
+function botCommand(cmd, prefix = "") {
   const options = cmd.options ? botTable({ title: "Options", head: ["Option", "Required", "What to enter"], rows: cmd.options.map(([o, r, w]) => [`\`${o}\``, r, w]) }) : "";
-  return `<article class="bot-cmd" id="${botId(cmd.name)}" data-bot-cmd data-text="${esc(`${cmd.name} ${cmd.does} ${cmd.who}`.toLowerCase())}">
-    <header><h3>${cmd.button ? esc(cmd.name) : `<code>${esc(cmd.name)}</code>`}</h3><p>${esc(cmd.does)}</p></header>
-    <dl class="bot-meta"><div><dt>Who</dt><dd>${botText(cmd.who)}</dd></div><div><dt>Where</dt><dd>${esc(cmd.where)}</dd></div></dl>
+  return `<article class="bot-cmd" id="${botId(prefix + cmd.name)}" data-bot-cmd data-text="${esc(`${cmd.name} ${cmd.does} ${cmd.who}`.toLowerCase())}">
+    <header><h4>${cmd.button ? esc(cmd.name) : `<code>${esc(cmd.name)}</code>`}</h4><p>${esc(cmd.does)}</p></header>
+    <dl class="bot-meta"><div><dt>Who</dt><dd>${botText(cmd.who)}</dd></div>${cmd.where ? `<div><dt>Where</dt><dd>${esc(cmd.where)}</dd></div>` : ""}</dl>
     ${options}
+    ${cmd.example ? `<p class="bot-kicker">Example</p><p class="bot-example"><code>${esc(cmd.example)}</code></p>` : ""}
     ${(cmd.tables || []).map(botTable).join("")}
     ${cmd.notes?.length ? `<p class="bot-kicker">Good to know</p><ul class="bot-notes">${cmd.notes.map((n) => `<li>${botText(n)}</li>`).join("")}</ul>` : ""}
   </article>`;
 }
 function renderBotGuide(options = {}) {
-  document.title = "SR Bot Guide — TSO Central Archives";
-  const glance = BOT_SECTIONS.map((sec) => `<div class="bot-glance-group" data-bot-group>
-      <h3>${esc(sec.title)}${sec.tag ? ` <small>${esc(sec.tag)}</small>` : ""}</h3>
+  document.title = "Bot Guide — TSO Central Archives";
+  const prefixOf = (bot) => (bot.id === "sr" ? "" : `${bot.id}-`);
+  const glance = (bot) => bot.sections.filter((sec) => sec.commands.length).map((sec) => `<div class="bot-glance-group" data-bot-group>
+      <h4>${esc(sec.title)}${sec.tag ? ` <small>${esc(sec.tag)}</small>` : ""}</h4>
       <div class="bot-table-wrap"><table class="bot-table"><thead><tr><th>Command</th><th>What it does</th><th>Who</th></tr></thead><tbody>
-      ${sec.commands.map((c) => `<tr data-bot-row data-text="${esc(`${c.name} ${c.does} ${c.who}`.toLowerCase())}"><td data-label="Command"><a href="#${botId(c.name)}" data-scroll>${c.button ? `<b>${esc(c.name)}</b>` : `<code>${esc(c.name)}</code>`}</a></td><td data-label="What it does">${esc(c.does)}</td><td data-label="Who">${botText(c.who)}</td></tr>`).join("")}
+      ${sec.commands.map((c) => `<tr data-bot-row data-text="${esc(`${c.name} ${c.does} ${c.who}`.toLowerCase())}"><td data-label="Command"><a href="#${botId(prefixOf(bot) + c.name)}" data-scroll>${c.button ? `<b>${esc(c.name)}</b>` : `<code>${esc(c.name)}</code>`}</a></td><td data-label="What it does">${esc(c.does)}</td><td data-label="Who">${botText(c.who)}</td></tr>`).join("")}
       </tbody></table></div></div>`).join("");
-  const sections = BOT_SECTIONS.map((sec) => `<section class="bot-section" data-bot-section>
-      <h2 class="bot-h2" id="bot-${sec.id}">${esc(sec.title)}${sec.tag ? ` <small>${esc(sec.tag)}</small>` : ""}</h2>
-      <p class="bot-lead">${botText(sec.lead)}</p>
+  const section = (bot, sec) => `<section class="bot-section" ${sec.commands.length ? "data-bot-section" : "data-bot-extra"}>
+      <h3 class="bot-h2" id="bot-${sec.id}">${esc(sec.title)}${sec.tag ? ` <small>${esc(sec.tag)}</small>` : ""}</h3>
+      ${sec.lead ? `<p class="bot-lead">${botText(sec.lead)}</p>` : ""}
+      ${sec.bullets ? `<ul class="bot-notes bot-start">${sec.bullets.map((n) => `<li>${botText(n)}</li>`).join("")}</ul>` : ""}
       ${(sec.tables || []).map(botTable).join("")}
-      <div class="bot-cmds">${sec.commands.map(botCommand).join("")}</div>
-      ${sec.after ? `<div class="bot-extra" data-bot-extra><h3>${esc(sec.after.title)}</h3><p>${botText(sec.after.text)}</p><ul class="bot-notes">${sec.after.notes.map((n) => `<li>${botText(n)}</li>`).join("")}</ul>${sec.after.soon ? `<p class="bot-soon">${botText(sec.after.soon)}</p>` : ""}</div>` : ""}
-    </section>`).join("");
+      ${sec.commands.length ? `<div class="bot-cmds">${sec.commands.map((c) => botCommand(c, prefixOf(bot))).join("")}</div>` : ""}
+      ${sec.after ? `<div class="bot-extra" data-bot-extra><h4>${esc(sec.after.title)}</h4><p>${botText(sec.after.text)}</p><ul class="bot-notes">${sec.after.notes.map((n) => `<li>${botText(n)}</li>`).join("")}</ul>${sec.after.soon ? `<p class="bot-soon">${botText(sec.after.soon)}</p>` : ""}</div>` : ""}
+    </section>`;
+  const part = (bot) => `<div class="bot-part" data-bot-part>
+      <h2 class="bot-part-title" id="bot-${bot.id}"><span>${esc(bot.name)}</span><small>${esc(bot.sub)}</small></h2>
+      <p class="bot-lead">${botText(bot.intro)}</p>
+      <h3 class="bot-h2" id="bot-${bot.id}-glance">Commands at a glance</h3>
+      <div class="bot-glance">${glance(bot)}</div>
+      ${bot.sections.map((sec) => section(bot, sec)).join("")}
+      ${bot.closing.map((c) => `<section class="bot-section" data-bot-extra><h3 class="bot-h2" id="bot-${c.id}">${esc(c.title)}</h3>${c.lead ? `<p class="bot-lead">${botText(c.lead)}</p>` : ""}${botTable(c.table)}</section>`).join("")}
+    </div>`;
+  const jump = (bot) => `<div class="bot-jump-row"><b>${esc(bot.name)}</b>${bot.sections.map((sec) => `<a href="#bot-${sec.id}" data-scroll>${esc(sec.title)}</a>`).join("")}${bot.closing.map((c) => `<a href="#bot-${c.id}" data-scroll>${esc(c.title)}</a>`).join("")}</div>`;
   app.innerHTML = `<div class="page bot-page">
     <header class="chamber-head">
       <span class="chamber-numeral" aria-hidden="true">/</span>
-      ${crumbs([{ href: "/", label: "The Gate" }, { label: "SR Bot Guide" }])}
-      <p class="eyebrow">Every command, grouped by what it's for</p>
-      <h1 data-decrypt>SR Bot Guide</h1>
-      <p class="pp-lede">Type <code>/</code> in Discord and pick a command. If you use a command in the wrong channel, the bot links you to the right one. <b>Who</b> uses the role groups listed at the end of this guide.</p>
+      ${crumbs([{ href: "/", label: "The Gate" }, { label: "Bot Guide" }])}
+      <p class="eyebrow">The Order's Discord bots</p>
+      <h1 data-decrypt>Bot Guide</h1>
+      <p class="pp-lede">Two bots serve the Order on Discord. The <b>SR Bot</b> logs trainings and pays out Sith Reputation, keeps apprenticeships and records arrests. <b>KoolBot</b> answers questions about the Order, the Code of the Sith and Sith law. Type <code>/</code> in Discord and pick a command.</p>
       <div class="bot-tools">
         <label class="filter"><span aria-hidden="true">›</span><input id="botFilter" type="search" placeholder="find a command" autocomplete="off" spellcheck="false" aria-label="Find a command" /></label>
-        <nav class="bot-jump" aria-label="Sections">${BOT_SECTIONS.map((sec) => `<a href="#bot-${sec.id}" data-scroll>${esc(sec.title)}</a>`).join("")}<a href="#bot-roles" data-scroll>Role groups</a><a href="#bot-trouble" data-scroll>If something goes wrong</a></nav>
+        <nav class="bot-jump" aria-label="Sections">${BOTS.map(jump).join("")}</nav>
       </div>
     </header>
-    <h2 class="bot-h2" id="bot-glance">Commands at a glance</h2>
-    <div class="bot-glance">${glance}</div>
-    ${sections}
+    ${BOTS.map(part).join("")}
     <p class="no-match" id="botEmpty" hidden>No command matches that.</p>
-    <section class="bot-section"><h2 class="bot-h2" id="bot-roles">Role groups</h2>
-      <p class="bot-lead">The <b>Who</b> column uses these groups. The bot owner can use every command.</p>
-      ${botTable({ head: ["Group", "Roles"], rows: BOT_ROLES.map(([g, r]) => [`**${g}**`, r]) })}</section>
-    <section class="bot-section"><h2 class="bot-h2" id="bot-trouble">If something goes wrong</h2>
-      ${botTable({ head: ["What you see", "What to do"], rows: BOT_TROUBLE })}</section>
   </div>`;
   byId("botFilter").addEventListener("input", (event) => {
     const q = event.target.value.trim().toLowerCase();
@@ -1905,10 +1940,11 @@ function renderBotGuide(options = {}) {
     app.querySelectorAll("[data-bot-group]").forEach((el) => { el.hidden = !el.querySelector("[data-bot-row]:not([hidden])"); });
     app.querySelectorAll("[data-bot-section]").forEach((el) => { el.hidden = !el.querySelector("[data-bot-cmd]:not([hidden])"); });
     app.querySelectorAll("[data-bot-extra]").forEach((el) => { el.hidden = Boolean(q); });
+    app.querySelectorAll("[data-bot-part]").forEach((el) => { el.hidden = Boolean(q) && !el.querySelector("[data-bot-cmd]:not([hidden])"); });
     byId("botEmpty").hidden = shown > 0;
   });
   afterRender(options);
-  setupScrubber([{ id: "bot-glance", text: "At a glance", level: 2 }, ...BOT_SECTIONS.map((sec) => ({ id: `bot-${sec.id}`, text: sec.title, level: 2 })), { id: "bot-roles", text: "Role groups", level: 2 }, { id: "bot-trouble", text: "If something goes wrong", level: 2 }]);
+  setupScrubber(BOTS.flatMap((bot) => [{ id: `bot-${bot.id}-glance`, text: `${bot.name}: at a glance`, level: 2 }, ...bot.sections.map((sec) => ({ id: `bot-${sec.id}`, text: `${bot.name}: ${sec.title}`, level: 2 })), ...bot.closing.map((c) => ({ id: `bot-${c.id}`, text: `${bot.name}: ${c.title}`, level: 2 }))]));
 }
 
 /* ───────── Chapter scrubber ─────────
@@ -1982,7 +2018,7 @@ function searchItems() {
   const files = state.site.files.map((file) => ({ tag: (KIND[file.kind]?.short || "File").toUpperCase(), file, title: fileTitle(file), text: docCache.get(file.key)?.value?.text || "", href: fileHref(file), where: [KIND[file.kind]?.label, fileVault(file) && trail(fileVault(file))].filter(Boolean).join(" · "), ref: fileRefNo(file) }));
   const pathPicker = { tag: "PATHS", title: "Path Picker", text: "Which pathway, division and sphere suits you? Juggernaut Sorcerer Assassin Dark Honor Guard Inquisitors Reavers Dread Hosts Galactic Influence Courts and Appeals Education and Academics", href: "/paths", where: "Find your place in the Order", ref: "✠" };
   const guidePage = { tag: "GUIDE", title: "New Player Guide", text: "New here? How to rise: Minion Hopeful Initiate Adept Acolyte Apprentice Warrior Trial pathway Overseer Sith Lord Dark Council Emperor's Powerbase Sith Reputation", href: "/guide", where: "New to the Order? How to join and rise, step by step", ref: "✦" };
-  const botGuide = { tag: "BOT", title: "SR Bot Guide", text: `Discord bot commands SR Sith Reputation ${BOT_SECTIONS.flatMap((sec) => sec.commands.map((c) => `${c.name} ${c.does}`)).join(" ")}`, href: "/sr-bot", where: "Every SR Bot command, grouped by what it's for", ref: "/" };
+  const botGuide = { tag: "BOT", title: "Bot Guide", text: `Discord bots SR Bot KoolBot commands Sith Reputation ask ask_law ${BOTS.flatMap((bot) => bot.sections.flatMap((sec) => sec.commands.map((c) => `${c.name} ${c.does}`))).join(" ")}`, href: "/bot", where: "Every SR Bot and KoolBot command, grouped by what it's for", ref: "/" };
   return [...files, ...pages, guidePage, pathPicker, botGuide];
 }
 function openSearch(prefill) {

@@ -49,12 +49,15 @@ The ticks, their rank and their place are remembered in their browser. Each chap
 linked directly, for example `/guide#warrior`. Its wording is taken from the Order's Google Site
 pages and lives in the Guide block of `src/client/app.js`. Update it there when those pages change.
 
-The **SR Bot Guide** at `/sr-bot` (under Records in the rail, and in search) documents the
-Order's Discord bot. It covers every command grouped by what it's for: an at-a-glance table, a
-card per command with who can use it, where, its options and notes, then the role groups and
-troubleshooting. A filter narrows the commands as you type. It is written into the Bot guide
-block of `src/client/app.js` from the SR Bot User Guide (November 2026), without the
-Training of Knowledge commands, so update it there when the bot changes.
+The **Bot Guide** at `/bot` (under Records in the rail, and in search; `/sr-bot` still works)
+documents the Order's two Discord bots, each command grouped by what it's for. The **SR Bot**
+part covers trainings, Sith Reputation, boosts, apprentices and arrests. It has an at-a-glance
+table, a card per command (who, where, options, notes), the role groups and troubleshooting.
+It comes from the SR Bot User Guide (November 2026), without the Training of Knowledge commands.
+The **KoolBot** part comes from the KoolBot Command Guide (7 November 2026). It covers getting
+started, its commands with examples, the owner-only commands, and limits and troubleshooting.
+A filter narrows the commands across both bots as you type. The content lives in the Bot Guide
+block of `src/client/app.js`; update it there when a bot changes.
 
 Documents must be shared as **Anyone with the link can view** (or published to the web). A
 document that isn't is shown as a sealed record with a link to the original.

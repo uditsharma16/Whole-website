@@ -1817,15 +1817,23 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .bot-page .pp-lede code { color: var(--ink); }
 .bot-tools { display: grid; gap: .9rem; margin-top: .6rem; }
 .bot-tools .filter { max-width: 26rem; }
-.bot-jump { display: flex; flex-wrap: wrap; gap: .4rem; }
+.bot-jump { display: grid; gap: .5rem; }
+.bot-jump-row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.bot-jump-row b { min-width: 5.5rem; color: var(--red-light); font: 700 1rem var(--display); }
+.bot-part + .bot-part { margin-top: clamp(3rem, 7vw, 5rem); }
+.bot-part-title { display: grid; gap: .25rem; margin: clamp(2.4rem, 5vw, 3.4rem) 0 .8rem; padding: 1.1rem 1.3rem; border: 1px solid rgba(var(--red-rgb), .4); border-radius: 3px; background: linear-gradient(100deg, rgba(var(--red-rgb), .2), rgba(var(--red-rgb), .03)); scroll-margin-top: calc(var(--topbar-h) + 1.4rem); }
+.bot-part-title span { color: var(--ink); font: 700 clamp(2.2rem, 5vw, 3.4rem)/1 var(--display); }
+.bot-part-title small { color: var(--red-light); font: 400 .74rem var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.bot-example { margin: 0; } .bot-example code { white-space: normal; }
+.bot-start { margin-bottom: 1rem; }
 .bot-jump a { padding: .4rem .7rem; border: 1px solid var(--soft-line); border-radius: 3px; background: var(--glass); color: var(--muted); font: 400 .7rem var(--mono); letter-spacing: .08em; text-transform: uppercase; text-decoration: none; transition: border-color .2s ease, color .2s ease; }
 .bot-jump a:hover { border-color: var(--line); color: #fff; }
 .bot-h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: .7rem; margin: clamp(2.6rem, 6vw, 4rem) 0 1rem; padding-bottom: .6rem; border-bottom: 1px solid rgba(var(--red-rgb), .35); color: var(--ink); font: 700 clamp(1.8rem, 3.6vw, 2.6rem)/1.1 var(--display); scroll-margin-top: calc(var(--topbar-h) + 1.4rem); }
-.bot-h2 small, .bot-glance-group h3 small { color: var(--red-light); font: 400 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.bot-h2 small, .bot-glance-group h4 small { color: var(--red-light); font: 400 .72rem var(--mono); letter-spacing: .12em; text-transform: uppercase; }
 .bot-lead { max-width: 48rem; margin: 0 0 1.4rem; color: var(--muted); font-size: 1.08rem; }
 .bot-lead code { font-size: .82em; }
 .bot-glance { display: grid; gap: 1.6rem; }
-.bot-glance-group h3 { margin: 0 0 .5rem; color: var(--red-light); font: 700 1.25rem var(--display); }
+.bot-glance-group h4 { margin: 0 0 .5rem; color: var(--red-light); font: 700 1.25rem var(--display); }
 .bot-glance td:first-child a { text-decoration: none; }
 .bot-glance td:first-child a:hover code { background: rgba(var(--red-rgb), .3); }
 .bot-table-wrap { overflow-x: auto; margin: 0 0 1rem; border: 1px solid var(--soft-line); border-radius: 3px; }
@@ -1838,8 +1846,8 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .bot-cmd { display: grid; gap: .7rem; padding: 1.1rem 1.2rem 1rem; border: 1px solid var(--soft-line); border-left: 3px solid var(--red); border-radius: 3px; background: var(--panel); scroll-margin-top: calc(var(--topbar-h) + 1.4rem); }
 .bot-cmd:target { border-color: var(--red); box-shadow: 0 0 1.6rem rgba(var(--red-rgb), .25); }
 .bot-cmd header { display: grid; gap: .2rem; }
-.bot-cmd h3 { margin: 0; color: var(--ink); font: 700 1.3rem var(--display); }
-.bot-cmd h3 code { padding: 0; background: none; color: var(--red-light); font-size: 1.05rem; }
+.bot-cmd h4 { margin: 0; color: var(--ink); font: 700 1.3rem var(--display); }
+.bot-cmd h4 code { padding: 0; background: none; color: var(--red-light); font-size: 1.05rem; }
 .bot-cmd header p { margin: 0; color: var(--ink-2); }
 .bot-meta { display: flex; flex-wrap: wrap; gap: .4rem 2rem; margin: 0; padding: .5rem .8rem; border-left: 2px solid rgba(var(--red-rgb), .6); background: rgba(0,0,0,.25); }
 .bot-meta div { display: flex; gap: .6rem; align-items: baseline; }
@@ -1850,7 +1858,7 @@ body.quake :is(.stage, .rail, .topbar, .code-lines, .rite-stage) { animation: qu
 .bot-notes li::marker { color: var(--red); }
 .bot-after { margin: -.3rem 0 1.2rem; color: var(--muted); }
 .bot-extra { display: grid; gap: .6rem; margin-top: 1.4rem; padding: 1.1rem 1.2rem; border: 1px dashed var(--soft-line); border-radius: 3px; }
-.bot-extra h3 { margin: 0; color: var(--ink); font: 700 1.3rem var(--display); }
+.bot-extra h4 { margin: 0; color: var(--ink); font: 700 1.3rem var(--display); }
 .bot-extra p { margin: 0; }
 .bot-soon { padding: .7rem .9rem; border-left: 3px solid var(--gold); background: rgba(216,176,106,.08); color: var(--ink-2); }
 /* Phones: each row becomes a small block, its first cell as the heading and the rest labelled. */
